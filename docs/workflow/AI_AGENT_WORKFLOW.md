@@ -5,7 +5,7 @@ This repo supports parallel work by two AI agents:
 - Codex: implementation, repo-local edits, verification notes, small PRs.
 - Antigravity/Gemini: parallel implementation when assigned a separate area, architecture review, consistency review, edge-case audit.
 
-Default model: `main` is stable, real work happens on short-lived branches, and each agent works from its own local worktree.
+Default model: `main` is stable, real work happens on short-lived branches, and each agent works from its own local worktree. Do not create `integration` just because the workflow mentions it; create it only for real staged multi-agent or risky combined validation.
 
 ## Current Repo Facts
 
@@ -50,6 +50,8 @@ Use `integration` when any of these are true:
 - Two PRs are individually valid but need combined tuning.
 
 Skip `integration` for small isolated docs fixes, narrow script fixes, or one-agent changes with low conflict risk. In those cases use `task/*` or `fix/*` into `main`.
+
+Do not pre-create `integration` as a standing requirement. A missing `integration` branch is valid until a task actually needs combined staging.
 
 Create `integration` if needed:
 
@@ -162,7 +164,7 @@ Use review for normal development:
 
 ## Sync Points
 
-Before starting:
+Choose the real base branch before syncing. For `main`-based work:
 
 ```powershell
 git fetch origin --prune
@@ -170,26 +172,55 @@ git switch main
 git pull --ff-only origin main
 ```
 
-During work:
+For `integration`-based work, use this only after `integration` exists:
+
+```powershell
+git fetch origin --prune
+git switch integration
+git pull --ff-only origin integration
+```
+
+If only the remote branch exists locally, first run `git switch --track origin/integration`.
+
+During work, rebase against the branch your task branch was created from.
+
+If based on `main`:
 
 ```powershell
 git fetch origin --prune
 git rebase origin/main
 ```
 
-If using `integration`:
+If based on `integration`:
 
 ```powershell
 git fetch origin --prune
 git rebase origin/integration
 ```
 
-Before PR:
+The helper script uses the same rule:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/main
+powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/integration
+```
+
+Before PR, compare against the intended target branch.
+
+If targeting `main`:
 
 ```powershell
 git status --short
 git diff --stat origin/main...HEAD
 git log --oneline origin/main..HEAD
+```
+
+If targeting `integration`:
+
+```powershell
+git status --short
+git diff --stat origin/integration...HEAD
+git log --oneline origin/integration..HEAD
 ```
 
 ## PR Flow
@@ -216,6 +247,12 @@ PRs must include:
 - Reviewer request for Codex or Antigravity.
 
 Use [.github/pull_request_template.md](../../.github/pull_request_template.md).
+
+## Repo-Local Vs GitHub Manual Actions
+
+Repo-local helper scripts can create task branches, create local worktrees, sync a task branch, and validate workflow files. They do not configure GitHub branch protection, required reviews, status checks, merge queue, or remote branch deletion.
+
+Those external settings remain human/manual GitHub actions. See [HUMAN_ACTIONS_REQUIRED.md](HUMAN_ACTIONS_REQUIRED.md).
 
 ## Documentation-First Operation
 

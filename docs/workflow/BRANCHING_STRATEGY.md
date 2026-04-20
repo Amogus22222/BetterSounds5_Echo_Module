@@ -8,6 +8,8 @@
 
 `integration` is optional. Use it when multiple task branches need combined validation before `main`.
 
+Do not create `integration` for routine one-agent work or just to satisfy the workflow. It may be absent until the first task that actually needs staged combined validation.
+
 Create it only when needed:
 
 ```powershell
@@ -29,6 +31,8 @@ spike/<short-name>
 review/<short-name>
 docs/<short-name>
 ```
+
+`<short-name>` should be lowercase and may use letters, numbers, `.`, `_`, or `-`. This matches the repo-local helper scripts.
 
 Examples:
 
@@ -73,7 +77,7 @@ Use `integration` as base when:
 
 ## Branch Lifecycle
 
-Start:
+Start from `main`:
 
 ```powershell
 git fetch origin --prune
@@ -82,17 +86,35 @@ git pull --ff-only origin main
 git switch -c task/<short-name>
 ```
 
+Start from `integration` only when staged multi-agent work needs it:
+
+```powershell
+git fetch origin --prune
+git switch integration
+git pull --ff-only origin integration
+git switch -c task/<short-name>
+```
+
+If `integration` exists only on the remote, run `git switch --track origin/integration` before creating the task branch.
+
 Push:
 
 ```powershell
 git push -u origin HEAD
 ```
 
-Update:
+Update a `main`-based task branch:
 
 ```powershell
 git fetch origin --prune
 git rebase origin/main
+```
+
+Update an `integration`-based task branch:
+
+```powershell
+git fetch origin --prune
+git rebase origin/integration
 ```
 
 Open PR:
@@ -115,6 +137,8 @@ git pull --ff-only origin main
 git branch -d task/<short-name>
 git push origin --delete task/<short-name>
 ```
+
+Delete only the completed short-lived task branch. Do not delete `codex`, `antigravity`, or other legacy remote branches without an explicit human maintainer decision.
 
 ## Commit Rules
 

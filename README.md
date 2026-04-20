@@ -18,8 +18,10 @@ Start here:
 - [AI agent workflow](docs/workflow/AI_AGENT_WORKFLOW.md)
 - [Branching strategy](docs/workflow/BRANCHING_STRATEGY.md)
 - [Git worktree setup](docs/workflow/GIT_WORKTREE_SETUP.md)
+- [Repo sync validation](docs/workflow/REPO_SYNC_VALIDATION.md)
 - [Agent task checklist](docs/checklists/AGENT_TASK_CHECKLIST.md)
 - [PR review checklist](docs/checklists/PR_REVIEW_CHECKLIST.md)
 - [Manual GitHub actions required](docs/workflow/HUMAN_ACTIONS_REQUIRED.md)
+- [Post-fix audit](docs/workflow/POST_FIX_AUDIT.md)
 
 Repo-local agent instructions live in [.codex/AGENTS.md](.codex/AGENTS.md).

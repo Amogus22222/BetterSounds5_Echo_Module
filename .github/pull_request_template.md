@@ -6,6 +6,7 @@
 
 - Base branch: `main` | `integration`
 - Work branch: `task/<short-name>` | `fix/<short-name>` | `spike/<short-name>` | `review/<short-name>` | `docs/<short-name>`
+- Sync upstream used: `origin/main` | `origin/integration`
 - Owner: Codex | Antigravity | Human
 - File ownership zone:
 
@@ -34,3 +35,11 @@
 # Notes
 
 - 
+
+# Manual GitHub Actions Needed
+
+- [ ] None
+- [ ] Branch protection/settings change
+- [ ] Required review/status-check setting
+- [ ] Merge queue decision
+- [ ] Remote branch cleanup

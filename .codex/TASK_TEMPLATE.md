@@ -14,7 +14,11 @@ main | integration
 
 ## Task Branch
 
-task/<short-name>
+task/<short-name> | fix/<short-name> | spike/<short-name> | review/<short-name> | docs/<short-name>
+
+## Sync Upstream
+
+origin/main | origin/integration
 
 ## Worktree
 

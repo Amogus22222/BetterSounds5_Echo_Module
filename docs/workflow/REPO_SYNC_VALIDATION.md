@@ -13,6 +13,7 @@ These files must exist:
 - `docs/workflow/REPO_SYNC_VALIDATION.md`
 - `docs/workflow/HUMAN_ACTIONS_REQUIRED.md`
 - `docs/workflow/FINAL_AUDIT_REPORT.md`
+- `docs/workflow/POST_FIX_AUDIT.md`
 - `docs/checklists/AGENT_TASK_CHECKLIST.md`
 - `docs/checklists/PR_REVIEW_CHECKLIST.md`
 - `docs/agents/CODEX_ROLE.md`
@@ -31,8 +32,10 @@ These files must exist:
 
 - [ ] `main` is documented as stable branch.
 - [ ] `integration` is documented as optional staging branch.
+- [ ] Docs say `integration` is created only when a real staged-validation need exists.
 - [ ] `task/*`, `fix/*`, `spike/*`, `review/*`, and `docs/*` are documented as short-lived branches.
 - [ ] `codex` and `antigravity` are not documented as primary development lanes.
+- [ ] `integration`-based task branches sync and diff against `origin/integration`.
 - [ ] Worktree examples use `task/*` branches.
 - [ ] PR flow is documented as `task/* -> main` or `task/* -> integration -> main`.
 
@@ -42,6 +45,9 @@ These files must exist:
 - [ ] Codex worktree path example ends with `-codex`.
 - [ ] Antigravity worktree path example ends with `-antigravity`.
 - [ ] Cleanup commands include `git worktree remove` and `git worktree prune`.
+- [ ] Cleanup docs say `git worktree remove` requires a clean target worktree.
+- [ ] Dirty worktree cleanup requires an explicit preservation/discard decision.
+- [ ] Troubleshooting includes `git worktree prune` and `git worktree repair`.
 
 ## Human-Only Settings
 
@@ -50,6 +56,7 @@ These files must exist:
 - [ ] Required status checks are listed as external GitHub settings.
 - [ ] Merge queue/linear history are documented as manual decisions.
 - [ ] Docs do not claim GitHub settings are already configured.
+- [ ] Docs distinguish repo-local automation from manual GitHub actions.
 
 ## Validation Commands
 

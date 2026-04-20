@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Upstream = 'origin/main',
+    [string]$Remote = 'origin',
 
     [ValidateSet('rebase', 'merge')]
     [string]$Mode = 'rebase'
@@ -28,7 +29,7 @@ if ($dirty) {
     throw "Working tree is dirty. Commit or stash before syncing.`n$dirty"
 }
 
-Invoke-Git fetch origin --prune
+Invoke-Git fetch $Remote --prune
 
 if ($Mode -eq 'rebase') {
     Invoke-Git rebase $Upstream

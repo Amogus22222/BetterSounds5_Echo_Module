@@ -72,16 +72,17 @@ git diff --check
 
 ## Pre-PR
 
-- [ ] Rebase or merge latest base:
+- [ ] Rebase or merge latest actual base. If the task branch was created from `main`, use:
 
 ```powershell
 git fetch origin --prune
 git rebase origin/main
 ```
 
-or:
+- [ ] If the task branch was created from `integration`, use:
 
 ```powershell
+git fetch origin --prune
 git rebase origin/integration
 ```
 
@@ -90,6 +91,13 @@ git rebase origin/integration
 ```powershell
 git status --short
 git diff --name-only origin/main...HEAD
+```
+
+- [ ] If targeting `integration`, compare against `origin/integration` instead:
+
+```powershell
+git status --short
+git diff --name-only origin/integration...HEAD
 ```
 
 - [ ] Fill PR template.
@@ -108,6 +116,14 @@ git pull --ff-only origin main
 ```
 
 - [ ] Remove merged task worktree:
+
+First confirm the target worktree is clean:
+
+```powershell
+git -C ../BetterSounds5_Echo_Module-codex status --short
+```
+
+If it is dirty, preserve or intentionally discard the work before cleanup.
 
 ```powershell
 git worktree remove ../BetterSounds5_Echo_Module-codex

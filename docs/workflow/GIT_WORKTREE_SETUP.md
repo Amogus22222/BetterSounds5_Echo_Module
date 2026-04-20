@@ -37,9 +37,20 @@ git worktree add ../BetterSounds5_Echo_Module-antigravity -b task/ag-prefab-audi
 
 ## Use Helper Script
 
+The helper creates local worktrees and task branches only. It does not create the remote/staging `integration` branch; create `integration` first only when staged multi-agent work actually needs it.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/workflow/Setup-AgentWorktrees.ps1 `
   -Base main `
+  -CodexBranch task/codex-audio-cache `
+  -AntigravityBranch task/ag-prefab-audit
+```
+
+If `integration` already exists locally or at `origin/integration`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/workflow/Setup-AgentWorktrees.ps1 `
+  -Base integration `
   -CodexBranch task/codex-audio-cache `
   -AntigravityBranch task/ag-prefab-audit
 ```
@@ -73,6 +84,12 @@ Helper:
 powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/main
 ```
 
+If based on `integration`, pass the integration upstream explicitly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/integration
+```
+
 ## Push Task Branch
 
 From inside task worktree:
@@ -95,7 +112,15 @@ task/<short-name> -> integration
 
 ## Cleanup After Merge
 
-From control checkout:
+`git worktree remove` works only when the target worktree is clean. Check inside the task worktree first:
+
+```powershell
+git -C ../BetterSounds5_Echo_Module-codex status --short
+```
+
+If it prints changes, do not remove the worktree silently. Commit the work, stash it with a clear message, move it to a new task branch, or ask the human maintainer what to preserve.
+
+When the task worktree is clean and the PR is merged, run from the control checkout:
 
 ```powershell
 git fetch origin --prune
@@ -121,15 +146,24 @@ git worktree prune
 git worktree list
 ```
 
-If branch is locked by a stale worktree:
+If a worktree folder was moved rather than deleted, repair Git's worktree links from the control checkout:
+
+```powershell
+git worktree repair ../BetterSounds5_Echo_Module-codex
+git worktree list
+```
+
+If Git says a branch is already checked out in a worktree, inspect first:
 
 ```powershell
 git worktree list --porcelain
-git worktree remove --force ../BetterSounds5_Echo_Module-codex
-git worktree prune
 ```
 
-Use `--force` only when the target folder is already gone or all changes were saved.
+If the listed path no longer exists, run `git worktree prune`. If the listed path exists, check `git -C <path> status --short` and preserve any work before cleanup.
+
+If a worktree was intentionally locked with `git worktree lock`, use `git worktree unlock <path>` only after confirming the lock reason is obsolete.
+
+Use `git worktree remove --force <path>` only after confirming the target worktree has no work that needs to be kept, or after the work was intentionally saved elsewhere.
 
 ## Dirty Worktree Rule
 

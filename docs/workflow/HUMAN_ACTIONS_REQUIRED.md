@@ -2,6 +2,8 @@
 
 These settings cannot be guaranteed by repo-local file changes alone. Configure them in GitHub repository settings if wanted.
 
+Repo-local helper scripts can prepare branches, worktrees, and documentation checks. They cannot enable or verify GitHub branch protection, required reviews, status checks, merge queue, or remote branch deletion.
+
 Repository:
 
 ```text

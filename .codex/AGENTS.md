@@ -6,6 +6,7 @@ This repo uses documentation-first parallel AI-agent workflow.
 
 - `main` is stable.
 - `integration` is optional staging for multi-agent or risky combined work.
+- Do not create `integration` unless a real task needs combined staging before `main`.
 - Use one short-lived branch per task:
   - `task/<short-name>`
   - `fix/<short-name>`
@@ -19,6 +20,7 @@ This repo uses documentation-first parallel AI-agent workflow.
 - Document verification steps.
 - Summarize touched files and risks.
 - If external GitHub settings cannot be enforced from repo, document them instead of claiming they are done.
+- If a task branch is based on `integration`, sync, diff, and review it against `origin/integration`, not `origin/main`.
 
 ## Before Editing
 
@@ -42,6 +44,7 @@ State:
 - Current branch.
 - Dirty files.
 - Planned branch/base.
+- Planned sync upstream: `origin/main` or `origin/integration`.
 - File ownership zone.
 - Verification plan.
 

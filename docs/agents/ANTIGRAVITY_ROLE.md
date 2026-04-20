@@ -12,7 +12,7 @@ Antigravity/Gemini is the parallel implementation and review agent.
 
 ## Branch Rules
 
-Use task branches:
+Use task branches from `main` for isolated work:
 
 ```powershell
 git fetch origin --prune
@@ -21,7 +21,7 @@ git pull --ff-only origin main
 git switch -c task/ag-<short-name>
 ```
 
-If using `integration`:
+If using `integration`, do this only after `integration` exists for staged multi-agent work:
 
 ```powershell
 git fetch origin --prune
@@ -29,6 +29,10 @@ git switch integration
 git pull --ff-only origin integration
 git switch -c task/ag-<short-name>
 ```
+
+If only `origin/integration` exists locally, run `git switch --track origin/integration` first.
+
+Keep the task branch synced with its actual base. Use `origin/main` for `main`-based work and `origin/integration` for `integration`-based work.
 
 Do not use `antigravity` as a normal development branch.
 

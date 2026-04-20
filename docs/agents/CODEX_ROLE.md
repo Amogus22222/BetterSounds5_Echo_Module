@@ -15,7 +15,7 @@ Codex is the primary repo-local implementation agent.
 
 ## Branch Rules
 
-Start from `main` unless task owner chooses `integration`:
+Start from `main` unless task owner chooses an existing `integration` branch for staged combined validation:
 
 ```powershell
 git fetch origin --prune
@@ -28,6 +28,13 @@ Use helper:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/workflow/Start-TaskBranch.ps1 -Type task -Name <short-name> -Base main
+```
+
+For an `integration`-based task, use `-Base integration` and sync with `origin/integration`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/workflow/Start-TaskBranch.ps1 -Type task -Name <short-name> -Base integration
+powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/integration
 ```
 
 Allowed branches:
@@ -62,6 +69,8 @@ git status --short
 git diff --stat
 git diff --check
 ```
+
+Compare against the actual PR target: `origin/main` for direct work, or `origin/integration` for staged multi-agent work.
 
 PR must include:
 

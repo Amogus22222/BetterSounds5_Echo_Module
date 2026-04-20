@@ -6,6 +6,8 @@ Repository: `G:/GitNew/BetterSounds5_Echo_Module`
 
 Remote: `https://github.com/Amogus22222/BetterSounds5_Echo_Module.git`
 
+Follow-up corrections after this report are tracked in [POST_FIX_AUDIT.md](POST_FIX_AUDIT.md).
+
 ## Audit Summary
 
 This repo is a small Arma Reforger mod project with game scripts, prefabs, configs, audio assets, and Workbench-related helper files.
@@ -20,12 +22,13 @@ Top-level project areas found:
 - `Sounds/` - audio project files, signals, and metadata.
 - Root markdown files - product plans, technical specs, and Workbench crash notes.
 
-Git state during audit:
+Git state during the original workflow setup audit:
 
 - Current branch: `main`.
 - Working tree before edits: clean.
 - Remote branches after fetch: `main`, `codex`, `antigravity`.
-- `main`, `codex`, and `antigravity` all pointed to commit `5d46be9`.
+- At the beginning of that setup, `main`, `codex`, and `antigravity` pointed to commit `5d46be9`.
+- After the workflow setup commit, `main` may be ahead of legacy `codex` and `antigravity`; check current state with `git branch --all --verbose --no-abbrev`.
 - Only one worktree existed: `G:/GitNew/BetterSounds5_Echo_Module`.
 - No `.github/` directory existed.
 - No repo-local `.codex/` instructions existed.
@@ -165,19 +168,35 @@ git fetch origin --prune
 git rebase origin/main
 ```
 
+If the task branch was based on `integration`, sync against `origin/integration` instead:
+
+```powershell
+git fetch origin --prune
+git rebase origin/integration
+```
+
 or:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/main
 ```
 
+For `integration`-based work:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/workflow/Sync-TaskBranch.ps1 -Upstream origin/integration
+```
+
 Clean up merged worktree:
 
 ```powershell
+git -C ../BetterSounds5_Echo_Module-codex status --short
 git worktree remove ../BetterSounds5_Echo_Module-codex
 git branch -d task/codex-audio-cache
 git worktree prune
 ```
+
+Remove a worktree only after confirming the target worktree is clean or after intentionally preserving/discarding its changes.
 
 Typical PR lifecycle:
 
@@ -235,6 +254,6 @@ Workbench validation was not run because this task only changed docs, PR templat
 
 1. Human maintainer reviews and commits this workflow setup.
 2. Configure GitHub branch protection for `main`.
-3. Decide whether `integration` should be created now or only on first multi-agent task.
+3. Keep `integration` absent until the first real multi-agent/risky staged-validation task needs it, unless a human intentionally creates it earlier.
 4. Create separate worktrees for Codex and Antigravity before next parallel task.
 5. Add CI only after there is a reliable command worth enforcing.
