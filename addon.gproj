@@ -1,0 +1,8 @@
+GameProject {
+ ID "BetterSounds5"
+ GUID "6717325A0F4513E2"
+ TITLE "BetterSounds5"
+ Dependencies {
+  "58D0FB3206B6F859"
+ }
+}

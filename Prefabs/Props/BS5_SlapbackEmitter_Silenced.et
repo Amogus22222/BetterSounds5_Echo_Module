@@ -1,0 +1,14 @@
+GenericEntity {
+ ID "D07C4B82E65C4F31"
+ components {
+  SignalsManagerComponent "{D07C4B82E65C4F32}" {
+  }
+  SoundComponent "{D07C4B82E65C4F33}" {
+   Filenames {
+    "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"
+   }
+  }
+  BS5_SpatialSoundEmitterComponent "{D07C4B82E65C4F34}" {
+  }
+ }
+}

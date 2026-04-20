@@ -1,0 +1,14 @@
+GenericEntity {
+ ID "E4C82E19A7D46B31"
+ components {
+  SignalsManagerComponent "{E7B19A3F508D24C6}" {
+  }
+  SoundComponent "{8F16A3C4D729B05E}" {
+   Filenames {
+    "{F6788D70EAFBDFE1}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Trench_Master.acp"
+   }
+  }
+  BS5_SpatialSoundEmitterComponent "{42A765D0E19B43FC}" {
+  }
+ }
+}

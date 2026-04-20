@@ -1,0 +1,23 @@
+GenericEntity : "{E1F14DB52DBFBC57}Prefabs/Weapons/Core/Weapon_Base.et" {
+ ID "CFBAA4B725411E45"
+ components {
+  BS5_EchoDriverComponent "{692681A021648F3D}" {
+   m_sMasterAcp "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp"
+   m_sMasterEmitterPrefab "{4CB3F211A7DF906E}Prefabs/Props/BS5_TailEmitter_MG.et"
+   m_iLimiterBurstCadenceNormal 6
+   m_iLimiterBurstCadenceHighPressure 9
+   m_iLimiterBurstTailEmittersPerShot 1
+   m_iLimiterHighPressureTailEmittersPerShot 1
+   m_iLimiterMaxTailVoicesPerOwner 3
+   m_iLimiterMaxTailStartsPer100Ms 3
+   m_fTailEmitterHighPressureLifetimeSeconds 1.0
+   m_fTailEmitterMinManagedLifetimeSeconds 0.4
+  }
+  BS5_WeaponEchoRplCharacterComponent "{692681A026ACA6B2}" {
+   m_DefaultEchoAcp "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp"
+  }
+  BS5_WeaponEchoSettingsComponent "{692681A029041226}" {
+   m_EchoProject "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp"
+  }
+ }
+}
