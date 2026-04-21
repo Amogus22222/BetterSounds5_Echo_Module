@@ -1622,6 +1622,7 @@ class BS5_EchoEmissionService
 	protected static ref array<ref Resource> s_aEmitterResources;
 	protected static ref array<ResourceName> s_aInvalidEmitterResourceNames;
 	protected static ref array<ref BS5_ActiveEchoVoice> s_aActiveVoices;
+	protected static ref array<ref BS5_PendingEmissionContext> s_aPendingEmissionContexts;
 	protected static ref array<ref BS5_PendingEmissionContext> s_aReservedPlaybackVoices;
 	protected static int s_iPendingTailVoices;
 	protected static int s_iPendingSlapbackVoices;
@@ -1629,12 +1630,129 @@ class BS5_EchoEmissionService
 	protected static int s_iTailStartsInGate;
 	protected static int s_iSlapbackStartsInGate;
 	protected static bool s_bStartGateResetQueued;
+	protected static BaseWorld s_pLimiterWorld;
 	protected static const int START_GATE_WINDOW_MS = 100;
 	protected static const int START_GATE_DEFER_MS = 50;
 	protected static const int INVALID_EMITTER_RESOURCE_CACHE_LIMIT = 32;
 
+	protected static void ScrubLimiterContext(BS5_PendingEmissionContext context, bool cancel = false)
+	{
+		if (!context)
+			return;
+
+		if (cancel)
+			context.m_bCancelled = true;
+		context.m_bLimiterPendingReserved = false;
+		context.m_bLimiterPlaybackReserved = false;
+		context.m_bLimiterActiveRegistered = false;
+		context.m_bDriverBudgetAcquired = false;
+	}
+
+	protected static void ResetLimiterState()
+	{
+		if (s_aPendingEmissionContexts)
+		{
+			for (int pendingIndex = 0; pendingIndex < s_aPendingEmissionContexts.Count(); pendingIndex++)
+				ScrubLimiterContext(s_aPendingEmissionContexts[pendingIndex], true);
+		}
+
+		if (s_aReservedPlaybackVoices)
+		{
+			for (int reservedIndex = 0; reservedIndex < s_aReservedPlaybackVoices.Count(); reservedIndex++)
+				ScrubLimiterContext(s_aReservedPlaybackVoices[reservedIndex], true);
+		}
+
+		if (s_aActiveVoices)
+		{
+			for (int activeIndex = 0; activeIndex < s_aActiveVoices.Count(); activeIndex++)
+			{
+				BS5_ActiveEchoVoice voice = s_aActiveVoices[activeIndex];
+				if (voice)
+					ScrubLimiterContext(voice.m_Context, true);
+			}
+		}
+
+		s_iPendingTailVoices = 0;
+		s_iPendingSlapbackVoices = 0;
+		s_iTailStartsInGate = 0;
+		s_iSlapbackStartsInGate = 0;
+		s_bStartGateResetQueued = false;
+		s_aPendingEmissionContexts = new array<ref BS5_PendingEmissionContext>();
+		s_aReservedPlaybackVoices = new array<ref BS5_PendingEmissionContext>();
+		s_aActiveVoices = new array<ref BS5_ActiveEchoVoice>();
+	}
+
+	protected static void EnsureLimiterWorldState()
+	{
+		Game game = GetGame();
+		BaseWorld currentWorld = null;
+		if (game)
+			currentWorld = game.GetWorld();
+
+		if (currentWorld == s_pLimiterWorld)
+			return;
+
+		ResetLimiterState();
+		s_pLimiterWorld = currentWorld;
+	}
+
+	protected static bool ContextMatchesOwner(BS5_PendingEmissionContext context, IEntity owner, EntityID ownerId)
+	{
+		if (!context || !owner)
+			return false;
+
+		if (context.m_pOwner == owner)
+			return true;
+
+		return context.m_bOwnerIdValid && context.m_OwnerId == ownerId;
+	}
+
+	static void CancelOwnerContexts(IEntity owner)
+	{
+		if (!owner)
+			return;
+
+		EnsureActiveVoicePool();
+		EntityID ownerId = owner.GetID();
+
+		for (int pendingIndex = s_aPendingEmissionContexts.Count() - 1; pendingIndex >= 0; pendingIndex--)
+		{
+			BS5_PendingEmissionContext pendingContext = s_aPendingEmissionContexts[pendingIndex];
+			if (!ContextMatchesOwner(pendingContext, owner, ownerId))
+				continue;
+
+			pendingContext.m_bCancelled = true;
+			ReleasePendingVoice(pendingContext);
+			ReleasePlaybackVoice(pendingContext);
+			ReleaseDriverEmitterBudget(pendingContext);
+		}
+
+		for (int reservedIndex = s_aReservedPlaybackVoices.Count() - 1; reservedIndex >= 0; reservedIndex--)
+		{
+			BS5_PendingEmissionContext reservedContext = s_aReservedPlaybackVoices[reservedIndex];
+			if (!ContextMatchesOwner(reservedContext, owner, ownerId))
+				continue;
+
+			reservedContext.m_bCancelled = true;
+			ReleasePendingVoice(reservedContext);
+			ReleasePlaybackVoice(reservedContext);
+			ReleaseDriverEmitterBudget(reservedContext);
+		}
+
+		for (int activeIndex = s_aActiveVoices.Count() - 1; activeIndex >= 0; activeIndex--)
+		{
+			BS5_ActiveEchoVoice activeVoice = s_aActiveVoices[activeIndex];
+			if (!activeVoice || !ContextMatchesOwner(activeVoice.m_Context, owner, ownerId))
+				continue;
+
+			activeVoice.m_Context.m_bCancelled = true;
+			ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+		}
+	}
+
 	protected static IEntity ResolveContextOwner(BS5_PendingEmissionContext context)
 	{
+		EnsureLimiterWorldState();
 		if (!context)
 			return null;
 		if (!context.m_bOwnerIdValid)
@@ -1649,6 +1767,107 @@ class BS5_EchoEmissionService
 			return null;
 
 		return world.FindEntityByID(context.m_OwnerId);
+	}
+
+	protected static IEntity ResolveContextOwnerInCurrentWorld(BS5_PendingEmissionContext context)
+	{
+		if (!context)
+			return null;
+		if (!context.m_bOwnerIdValid)
+			return context.m_pOwner;
+		if (!s_pLimiterWorld)
+			return null;
+
+		return s_pLimiterWorld.FindEntityByID(context.m_OwnerId);
+	}
+
+	protected static void PruneOrphanedLimiterContexts()
+	{
+		if (s_aPendingEmissionContexts)
+		{
+			for (int pendingIndex = s_aPendingEmissionContexts.Count() - 1; pendingIndex >= 0; pendingIndex--)
+			{
+				BS5_PendingEmissionContext pendingContext = s_aPendingEmissionContexts[pendingIndex];
+				if (!pendingContext)
+				{
+					s_aPendingEmissionContexts.Remove(pendingIndex);
+					continue;
+				}
+
+				if (pendingContext.m_bCancelled || pendingContext.m_bEmitterCleanupDone)
+				{
+					ReleasePendingVoice(pendingContext);
+					ReleasePlaybackVoice(pendingContext);
+					continue;
+				}
+
+				if (pendingContext.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(pendingContext))
+				{
+					pendingContext.m_bCancelled = true;
+					ReleasePendingVoice(pendingContext);
+					ReleasePlaybackVoice(pendingContext);
+					ReleaseDriverEmitterBudget(pendingContext);
+				}
+			}
+		}
+
+		if (s_aReservedPlaybackVoices)
+		{
+			for (int reservedIndex = s_aReservedPlaybackVoices.Count() - 1; reservedIndex >= 0; reservedIndex--)
+			{
+				BS5_PendingEmissionContext reservedContext = s_aReservedPlaybackVoices[reservedIndex];
+				if (!reservedContext)
+				{
+					s_aReservedPlaybackVoices.Remove(reservedIndex);
+					continue;
+				}
+
+				if (reservedContext.m_bCancelled || reservedContext.m_bEmitterCleanupDone)
+				{
+					ReleasePlaybackVoice(reservedContext);
+					continue;
+				}
+
+				if (reservedContext.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(reservedContext))
+				{
+					reservedContext.m_bCancelled = true;
+					ReleasePendingVoice(reservedContext);
+					ReleasePlaybackVoice(reservedContext);
+					ReleaseDriverEmitterBudget(reservedContext);
+				}
+			}
+		}
+
+		if (s_aActiveVoices)
+		{
+			for (int activeIndex = s_aActiveVoices.Count() - 1; activeIndex >= 0; activeIndex--)
+			{
+				BS5_ActiveEchoVoice activeVoice = s_aActiveVoices[activeIndex];
+				if (!activeVoice)
+				{
+					s_aActiveVoices.Remove(activeIndex);
+					continue;
+				}
+
+				if (!activeVoice.m_Context)
+				{
+					s_aActiveVoices.Remove(activeIndex);
+					continue;
+				}
+
+				if (activeVoice.m_Context.m_bCancelled || activeVoice.m_Context.m_bEmitterCleanupDone)
+				{
+					ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+					continue;
+				}
+
+				if (activeVoice.m_Context.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(activeVoice.m_Context))
+				{
+					activeVoice.m_Context.m_bCancelled = true;
+					ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+				}
+			}
+		}
 	}
 
 	static void Emit(BS5_EchoDriverComponent settings, IEntity owner, BS5_EchoAnalysisResult result, bool explosionLike, bool emitTails)
@@ -1903,7 +2122,7 @@ class BS5_EchoEmissionService
 	static void EmitPending(BS5_PendingEmissionContext context)
 	{
 		ReleasePendingVoice(context);
-		if (!context || context.m_bEmitterCleanupDone)
+		if (!context || context.m_bEmitterCleanupDone || context.m_bCancelled)
 			return;
 		IEntity owner = ResolveContextOwner(context);
 		if (!owner)
@@ -1972,7 +2191,7 @@ class BS5_EchoEmissionService
 
 	static void EmitOnEmitter(BS5_PendingEmissionContext context, IEntity emitterEntity)
 	{
-		if (!context || !emitterEntity || context.m_bEmitterCleanupDone)
+		if (!context || !emitterEntity || context.m_bEmitterCleanupDone || context.m_bCancelled)
 			return;
 
 		IEntity owner = ResolveContextOwner(context);
@@ -2072,6 +2291,7 @@ class BS5_EchoEmissionService
 
 			s_iPendingSlapbackVoices += voiceWeight;
 			context.m_bLimiterPendingReserved = true;
+			s_aPendingEmissionContexts.Insert(context);
 			return true;
 		}
 
@@ -2090,6 +2310,7 @@ class BS5_EchoEmissionService
 
 		s_iPendingTailVoices += voiceWeight;
 		context.m_bLimiterPendingReserved = true;
+		s_aPendingEmissionContexts.Insert(context);
 		return true;
 	}
 
@@ -2109,6 +2330,16 @@ class BS5_EchoEmissionService
 			s_iPendingTailVoices -= GetContextVoiceWeight(context);
 			if (s_iPendingTailVoices < 0)
 				s_iPendingTailVoices = 0;
+		}
+
+		if (s_aPendingEmissionContexts)
+		{
+			for (int i = s_aPendingEmissionContexts.Count() - 1; i >= 0; i--)
+			{
+				BS5_PendingEmissionContext pending = s_aPendingEmissionContexts[i];
+				if (!pending || pending == context)
+					s_aPendingEmissionContexts.Remove(i);
+			}
 		}
 
 		context.m_bLimiterPendingReserved = false;
@@ -2759,7 +2990,7 @@ class BS5_EchoEmissionService
 
 	protected static bool IsActiveVoiceValid(BS5_ActiveEchoVoice voice)
 	{
-		if (!voice || !voice.m_Context || voice.m_Context.m_bEmitterCleanupDone || voice.m_Context.m_bPlaybackTerminated)
+		if (!voice || !voice.m_Context || voice.m_Context.m_bEmitterCleanupDone || voice.m_Context.m_bPlaybackTerminated || voice.m_Context.m_bCancelled)
 			return false;
 
 		if (voice.m_Context.m_hPlayback != -1 && !AudioSystem.IsSoundPlayed(voice.m_Context.m_hPlayback))
@@ -2841,10 +3072,14 @@ class BS5_EchoEmissionService
 
 	protected static void EnsureActiveVoicePool()
 	{
+		EnsureLimiterWorldState();
 		if (!s_aActiveVoices)
 			s_aActiveVoices = new array<ref BS5_ActiveEchoVoice>();
+		if (!s_aPendingEmissionContexts)
+			s_aPendingEmissionContexts = new array<ref BS5_PendingEmissionContext>();
 		if (!s_aReservedPlaybackVoices)
 			s_aReservedPlaybackVoices = new array<ref BS5_PendingEmissionContext>();
+		PruneOrphanedLimiterContexts();
 	}
 
 	protected static IEntity SpawnEmitterEntity(BS5_PendingEmissionContext context, bool debugEnabled)

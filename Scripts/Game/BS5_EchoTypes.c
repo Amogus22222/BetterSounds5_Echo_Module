@@ -310,6 +310,7 @@ class BS5_PendingEmissionContext
 	bool m_bLimiterActiveRegistered;
 	bool m_bDriverBudgetAcquired;
 	bool m_bEmitterCleanupDone;
+	bool m_bCancelled;
 	int m_iLimiterTicket;
 	float m_fLimiterPriority;
 	ref BS5_EchoAnalysisResult m_Result;
@@ -351,6 +352,7 @@ class BS5_PendingEmissionContext
 		m_bLimiterActiveRegistered = false;
 		m_bDriverBudgetAcquired = false;
 		m_bEmitterCleanupDone = false;
+		m_bCancelled = false;
 		m_iLimiterTicket = 0;
 		m_fLimiterPriority = 0.0;
 	}

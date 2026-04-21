@@ -523,6 +523,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	override void OnDelete(IEntity owner)
 	{
+		BS5_EchoEmissionService.CancelOwnerContexts(owner);
+
 		ScriptCallQueue callQueue = null;
 		if (GetGame())
 			callQueue = GetGame().GetCallqueue();
