@@ -6,6 +6,7 @@ vector g_BS5ForwardFacadeQueryViewFlat = "0 0 1";
 const int BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT = 24;
 const int BS5_FORWARD_FACADE_CONFIRM_ENTITY_LIMIT = 8;
 int g_BS5ForwardFacadeQueryEntityLimit = BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT;
+bool g_BS5ForwardFacadeQueryActive;
 ref array<string> g_BS5BuildingPrefabHints = {
 	"house", "building", "residential", "civilian", "village", "town", "apartment", "garage", "barn", "farm", "church", "school", "hospital", "shop", "store", "industrial", "warehouse", "factory", "office", "hangar", "depot", "ruin", "shed"
 };
@@ -137,7 +138,7 @@ class BS5_EnvironmentAudioClassifier
 		if (!signalsManager)
 			return 0.0;
 
-		int signalIndex = signalsManager.AddOrFindSignal(signalName, 0.0);
+		int signalIndex = signalsManager.FindSignal(signalName);
 		if (signalIndex < 0)
 			return 0.0;
 
@@ -523,6 +524,11 @@ class BS5_HybridTailPlanner
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
 			return;
+		if (g_BS5ForwardFacadeQueryActive)
+		{
+			BS5_DebugLog.Line(settings, "forward facade query reentry drop");
+			return;
+		}
 
 		g_BS5ForwardFacadeQueryEntities.Clear();
 		g_BS5ForwardFacadeQueryScores.Clear();
@@ -532,8 +538,12 @@ class BS5_HybridTailPlanner
 		g_BS5ForwardFacadeQueryEntityLimit = BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT;
 		if (urbanMicroPass)
 			g_BS5ForwardFacadeQueryEntityLimit = settings.GetSoundMapUrbanMicroMaxEntities();
+		g_BS5ForwardFacadeQueryActive = true;
 		if (g_BS5ForwardFacadeQueryEntityLimit <= 0)
+		{
+			g_BS5ForwardFacadeQueryActive = false;
 			return;
+		}
 
 		float settlementMaxDistance = settings.GetSettlementMaxDistanceMeters();
 		if (urbanMicroPass)
@@ -842,10 +852,13 @@ class BS5_HybridTailPlanner
 			MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
 		}
 		confirmTopPrefabs = BuildForwardFacadePrefabDebugString(confirmEntities, 4);
+		g_BS5ForwardFacadeQueryActive = false;
 	}
 
 	protected static bool CollectForwardFacadeEntityCallback(IEntity entity)
 	{
+		if (!g_BS5ForwardFacadeQueryActive)
+			return false;
 		if (!entity)
 			return true;
 

@@ -1,5 +1,6 @@
 ref array<IEntity> g_BS5SlapbackQueryEntities = new array<IEntity>();
 IEntity g_BS5SlapbackQueryExcludeRoot;
+bool g_BS5SlapbackQueryActive;
 const int BS5_SLAPBACK_QUERY_ENTITY_LIMIT = 18;
 ref array<string> g_BS5SlapbackHardPrefabHints = {
 	"house", "building", "residential", "civilian", "village", "town", "apartment", "garage", "barn", "farm", "church", "school", "hospital", "shop", "store", "industrial", "warehouse", "factory", "office", "hangar", "depot", "ruin", "shed",
@@ -829,22 +830,25 @@ class BS5_EchoEnvironmentAnalyzer
 				result.m_sSlapbackMode = "none";
 		}
 
-		string debugSlapMode = "none";
-		if (result)
-			debugSlapMode = result.m_sSlapbackMode;
-		string slapCollectLog = "slapback collect";
-		slapCollectLog += " mode=" + debugSlapMode;
-		slapCollectLog += " candidates=" + candidates.Count();
-		slapCollectLog += " rays=" + directions.Count();
-		slapCollectLog += " hits=" + hitCount;
-		slapCollectLog += " entityHits=" + entityHitCount;
-		BS5_DebugLog.Line(settings, slapCollectLog);
-		string slapScoreLog = "slapback score";
-		slapScoreLog += " bestWall=" + bestWallScore;
-		slapScoreLog += " trenchScore=" + trenchScore;
-		slapScoreLog += " trenchAccepted=" + BS5_DebugLog.BoolText(trenchAccepted);
-		slapScoreLog += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
-		BS5_DebugLog.Line(settings, slapScoreLog);
+		if (settings && settings.IsDebugEnabled())
+		{
+			string debugSlapMode = "none";
+			if (result)
+				debugSlapMode = result.m_sSlapbackMode;
+			string slapCollectLog = "slapback collect";
+			slapCollectLog += " mode=" + debugSlapMode;
+			slapCollectLog += " candidates=" + candidates.Count();
+			slapCollectLog += " rays=" + directions.Count();
+			slapCollectLog += " hits=" + hitCount;
+			slapCollectLog += " entityHits=" + entityHitCount;
+			BS5_DebugLog.Line(settings, slapCollectLog);
+			string slapScoreLog = "slapback score";
+			slapScoreLog += " bestWall=" + bestWallScore;
+			slapScoreLog += " trenchScore=" + trenchScore;
+			slapScoreLog += " trenchAccepted=" + BS5_DebugLog.BoolText(trenchAccepted);
+			slapScoreLog += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
+			BS5_DebugLog.Line(settings, slapScoreLog);
+		}
 	}
 
 	protected static bool IsSlapbackWallTraceAccepted(IEntity traceEntity)
@@ -894,9 +898,15 @@ class BS5_EchoEnvironmentAnalyzer
 		bestScore = 0.0;
 		if (!world || !settings)
 			return;
+		if (g_BS5SlapbackQueryActive)
+		{
+			BS5_DebugLog.Line(settings, "slapback query reentry drop");
+			return;
+		}
 
 		g_BS5SlapbackQueryEntities.Clear();
 		g_BS5SlapbackQueryExcludeRoot = traceExcludeRoot;
+		g_BS5SlapbackQueryActive = true;
 
 		vector queryCenter = origin;
 		queryCenter[1] = origin[1] + 1.1;
@@ -930,10 +940,14 @@ class BS5_EchoEnvironmentAnalyzer
 
 			InsertCandidate(wallCandidates, candidate, 4);
 		}
+
+		g_BS5SlapbackQueryActive = false;
 	}
 
 	protected static bool CollectSlapbackEntityCallback(IEntity entity)
 	{
+		if (!g_BS5SlapbackQueryActive)
+			return false;
 		if (!entity)
 			return true;
 
@@ -1617,28 +1631,52 @@ class BS5_EchoEmissionService
 	protected static bool s_bStartGateResetQueued;
 	protected static const int START_GATE_WINDOW_MS = 100;
 	protected static const int START_GATE_DEFER_MS = 50;
+	protected static const int INVALID_EMITTER_RESOURCE_CACHE_LIMIT = 32;
+
+	protected static IEntity ResolveContextOwner(BS5_PendingEmissionContext context)
+	{
+		if (!context)
+			return null;
+		if (!context.m_bOwnerIdValid)
+			return context.m_pOwner;
+
+		Game game = GetGame();
+		if (!game)
+			return null;
+
+		BaseWorld world = game.GetWorld();
+		if (!world)
+			return null;
+
+		return world.FindEntityByID(context.m_OwnerId);
+	}
 
 	static void Emit(BS5_EchoDriverComponent settings, IEntity owner, BS5_EchoAnalysisResult result, bool explosionLike, bool emitTails)
 	{
 		if (!settings || !owner || !result)
 			return;
 
+		bool debugEnabled = settings.IsDebugEnabled();
 		float userEchoVolume = BS5_PlayerAudioSettings.GetEchoVolume();
 		float userSlapbackVolume = BS5_PlayerAudioSettings.GetSlapbackVolume();
 		bool canOutputTail = userEchoVolume > 0.001;
 		bool canOutputSlapback = userSlapbackVolume > 0.001;
 		if (!canOutputTail && !canOutputSlapback)
 		{
-			BS5_DebugLog.Line(settings, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume);
+			if (debugEnabled)
+				BS5_DebugLog.Line(settings, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume);
 			return;
 		}
 
-		string emitEnterLog = "emit enter";
-		emitEnterLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
-		emitEnterLog += " tailCandidates=" + result.m_aCandidates.Count();
-		emitEnterLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
-		emitEnterLog += " slapMode=" + result.m_sSlapbackMode;
-		BS5_DebugLog.Line(settings, emitEnterLog);
+		if (debugEnabled)
+		{
+			string emitEnterLog = "emit enter";
+			emitEnterLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+			emitEnterLog += " tailCandidates=" + result.m_aCandidates.Count();
+			emitEnterLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
+			emitEnterLog += " slapMode=" + result.m_sSlapbackMode;
+			BS5_DebugLog.Line(settings, emitEnterLog);
+		}
 
 		int tailEmitCount = 0;
 		if (emitTails)
@@ -1662,16 +1700,20 @@ class BS5_EchoEmissionService
 
 		bool canEmitMaster = emitMaster && masterEmitterPrefab != string.Empty && masterEvent != string.Empty;
 		bool canEmitSlapback = emitSlapback && slapbackEmitterPrefab != string.Empty && slapbackEvent != string.Empty;
-		string emitConfigLog = "emit config";
-		emitConfigLog += " canTail=" + BS5_DebugLog.BoolText(canEmitMaster);
-		emitConfigLog += " canSlap=" + BS5_DebugLog.BoolText(canEmitSlapback);
-		emitConfigLog += " outputTail=" + BS5_DebugLog.BoolText(canOutputTail);
-		emitConfigLog += " outputSlap=" + BS5_DebugLog.BoolText(canOutputSlapback);
-		BS5_DebugLog.Line(settings, emitConfigLog);
-		BS5_DebugLog.Line(settings, "emit events master=" + masterEvent + " slap=" + slapbackEvent);
+		if (debugEnabled)
+		{
+			string emitConfigLog = "emit config";
+			emitConfigLog += " canTail=" + BS5_DebugLog.BoolText(canEmitMaster);
+			emitConfigLog += " canSlap=" + BS5_DebugLog.BoolText(canEmitSlapback);
+			emitConfigLog += " outputTail=" + BS5_DebugLog.BoolText(canOutputTail);
+			emitConfigLog += " outputSlap=" + BS5_DebugLog.BoolText(canOutputSlapback);
+			BS5_DebugLog.Line(settings, emitConfigLog);
+			BS5_DebugLog.Line(settings, "emit events master=" + masterEvent + " slap=" + slapbackEvent);
+		}
 		if (!canEmitMaster && !canEmitSlapback)
 		{
-			BS5_DebugLog.Line(settings, "emit skip no valid playback path");
+			if (debugEnabled)
+				BS5_DebugLog.Line(settings, "emit skip no valid playback path");
 			return;
 		}
 
@@ -1754,6 +1796,11 @@ class BS5_EchoEmissionService
 
 		BS5_PendingEmissionContext context = new BS5_PendingEmissionContext();
 		context.m_pOwner = owner;
+		if (owner)
+		{
+			context.m_OwnerId = owner.GetID();
+			context.m_bOwnerIdValid = true;
+		}
 		context.m_sProject = project;
 		context.m_sEventName = eventName;
 		context.m_sEmitterPrefab = emitterPrefab;
@@ -1856,9 +1903,13 @@ class BS5_EchoEmissionService
 	static void EmitPending(BS5_PendingEmissionContext context)
 	{
 		ReleasePendingVoice(context);
-		if (!context || !context.m_pOwner || context.m_bEmitterCleanupDone)
+		if (!context || context.m_bEmitterCleanupDone)
 			return;
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+			return;
+		context.m_pOwner = owner;
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		bool debugEnabled = false;
 		if (driver)
 			debugEnabled = driver.IsDebugEnabled();
@@ -1921,10 +1972,17 @@ class BS5_EchoEmissionService
 
 	static void EmitOnEmitter(BS5_PendingEmissionContext context, IEntity emitterEntity)
 	{
-		if (!context || !context.m_pOwner || !emitterEntity || context.m_bEmitterCleanupDone)
+		if (!context || !emitterEntity || context.m_bEmitterCleanupDone)
 			return;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+		{
+			BS5_EchoEmissionService.ReleaseAndCleanupEmitter(context, emitterEntity);
+			return;
+		}
+		context.m_pOwner = owner;
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		bool debugEnabled = false;
 		if (driver)
 			debugEnabled = driver.IsDebugEnabled();
@@ -2719,9 +2777,11 @@ class BS5_EchoEmissionService
 			return;
 
 		float fadeSeconds = 0.08;
-		if (context.m_pOwner)
+		IEntity owner = ResolveContextOwner(context);
+		if (owner)
 		{
-			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+			context.m_pOwner = owner;
+			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 			if (driver)
 				fadeSeconds = driver.GetLimiterStealFadeSeconds();
 		}
@@ -2761,10 +2821,18 @@ class BS5_EchoEmissionService
 
 	protected static void ReleaseDriverEmitterBudget(BS5_PendingEmissionContext context)
 	{
-		if (!context || !context.m_bDriverBudgetAcquired || !context.m_pOwner)
+		if (!context || !context.m_bDriverBudgetAcquired)
 			return;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+		{
+			context.m_bDriverBudgetAcquired = false;
+			return;
+		}
+		context.m_pOwner = owner;
+
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		if (driver)
 			driver.ReleaseActiveEmitterBudget(context.m_bSlapback);
 
@@ -2835,6 +2903,8 @@ class BS5_EchoEmissionService
 		Resource loadedResource = Resource.Load(emitterPrefabName);
 		if (!loadedResource || !loadedResource.IsValid())
 		{
+			if (s_aInvalidEmitterResourceNames.Count() >= INVALID_EMITTER_RESOURCE_CACHE_LIMIT)
+				s_aInvalidEmitterResourceNames.Remove(0);
 			s_aInvalidEmitterResourceNames.Insert(emitterPrefabName);
 			if (debugEnabled)
 				PrintFormat("BS5 emitter resource load failed and cached invalid: %1", emitterPrefabName);

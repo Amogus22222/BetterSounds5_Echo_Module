@@ -523,6 +523,23 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	override void OnDelete(IEntity owner)
 	{
+		ScriptCallQueue callQueue = null;
+		if (GetGame())
+			callQueue = GetGame().GetCallqueue();
+		if (callQueue)
+		{
+			callQueue.RemoveByName(this, "InvalidateCache");
+			callQueue.RemoveByName(this, "ResetPlaybackLimiterBurst");
+			callQueue.RemoveByName(this, "ClearDispatchGuard");
+		}
+
+		m_iCacheGeneration++;
+		m_iLimiterBurstGeneration++;
+		m_bCacheValid = false;
+		m_LastResult = null;
+		m_bDispatchGuardActive = false;
+		m_iLimiterBurstShotCount = 0;
+
 		super.OnDelete(owner);
 	}
 
@@ -2079,7 +2096,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (resourceName == string.Empty)
 			return false;
 
-		return resourceName.IndexOf(".et") != -1;
+		return resourceName.EndsWith(".et");
 	}
 
 	protected bool ShouldSuppressDuplicateDispatch(vector origin, vector forward)

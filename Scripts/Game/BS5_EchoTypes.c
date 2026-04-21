@@ -272,6 +272,8 @@ class BS5_EnvironmentSnapshot
 class BS5_PendingEmissionContext
 {
 	IEntity m_pOwner;
+	EntityID m_OwnerId;
+	bool m_bOwnerIdValid;
 	ResourceName m_sProject;
 	ResourceName m_sEmitterPrefab;
 	string m_sEventName;
@@ -314,6 +316,8 @@ class BS5_PendingEmissionContext
 
 	void BS5_PendingEmissionContext()
 	{
+		m_pOwner = null;
+		m_bOwnerIdValid = false;
 		m_vEmitPosition = vector.Zero;
 		m_fIntensity = 1.0;
 		m_fDistanceGain = 1.0;
