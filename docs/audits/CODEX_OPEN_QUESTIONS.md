@@ -72,15 +72,15 @@ These points cannot be closed honestly from static source review alone. They nee
 - Related finding: `H-01`
 - Current evidence:
   - Hot-path array/string/object allocation exists.
-  - The code also does many world queries and traces, which may dominate cost.
-- What needs verification:
-  - Allocation volume per shot
-  - GC spikes, if any
-  - Relative contribution versus tracing/query work
-- How to verify:
-  - Profiler capture on repeated-fire scenarios
+  - Timing-only runtime sampling showed analyze cost around `3-5 ms`, with most visible time in planner/slapback work.
+  - No current evidence shows a payoff for pooling or structural allocation rewrites.
+- What still remains open:
+  - Whether a future profiler capture would reveal rare GC spikes that coarse timer sampling cannot show
+- How to verify if this becomes important again:
+  - Dedicated profiler capture on repeated-fire scenarios
   - Compare default, light, and dynamic presets
-- Until verified:
+- Until then:
+  - Treat H-01 as measured-and-deferred
   - Do not introduce pooling complexity
 
 ### 6. Dispatch timing semantics

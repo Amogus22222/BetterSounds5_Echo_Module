@@ -26,6 +26,13 @@ Implementation snapshot after current pass:
 - Not implemented: `H-01`, `M-06`, `M-07`, `L-05`
 - Intentionally not touched: `M-03`, `M-04`, `M-05`, `M-09`, `L-01`, `L-03`
 
+H-01 measurement result after runtime sampling:
+
+- Repeated live tests with temporary timing-only telemetry showed `profile analyze` around `3-5 ms` and `profile shot` around `4-5 ms` on cache misses.
+- Measured time concentrated in planner and slapback work, not in any proven GC spike.
+- Candidate/cache behavior looked stable; no evidence justified pooling or structural allocation rewrites.
+- Conclusion: keep `H-01` as a real code characteristic, but defer optimization. Do not add pooling or object reuse complexity now.
+
 Guarded but acceptable after minimal validation:
 
 - `H-03` deferred owner liveness via `EntityID` re-resolve
@@ -43,7 +50,7 @@ Do not implement from the original audit as-is:
 
 | ID | Status | Revised Severity | Repro Likelihood | Fix Risk | Effort | Needs Engine Assumption | Safe Now | Notes |
 |---|---|---|---|---|---|---|---|---|
-| H-01 | CONFIRMED | Medium | Medium | Medium | Medium | No for existence, yes for payoff | No | Hot-path allocations exist, but actual FPS/GC impact is not proven. Measure before pooling or preallocation work. |
+| H-01 | CONFIRMED | Medium | Medium | Medium | Medium | No for existence, yes for payoff | No | Hot-path allocations exist, but current runtime timing samples did not justify pooling or structural optimization. Treat as measured-and-deferred unless future profiling shows spikes. |
 | H-02 | PARTIALLY_CONFIRMED | Low | Low | Low-Medium | Low | Yes | Guarded | Shared mutable scratch arrays exist. The race/reentrancy claim is not proven. A small guard is reasonable; a context rewrite is not justified. |
 | H-03 | PARTIALLY_CONFIRMED | Medium | Medium | Low-Medium | Low-Medium | Partial | Guarded | Deferred contexts hold `IEntity` references. A guaranteed crash is not proven, but resolving owner by `EntityID` is a defensible safety guard. |
 | H-04 | PARTIALLY_CONFIRMED | Low | Low | Low | Low | Partial | Yes | Linear invalid-cache growth exists, but emitter prefab cardinality appears low and `Resource.Load` is engine-cached. Cap invalid names only. |
@@ -130,23 +137,27 @@ Not safe to take blindly from the external audit:
 
 ### 2. Needs Measurement / Profiling First
 
+- None required for current roadmap execution
+
+### 3. Measured And Deferred
+
 - `H-01`
 
-### 3. Needs Engine / API Verification First
+### 4. Needs Engine / API Verification First
 
 - `M-06`
 - `M-07`
 - `L-05`
 - Any deeper rewrite implied by `H-02`
 
-### 4. Probably Not Worth Fixing Now
+### 5. Probably Not Worth Fixing Now
 
 - `M-01`
 - `M-05`
 - `M-08`
 - `M-09`
 
-### 5. Should Be Documented, Not Rewritten
+### 6. Should Be Documented, Not Rewritten
 
 - `M-03`
 - `M-04`

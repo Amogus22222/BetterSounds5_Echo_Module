@@ -298,7 +298,6 @@ class BS5_EchoEnvironmentAnalyzer
 				BS5_HybridTailPlanner.BuildCandidates(result.m_aCandidates, settings, environmentSnapshot, result, owner, origin, flatForward, flatRight, traceExcludeArray, traceExcludeRoot, explosionLike);
 			}
 		}
-
 		float firstDelay = 0.0;
 		if (!result.m_aCandidates.IsEmpty())
 			firstDelay = result.m_aCandidates[0].m_fDelaySeconds;
@@ -317,7 +316,6 @@ class BS5_EchoEnvironmentAnalyzer
 			else
 				result.m_sSlapbackMode = "disabled_driver";
 		}
-
 		if (!result.m_aSlapbackCandidates.IsEmpty())
 			result.m_fSlapbackDelaySeconds = result.m_aSlapbackCandidates[0].m_fDelaySeconds;
 
@@ -383,8 +381,8 @@ class BS5_EchoEnvironmentAnalyzer
 			debugSummary += " wallScore=" + result.m_fSlapbackWallScore;
 			debugSummary += " trenchScore=" + result.m_fSlapbackTrenchScore;
 			result.m_sDebugSummary = debugSummary;
-		}
 
+		}
 		return result;
 	}
 

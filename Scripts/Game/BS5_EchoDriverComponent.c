@@ -629,7 +629,6 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector origin = transform[3];
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
-
 		BS5_EchoAnalysisResult result = ResolveCachedResult(owner, origin, planarForward, true, false);
 		if (!result)
 			result = BS5_EchoRuntime.AnalyzeExplosion(this, owner, origin, planarForward);

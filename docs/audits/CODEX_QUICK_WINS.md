@@ -12,6 +12,7 @@ Prioritized low-risk / high-value fixes:
 
 Probably not worth quick-win treatment:
 
+- `H-01` hot-path allocation rewrites after current timing pass
 - Candidate container rewrites (`M-05`, `M-09`)
 - Acoustic tuning rewrites (`L-01`)
 - Spawn-order changes (`M-06`)

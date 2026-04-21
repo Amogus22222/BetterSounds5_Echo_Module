@@ -19,6 +19,7 @@ Implement only the fixes that are defensible from source review and documented A
 - Wave 2 guarded fixes: implemented in narrow form, Workbench script compile validated
 - Wave 3: not started
 - Deferred / do-not-touch-yet: unchanged
+- H-01 measurement pass: completed with timing-only runtime sampling; optimization not justified at current evidence level
 
 ## Wave 0 - No-Risk Correctness Fixes
 
@@ -134,7 +135,6 @@ Tasks:
 
 - `M-06` evaluate local-first emitter spawning
 - `M-07` verify trace/query filter changes with real map/runtime evidence
-- `H-01` profile GC/allocation pressure before any pooling rewrite
 
 Why here:
 
@@ -153,13 +153,33 @@ Dependencies:
 
 - Manual runtime verification
 - Preferably multiplayer test coverage for spawn behavior
-- Profiling captures for allocation claims
 
 Validation:
 
 - MP client/server emitter spawn observation
 - Instrumented trace hit comparison before/after filter changes
-- Profiler data per shot across default, light, and dynamic presets
+
+## H-01 Measurement Outcome
+
+Status: measured, deferred
+
+What was checked:
+
+- Temporary timing-only telemetry on live runtime scenarios
+- Repeated single-shot and repeated-fire cases in open, facade, and slapback-capable spaces
+
+Observed result:
+
+- `profile analyze` stayed around `3-5 ms`
+- `profile shot` stayed around `4-5 ms` on cache misses and `0 ms` on cached repeats at timer resolution
+- Measured cost clustered in planner/slapback work, not in any proven GC-related stall
+- No evidence justified object pooling or structural allocation rewrites
+
+Decision:
+
+- Do not implement H-01 optimization work now
+- Do not add pooling for candidate, result, or pending-emission objects
+- Revisit only if a future profiler capture shows a real allocation/GC problem
 
 ## Deferred / Do-Not-Touch-Yet
 
@@ -214,3 +234,4 @@ Regression checks:
 - Anything that changes spawn semantics without runtime proof
 - Anything that changes trace filters without evidence
 - Any "micro-optimization" whose value has not been measured
+- Any H-01 pooling or reuse rewrite based only on theoretical allocation counts
