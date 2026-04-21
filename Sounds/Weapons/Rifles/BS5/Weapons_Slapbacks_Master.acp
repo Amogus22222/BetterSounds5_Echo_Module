@@ -1053,7 +1053,7 @@ AudioClass {
    id 287762
    name "EnvLayer Shader"
    version 5
-   tl 640 640
+   tl 646 633
    ctl 0 -21
    ins {
     ConnectionsClass "con:0" {
@@ -1120,13 +1120,21 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 45.44924
-     Y 0.41059
+     X 24.77426
+     Y 0.70678
     }
     CurvePoint "3" {
-     X 101.03421
+     X 65.68563
+     Y 0.39025
     }
     CurvePoint "4" {
+     X 96.52148
+     Y 0.18814
+    }
+    CurvePoint "5" {
+     X 150.33743
+    }
+    CurvePoint "6" {
      X 201.13751
     }
    }
@@ -1201,8 +1209,9 @@ AudioClass {
    pi {
     20 0
    }
+   dynamicUpdate 1
    type AirAbsorption
-   enableDirectivity 0
+   directivityFactor 0.32
   }
  }
  banks_local {
@@ -1281,15 +1290,57 @@ AudioClass {
    }
    Volume 2
    "Volume variance" 0.2
-   Pitch 2
+   Pitch -2
    "Termination Fade Out" 100
    Resampler FIR_4
    Preload 1
    Samples {
-    AudioBankSampleClass "test_urban_full_V3_reflection_only_02.wav" {
-     Filename "{591F251A08974FD0}Assets/Gunpowder/Tails/Field/test_urban_full_V3_reflection_only_02.wav"
+    AudioBankSampleClass "Houses_10.wav" {
+     Filename "{D567D75FC4DF6F13}Assets/Gunpowder/Tails/SC_Reflectors/Houses_10.wav"
      Probability 100
      Index 0
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_11.wav" {
+     Filename "{A26DBFD7307D8063}Assets/Gunpowder/Tails/SC_Reflectors/Houses_11.wav"
+     Probability 100
+     Index 1
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_12.wav" {
+     Filename "{3B73064E2D9AB1F3}Assets/Gunpowder/Tails/SC_Reflectors/Houses_12.wav"
+     Probability 100
+     Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_13.wav" {
+     Filename "{4C796EC6D9385E83}Assets/Gunpowder/Tails/SC_Reflectors/Houses_13.wav"
+     Probability 100
+     Index 3
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_14.wav" {
+     Filename "{4BBE9497BFBEE440}Assets/Gunpowder/Tails/SC_Reflectors/Houses_14.wav"
+     Probability 100
+     Index 4
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_15.wav" {
+     Filename "{3CB4FC1F4B1C0B30}Assets/Gunpowder/Tails/SC_Reflectors/Houses_15.wav"
+     Probability 100
+     Index 5
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_16.wav" {
+     Filename "{A5AA458656FB3AA0}Assets/Gunpowder/Tails/SC_Reflectors/Houses_16.wav"
+     Probability 100
+     Index 6
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Houses_2.wav" {
+     Filename "{82AE311050AB4BBF}Assets/Gunpowder/Tails/SC_Reflectors/Houses_2.wav"
+     Probability 100
+     Index 7
      SampleMetadata ""
     }
    }

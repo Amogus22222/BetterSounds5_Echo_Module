@@ -24,15 +24,15 @@ GenericEntity {
    m_fTrenchSlapbackMaxSideDistanceMeters 2
    m_fTrenchSlapbackMinConfidence 0.78
    m_bAllowSlapbackAnchorFallback 0
-   m_fSlapbackAnchorFallbackMaxDistanceMeters 25
+   m_fSlapbackAnchorFallbackMaxDistanceMeters 35
    m_fSlapbackDistanceFarGain 0.5
    m_fSlapbackDistanceGainCurvePower 1.7
    m_fSlapbackDelayMinSeconds 0.006
-   m_fSlapbackWallDelayMaxSeconds 0.055
+   m_fSlapbackWallDelayMaxSeconds 0.3
    m_fSlapbackTrenchDelayMaxSeconds 0.03
    m_iMaxCandidateCount 9
    m_iMaxTraceCount 9
-   m_fBurstReuseWindowSeconds 0.2
+   m_fBurstReuseWindowSeconds 0.16
    m_bEnablePlaybackLimiter 1
    m_iLimiterGlobalMaxTailVoices 28
    m_iLimiterGlobalMaxSlapbackVoices 8
@@ -89,7 +89,6 @@ GenericEntity {
    m_fSlapbackMinDistanceMeters 0.2
    m_fSlapbackMergeDistanceMeters 1.5
    m_fSlapbackWallOffsetMeters 0.1
-   m_fSlapbackPathLengthScale 1
    m_fFacadeDelayScale 1
    m_fSoundMapForwardConeDegrees 120
    m_fSoundMapForwardMaxDistanceMeters 700
@@ -119,7 +118,7 @@ GenericEntity {
    m_fSoundMapPathRaycastDistanceMeters 220
    m_fDistanceGainNearMeters 35
    m_fDistanceGainFarMeters 300
-   m_bDebug 0
+   m_bDebug 1
   }
   BS5_WeaponEchoRplCharacterComponent "{692681A026ACA6B2}" {
    m_DefaultEchoAcp "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"

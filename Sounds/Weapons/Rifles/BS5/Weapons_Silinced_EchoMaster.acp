@@ -2505,6 +2505,7 @@ AudioClass {
    }
    Volume 5
    "Volume variance" 0.3
+   Pitch 2
    "Pitch variance" 0.7
    "Termination Fade Out" 100
    Resampler FIR_4
