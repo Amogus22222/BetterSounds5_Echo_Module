@@ -85,6 +85,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		SetSignalValue("BS5_SlapbackDistanceGain", slapbackDistanceGain);
 		SetSignalValue("BS5_UserEchoVolume", context.m_fUserEchoVolume);
 		SetSignalValue("BS5_UserSlapbackVolume", context.m_fUserSlapbackVolume);
+		SetSignalValue("BS5_UserSlapbackCloseVolume", context.m_fUserSlapbackCloseVolume);
 		SetSignalValue("BS5_PanBias", context.m_fPanBias);
 		SetSignalValue("BS5_DirectionSupport", context.m_fDirectionSupport);
 		SetSignalValue("BS5_ReverbSend", context.m_fReverbSend);
@@ -291,6 +292,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		AppendAudioSignal(signalNames, signalValues, "BS5_SlapbackDistanceGain", slapbackDistanceGain);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserEchoVolume", context.m_fUserEchoVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackVolume", context.m_fUserSlapbackVolume);
+		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackCloseVolume", context.m_fUserSlapbackCloseVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_PanBias", context.m_fPanBias);
 		AppendAudioSignal(signalNames, signalValues, "BS5_DirectionSupport", context.m_fDirectionSupport);
 		AppendAudioSignal(signalNames, signalValues, "BS5_ReverbSend", context.m_fReverbSend);
@@ -334,6 +336,9 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 	{
 		if (!context || !context.m_bSlapback)
 			return 0.0;
+
+		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+			return 3.0;
 
 		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
 			return 2.0;

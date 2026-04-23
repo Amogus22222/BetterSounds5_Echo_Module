@@ -1,32 +1,27 @@
-ref array<IEntity> g_BS5ForwardFacadeQueryEntities = new array<IEntity>();
-ref array<float> g_BS5ForwardFacadeQueryScores = new array<float>();
-IEntity g_BS5ForwardFacadeQueryExcludeRoot;
-vector g_BS5ForwardFacadeQueryOrigin = vector.Zero;
-vector g_BS5ForwardFacadeQueryViewFlat = "0 0 1";
-const int BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT = 24;
-const int BS5_FORWARD_FACADE_CONFIRM_ENTITY_LIMIT = 8;
-int g_BS5ForwardFacadeQueryEntityLimit = BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT;
-bool g_BS5ForwardFacadeQueryActive;
-ref array<string> g_BS5BuildingPrefabHints = {
-	"house", "building", "residential", "civilian", "village", "town", "apartment", "garage", "barn", "farm", "church", "school", "hospital", "shop", "store", "industrial", "warehouse", "factory", "office", "hangar", "depot", "ruin", "shed"
-};
-ref array<string> g_BS5VegetationPrefabHints = {
-	"tree", "bush", "shrub", "hedge", "forest", "vegetation", "foliage", "grass", "reed", "plant"
-};
-ref array<string> g_BS5StructurePrefabHints = {
-	"compound", "checkpoint", "camp", "bunker", "fort", "wall", "tower", "gate", "yard"
-};
-ref array<string> g_BS5FacadeRejectPrefabHints = {
-	"buildingparts", "doorstep", "entry", "stair", "stairs", "step", "fence", "pole", "railing", "debris", "wreck"
-};
-ref array<string> g_BS5HousePrefabHints = {
-	"house", "residential", "apartment", "villa", "cottage", "hut", "village"
-};
-
 class BS5_EnvironmentAudioClassifier
 {
-	protected static const ref array<string> RIVER_SIGNAL_NAMES = {"RiverL", "RiverR", "RiverRB", "RiverLB"};
-	protected static const ref array<string> LAKE_SIGNAL_NAMES = {"LakeL", "LakeR", "LakeRB", "LakeLB"};
+	protected static ref array<string> s_RiverSignalNames;
+	protected static ref array<string> s_LakeSignalNames;
+
+	protected static void EnsureSignalNameCaches()
+	{
+		if (!s_RiverSignalNames)
+		{
+			s_RiverSignalNames = new array<string>();
+			s_RiverSignalNames.Insert("RiverL");
+			s_RiverSignalNames.Insert("RiverR");
+			s_RiverSignalNames.Insert("RiverRB");
+			s_RiverSignalNames.Insert("RiverLB");
+		}
+		if (!s_LakeSignalNames)
+		{
+			s_LakeSignalNames = new array<string>();
+			s_LakeSignalNames.Insert("LakeL");
+			s_LakeSignalNames.Insert("LakeR");
+			s_LakeSignalNames.Insert("LakeRB");
+			s_LakeSignalNames.Insert("LakeLB");
+		}
+	}
 
 	static BS5_EnvironmentSnapshot BuildSnapshot(BS5_EchoDriverComponent settings, IEntity owner, vector origin, vector flatForward, vector flatRight, BS5_EchoAnalysisResult result)
 	{
@@ -42,7 +37,8 @@ class BS5_EnvironmentAudioClassifier
 		if (entityRoomSize > roomSize)
 			roomSize = entityRoomSize;
 		float grass = ReadGlobalSignal("Grass");
-		float water = BS5_EchoMath.MaxFloat(ReadSignalArray(RIVER_SIGNAL_NAMES), ReadSignalArray(LAKE_SIGNAL_NAMES));
+		EnsureSignalNameCaches();
+		float water = BS5_EchoMath.MaxFloat(ReadSignalArray(s_RiverSignalNames), ReadSignalArray(s_LakeSignalNames));
 		float aboveTerrain = ReadGlobalSignal("AboveTerrain");
 
 		float terrainHeightBias = 0.0;
@@ -226,6 +222,111 @@ class BS5_EnvironmentAudioClassifier
 
 class BS5_HybridTailPlanner
 {
+	protected static const int FORWARD_FACADE_QUERY_ENTITY_LIMIT = 24;
+	protected static const int FORWARD_FACADE_CONFIRM_ENTITY_LIMIT = 8;
+	protected static ref array<IEntity> s_ForwardFacadeQueryEntities;
+	protected static ref array<float> s_ForwardFacadeQueryScores;
+	protected static ref array<string> s_BuildingPrefabHints;
+	protected static ref array<string> s_VegetationPrefabHints;
+	protected static ref array<string> s_StructurePrefabHints;
+	protected static ref array<string> s_FacadeRejectPrefabHints;
+	protected static ref array<string> s_HousePrefabHints;
+	protected static IEntity s_ForwardFacadeQueryExcludeRoot;
+	protected static vector s_ForwardFacadeQueryOrigin;
+	protected static vector s_ForwardFacadeQueryViewFlat;
+	protected static int s_ForwardFacadeQueryEntityLimit;
+	protected static bool s_ForwardFacadeQueryActive;
+
+	protected static void EnsureFacadeCaches()
+	{
+		if (s_ForwardFacadeQueryViewFlat == vector.Zero)
+			s_ForwardFacadeQueryViewFlat = "0 0 1";
+		if (!s_ForwardFacadeQueryEntities)
+			s_ForwardFacadeQueryEntities = new array<IEntity>();
+		if (!s_ForwardFacadeQueryScores)
+			s_ForwardFacadeQueryScores = new array<float>();
+		if (!s_BuildingPrefabHints)
+		{
+			s_BuildingPrefabHints = new array<string>();
+			s_BuildingPrefabHints.Insert("house");
+			s_BuildingPrefabHints.Insert("building");
+			s_BuildingPrefabHints.Insert("residential");
+			s_BuildingPrefabHints.Insert("civilian");
+			s_BuildingPrefabHints.Insert("village");
+			s_BuildingPrefabHints.Insert("town");
+			s_BuildingPrefabHints.Insert("apartment");
+			s_BuildingPrefabHints.Insert("garage");
+			s_BuildingPrefabHints.Insert("barn");
+			s_BuildingPrefabHints.Insert("farm");
+			s_BuildingPrefabHints.Insert("church");
+			s_BuildingPrefabHints.Insert("school");
+			s_BuildingPrefabHints.Insert("hospital");
+			s_BuildingPrefabHints.Insert("shop");
+			s_BuildingPrefabHints.Insert("store");
+			s_BuildingPrefabHints.Insert("industrial");
+			s_BuildingPrefabHints.Insert("warehouse");
+			s_BuildingPrefabHints.Insert("factory");
+			s_BuildingPrefabHints.Insert("office");
+			s_BuildingPrefabHints.Insert("hangar");
+			s_BuildingPrefabHints.Insert("depot");
+			s_BuildingPrefabHints.Insert("ruin");
+			s_BuildingPrefabHints.Insert("shed");
+		}
+		if (!s_VegetationPrefabHints)
+		{
+			s_VegetationPrefabHints = new array<string>();
+			s_VegetationPrefabHints.Insert("tree");
+			s_VegetationPrefabHints.Insert("bush");
+			s_VegetationPrefabHints.Insert("shrub");
+			s_VegetationPrefabHints.Insert("hedge");
+			s_VegetationPrefabHints.Insert("forest");
+			s_VegetationPrefabHints.Insert("vegetation");
+			s_VegetationPrefabHints.Insert("foliage");
+			s_VegetationPrefabHints.Insert("grass");
+			s_VegetationPrefabHints.Insert("reed");
+			s_VegetationPrefabHints.Insert("plant");
+		}
+		if (!s_StructurePrefabHints)
+		{
+			s_StructurePrefabHints = new array<string>();
+			s_StructurePrefabHints.Insert("compound");
+			s_StructurePrefabHints.Insert("checkpoint");
+			s_StructurePrefabHints.Insert("camp");
+			s_StructurePrefabHints.Insert("bunker");
+			s_StructurePrefabHints.Insert("fort");
+			s_StructurePrefabHints.Insert("wall");
+			s_StructurePrefabHints.Insert("tower");
+			s_StructurePrefabHints.Insert("gate");
+			s_StructurePrefabHints.Insert("yard");
+		}
+		if (!s_FacadeRejectPrefabHints)
+		{
+			s_FacadeRejectPrefabHints = new array<string>();
+			s_FacadeRejectPrefabHints.Insert("buildingparts");
+			s_FacadeRejectPrefabHints.Insert("doorstep");
+			s_FacadeRejectPrefabHints.Insert("entry");
+			s_FacadeRejectPrefabHints.Insert("stair");
+			s_FacadeRejectPrefabHints.Insert("stairs");
+			s_FacadeRejectPrefabHints.Insert("step");
+			s_FacadeRejectPrefabHints.Insert("fence");
+			s_FacadeRejectPrefabHints.Insert("pole");
+			s_FacadeRejectPrefabHints.Insert("railing");
+			s_FacadeRejectPrefabHints.Insert("debris");
+			s_FacadeRejectPrefabHints.Insert("wreck");
+		}
+		if (!s_HousePrefabHints)
+		{
+			s_HousePrefabHints = new array<string>();
+			s_HousePrefabHints.Insert("house");
+			s_HousePrefabHints.Insert("residential");
+			s_HousePrefabHints.Insert("apartment");
+			s_HousePrefabHints.Insert("villa");
+			s_HousePrefabHints.Insert("cottage");
+			s_HousePrefabHints.Insert("hut");
+			s_HousePrefabHints.Insert("village");
+		}
+	}
+
 	static void BuildCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EnvironmentSnapshot snapshot, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector flatForward, vector flatRight, array<IEntity> traceExcludeArray, IEntity traceExcludeRoot, bool explosionLike)
 	{
 		BaseWorld world = GetGame().GetWorld();
@@ -524,24 +625,25 @@ class BS5_HybridTailPlanner
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
 			return;
-		if (g_BS5ForwardFacadeQueryActive)
+		EnsureFacadeCaches();
+		if (s_ForwardFacadeQueryActive)
 		{
 			BS5_DebugLog.Line(settings, "forward facade query reentry drop");
 			return;
 		}
 
-		g_BS5ForwardFacadeQueryEntities.Clear();
-		g_BS5ForwardFacadeQueryScores.Clear();
-		g_BS5ForwardFacadeQueryExcludeRoot = traceExcludeRoot;
-		g_BS5ForwardFacadeQueryOrigin = origin;
-		g_BS5ForwardFacadeQueryViewFlat = viewFlat;
-		g_BS5ForwardFacadeQueryEntityLimit = BS5_FORWARD_FACADE_QUERY_ENTITY_LIMIT;
+		s_ForwardFacadeQueryEntities.Clear();
+		s_ForwardFacadeQueryScores.Clear();
+		s_ForwardFacadeQueryExcludeRoot = traceExcludeRoot;
+		s_ForwardFacadeQueryOrigin = origin;
+		s_ForwardFacadeQueryViewFlat = viewFlat;
+		s_ForwardFacadeQueryEntityLimit = FORWARD_FACADE_QUERY_ENTITY_LIMIT;
 		if (urbanMicroPass)
-			g_BS5ForwardFacadeQueryEntityLimit = settings.GetSoundMapUrbanMicroMaxEntities();
-		g_BS5ForwardFacadeQueryActive = true;
-		if (g_BS5ForwardFacadeQueryEntityLimit <= 0)
+			s_ForwardFacadeQueryEntityLimit = settings.GetSoundMapUrbanMicroMaxEntities();
+		s_ForwardFacadeQueryActive = true;
+		if (s_ForwardFacadeQueryEntityLimit <= 0)
 		{
-			g_BS5ForwardFacadeQueryActive = false;
+			s_ForwardFacadeQueryActive = false;
 			return;
 		}
 
@@ -569,7 +671,7 @@ class BS5_HybridTailPlanner
 		array<float> queryRadii = {18.0, 28.0, 40.0, 52.0};
 		for (int queryIndex = 0; queryIndex < queryDistances.Count(); queryIndex++)
 		{
-			if (g_BS5ForwardFacadeQueryEntities.Count() >= g_BS5ForwardFacadeQueryEntityLimit)
+			if (s_ForwardFacadeQueryEntities.Count() >= s_ForwardFacadeQueryEntityLimit)
 				break;
 
 			vector queryCenter = queryStart + (viewFlat * queryDistances[queryIndex]);
@@ -578,12 +680,12 @@ class BS5_HybridTailPlanner
 			world.QueryEntitiesBySphere(queryCenter, queryRadii[queryIndex], CollectForwardFacadeEntityCallback);
 		}
 
-		queryEntities = g_BS5ForwardFacadeQueryEntities.Count();
-		topPrefabs = BuildForwardFacadePrefabDebugString(g_BS5ForwardFacadeQueryEntities, 4);
+		queryEntities = s_ForwardFacadeQueryEntities.Count();
+		topPrefabs = BuildForwardFacadePrefabDebugString(s_ForwardFacadeQueryEntities, 4);
 		array<IEntity> confirmEntities = new array<IEntity>();
 		array<float> confirmScores = new array<float>();
 
-		foreach (IEntity entity : g_BS5ForwardFacadeQueryEntities)
+		foreach (IEntity entity : s_ForwardFacadeQueryEntities)
 		{
 			if (!entity)
 				continue;
@@ -657,7 +759,7 @@ class BS5_HybridTailPlanner
 				BS5_EchoMath.Clamp01(height / 12.0) * 0.10 +
 				BS5_EchoMath.Clamp01(footprintArea / 90.0) * 0.12
 			);
-			InsertRankedForwardFacadeEntity(confirmEntities, confirmScores, entity, preScore, BS5_FORWARD_FACADE_CONFIRM_ENTITY_LIMIT);
+			InsertRankedForwardFacadeEntity(confirmEntities, confirmScores, entity, preScore, FORWARD_FACADE_CONFIRM_ENTITY_LIMIT);
 		}
 
 		foreach (IEntity entityToConfirm : confirmEntities)
@@ -852,13 +954,14 @@ class BS5_HybridTailPlanner
 			MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
 		}
 		confirmTopPrefabs = BuildForwardFacadePrefabDebugString(confirmEntities, 4);
-		g_BS5ForwardFacadeQueryActive = false;
+		s_ForwardFacadeQueryActive = false;
 	}
 
 	protected static bool CollectForwardFacadeEntityCallback(IEntity entity)
 	{
-		if (!g_BS5ForwardFacadeQueryActive)
+		if (!s_ForwardFacadeQueryActive)
 			return false;
+		EnsureFacadeCaches();
 		if (!entity)
 			return true;
 
@@ -866,10 +969,10 @@ class BS5_HybridTailPlanner
 		if (!normalizedEntity)
 			normalizedEntity = entity;
 
-		if (g_BS5ForwardFacadeQueryExcludeRoot && BS5_EchoEnvironmentAnalyzer.IsSelfHierarchyHit(normalizedEntity, g_BS5ForwardFacadeQueryExcludeRoot))
+		if (s_ForwardFacadeQueryExcludeRoot && BS5_EchoEnvironmentAnalyzer.IsSelfHierarchyHit(normalizedEntity, s_ForwardFacadeQueryExcludeRoot))
 			return true;
 
-		if (ContainsEntityReference(g_BS5ForwardFacadeQueryEntities, normalizedEntity))
+		if (ContainsEntityReference(s_ForwardFacadeQueryEntities, normalizedEntity))
 			return true;
 
 		float prefabHintScore = 0.0;
@@ -882,21 +985,21 @@ class BS5_HybridTailPlanner
 		vector maxs;
 		normalizedEntity.GetWorldBounds(mins, maxs);
 		vector center = (mins + maxs) * 0.5;
-		vector toCenter = center - g_BS5ForwardFacadeQueryOrigin;
+		vector toCenter = center - s_ForwardFacadeQueryOrigin;
 		toCenter[1] = 0.0;
 		if (toCenter.LengthSq() > 1.0)
 		{
 			float flatDistance = toCenter.Length();
 			toCenter.Normalize();
-			float forwardSupport = vector.Dot(toCenter, g_BS5ForwardFacadeQueryViewFlat);
+			float forwardSupport = vector.Dot(toCenter, s_ForwardFacadeQueryViewFlat);
 			callbackScore += BS5_EchoMath.Clamp01(0.35 + (forwardSupport * 0.35));
 			callbackScore += BS5_EchoMath.Clamp01(1.0 - (flatDistance / 320.0)) * 0.10;
 		}
 		if (strongBuildingHint)
 			callbackScore += 0.20;
 
-		InsertRankedForwardFacadeEntity(g_BS5ForwardFacadeQueryEntities, g_BS5ForwardFacadeQueryScores, normalizedEntity, callbackScore, g_BS5ForwardFacadeQueryEntityLimit);
-		if (g_BS5ForwardFacadeQueryEntities.Count() >= g_BS5ForwardFacadeQueryEntityLimit)
+		InsertRankedForwardFacadeEntity(s_ForwardFacadeQueryEntities, s_ForwardFacadeQueryScores, normalizedEntity, callbackScore, s_ForwardFacadeQueryEntityLimit);
+		if (s_ForwardFacadeQueryEntities.Count() >= s_ForwardFacadeQueryEntityLimit)
 			return false;
 
 		return true;
@@ -2040,6 +2143,7 @@ class BS5_HybridTailPlanner
 		strongBuildingHint = false;
 		if (!entity)
 			return false;
+		EnsureFacadeCaches();
 
 		EntityPrefabData prefabData = entity.GetPrefabData();
 		if (!prefabData)
@@ -2050,10 +2154,10 @@ class BS5_HybridTailPlanner
 			return true;
 
 		prefabName.ToLower();
-		if (HasPrefabHint(prefabName, g_BS5FacadeRejectPrefabHints))
+		if (HasPrefabHint(prefabName, s_FacadeRejectPrefabHints))
 			return false;
 
-		if (HasPrefabHint(prefabName, g_BS5VegetationPrefabHints))
+		if (HasPrefabHint(prefabName, s_VegetationPrefabHints))
 			return false;
 
 		if (prefabName.IndexOf("structures") != -1)
@@ -2063,14 +2167,14 @@ class BS5_HybridTailPlanner
 			return true;
 		}
 
-		if (HasPrefabHint(prefabName, g_BS5BuildingPrefabHints))
+		if (HasPrefabHint(prefabName, s_BuildingPrefabHints))
 		{
 			prefabHintScore = 1.0;
 			strongBuildingHint = true;
 			return true;
 		}
 
-		if (HasPrefabHint(prefabName, g_BS5StructurePrefabHints))
+		if (HasPrefabHint(prefabName, s_StructurePrefabHints))
 		{
 			prefabHintScore = 0.62;
 			return true;
@@ -2082,12 +2186,13 @@ class BS5_HybridTailPlanner
 
 	protected static bool IsHouseLikePrefab(IEntity entity)
 	{
+		EnsureFacadeCaches();
 		ResourceName prefabName = ResolveForwardFacadePrefabPath(entity);
 		if (prefabName == string.Empty)
 			return false;
 
 		prefabName.ToLower();
-		if (HasPrefabHint(prefabName, g_BS5HousePrefabHints))
+		if (HasPrefabHint(prefabName, s_HousePrefabHints))
 			return true;
 		if (prefabName.IndexOf("structures") != -1)
 			return true;

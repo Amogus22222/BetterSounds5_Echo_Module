@@ -1,0 +1,5 @@
+18:43:13.492 INIT         : Workbench startup
+18:43:13.492  INIT         : Workbench Init Engine
+18:43:13.492   ENGINE    (E): Addon 'BetterSounds5' dependency '58D0FB3206B6F859' can't be added
+18:43:13.492   ENGINE    (E): Game addon '58D0FB3206B6F859' not found
+18:43:15.119   ENGINE    (E): Cannot initialize game project settings!

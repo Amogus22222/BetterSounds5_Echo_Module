@@ -19,6 +19,9 @@ class BS5_SoundPresetConfigEntry
 
 	[Attribute(defvalue: "0.40")]
 	float m_fSlapbackVolume;
+
+	[Attribute(defvalue: "0.40")]
+	float m_fSlapbackCloseVolume;
 }
 
 [BaseContainerProps(configRoot: true)]
@@ -227,6 +230,7 @@ class BS5_SoundPreset
 	string m_sDisplayName;
 	float m_fEchoVolume;
 	float m_fSlapbackVolume;
+	float m_fSlapbackCloseVolume;
 }
 
 class BS5_TechnicalPreset
@@ -445,7 +449,8 @@ class BS5_PresetRegistry
 
 		BS5_PlayerAudioSettings.SetSoundPresetId(preset.m_sId, false);
 		BS5_PlayerAudioSettings.SetEchoVolume(preset.m_fEchoVolume, false, false);
-		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, saveImmediately, false);
+		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, false, false);
+		BS5_PlayerAudioSettings.SetSlapbackCloseVolume(preset.m_fSlapbackCloseVolume, saveImmediately, false);
 	}
 
 	static void ApplyTechnicalPreset(string id, bool saveImmediately = true)
@@ -491,7 +496,7 @@ class BS5_PresetRegistry
 			if (!entry || entry.m_sId == string.Empty)
 				continue;
 
-			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume);
+			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume, entry.m_fSlapbackCloseVolume);
 		}
 	}
 
@@ -516,10 +521,10 @@ class BS5_PresetRegistry
 
 	protected static void AddFallbackSoundPresets()
 	{
-		AddSoundPreset("vanilla", "Vanilla", 0.65, 0.40);
-		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 0.90, 0.70);
-		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.50);
-		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.45);
+		AddSoundPreset("vanilla", "Vanilla", 0.65, 0.40, 0.40);
+		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 0.90, 0.70, 0.70);
+		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.50, 0.50);
+		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.45, 0.45);
 	}
 
 	protected static void AddFallbackTechnicalPresets()
@@ -537,7 +542,7 @@ class BS5_PresetRegistry
 		AddTechnicalPresetFromEntry(entry);
 	}
 
-	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume)
+	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume, float slapbackCloseVolume)
 	{
 		if (FindSoundPreset(id))
 			return;
@@ -547,6 +552,7 @@ class BS5_PresetRegistry
 		preset.m_sDisplayName = displayName;
 		preset.m_fEchoVolume = BS5_EchoMath.Clamp01(echoVolume);
 		preset.m_fSlapbackVolume = BS5_EchoMath.Clamp01(slapbackVolume);
+		preset.m_fSlapbackCloseVolume = BS5_EchoMath.Clamp01(slapbackCloseVolume);
 		s_aSoundPresets.Insert(preset);
 	}
 

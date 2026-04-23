@@ -23,6 +23,7 @@ Event-driven weapon echo, tail, and slapback system for Arma Reforger / Enfusion
 - Active roadmap: [MODPLAN.md](MODPLAN.md)
 - Project context: [PROJECT_CONTEXT.md](docs/reference/PROJECT_CONTEXT.md)
 - Workbench and MCP notes: [WORKBENCH_AND_MCP.md](docs/reference/WORKBENCH_AND_MCP.md)
+- Workbench repo workflow: [WORKBENCH_REPO_WORKFLOW.md](docs/reference/WORKBENCH_REPO_WORKFLOW.md)
 - Slapback expansion plan: [SLAPBACK_EXPANSION_PLAN.md](docs/plans/SLAPBACK_EXPANSION_PLAN.md)
 - Audit review and implementation backlog: [docs/audits](docs/audits)
 

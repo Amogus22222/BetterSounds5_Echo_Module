@@ -453,12 +453,14 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "1.0", desc: "Curve exponent for scripted distance-based tail attenuation. Values above 1 keep more gain near the shooter and fall off later.")]
 	protected float m_fDistanceGainCurvePower;
 
-	[Attribute(defvalue: "0", desc: "Enables verbose BS5 runtime logging for analysis and tuning.")]
+	[Attribute(defvalue: "0", desc: "Legacy master debug switch. Prefer BS5_AudioDebugSettingsComponent for channel-based debug.")]
 	protected bool m_bDebug;
 
 	protected vector m_vLastOrigin;
 	protected vector m_vLastForward;
 	protected ref BS5_EchoAnalysisResult m_LastResult;
+	protected BS5_CloseReflectionSettingsComponent m_CloseReflectionSettings;
+	protected BS5_AudioDebugSettingsComponent m_DebugSettings;
 	protected int m_iCacheGeneration;
 	protected bool m_bCacheValid;
 	protected bool m_bLastSuppressed;
@@ -517,8 +519,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 		initFlagsLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails);
 		initFlagsLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
 		initFlagsLog += " limiter=" + BS5_DebugLog.BoolText(m_bEnablePlaybackLimiter);
-		BS5_DebugLog.Line(this, initFlagsLog);
-		BS5_DebugLog.Line(this, "driver slapEvent=" + m_sSlapbackEventName);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, initFlagsLog);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "driver slapEvent=" + m_sSlapbackEventName);
 	}
 
 	override void OnDelete(IEntity owner)
@@ -562,7 +564,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		if (ShouldSuppressDuplicateDispatch(origin, planarForward))
 		{
-			BS5_DebugLog.Line(this, "dispatch skip duplicate same-frame shot");
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip duplicate same-frame shot");
 			return;
 		}
 
@@ -573,15 +575,16 @@ class BS5_EchoDriverComponent : ScriptComponent
 		dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
 		dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
 		dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
-		BS5_DebugLog.Line(this, dispatchLog);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
 		string volumeLog = "dispatch volumes";
 		volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
 		volumeLog += " slapVol=" + BS5_PlayerAudioSettings.GetSlapbackVolume();
+		volumeLog += " slapCloseVol=" + BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
 		volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
-		BS5_DebugLog.Line(this, volumeLog);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, volumeLog);
 		if (!allowTailEmit && !IsSlapbackEnabled())
 		{
-			BS5_DebugLog.Line(this, "dispatch skip no tail by cadence and slapback disabled");
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip no tail by cadence and slapback disabled");
 			m_vLastOrigin = origin;
 			m_vLastForward = planarForward;
 			m_bLastSuppressed = suppressed;
@@ -597,7 +600,11 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		StoreCachedResult(result, suppressed);
 
-		BS5_DebugLog.Line(this, "shot analysis " + result.m_sDebugSummary);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "shot analysis " + result.m_sDebugSummary);
+		if (result.m_sSlapbackDebugSummary != string.Empty)
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.SLAPBACK, result.m_sSlapbackDebugSummary);
+		if (result.m_sCloseDebugSummary != string.Empty)
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.CLOSE, result.m_sCloseDebugSummary);
 
 		if (m_bEnableTails || m_bEnableSlapback)
 		{
@@ -607,7 +614,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 			emitLog += " tailCandidates=" + result.m_aCandidates.Count();
 			emitLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
 			emitLog += " slapMode=" + result.m_sSlapbackMode;
-			BS5_DebugLog.Line(this, emitLog);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, emitLog);
 			ActivateDispatchGuard(origin, planarForward);
 			BS5_EchoRuntime.EmitShot(this, owner, result, allowTailEmit);
 		}
@@ -638,8 +645,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		StoreCachedResult(result, false);
 
-		if (m_bDebug)
-			PrintFormat("BS5 explosion analysis: %1", result.m_sDebugSummary);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "explosion analysis " + result.m_sDebugSummary);
 
 		if (m_bEnableExplosionReuse)
 			BS5_EchoRuntime.EmitExplosion(this, owner, result);
@@ -687,6 +694,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 	{
 		if (suppressed && m_sSuppressedSlapbackAcp != "")
 			return m_sSuppressedSlapbackAcp;
+
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled())
+				return closeSettings.ResolveCloseSlapbackAcp();
+		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackAcp != "")
 			return m_sTrenchSlapbackAcp;
@@ -749,6 +763,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return DEFAULT_SUPPRESSED_SLAPBACK_EMITTER_PREFAB;
 		}
 
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled() && IsEmitterPrefabPath(closeSettings.ResolveCloseSlapbackEmitterPrefab()))
+				return closeSettings.ResolveCloseSlapbackEmitterPrefab();
+		}
+
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
 		{
 			if (IsEmitterPrefabPath(m_sTrenchSlapbackEmitterPrefab))
@@ -779,6 +800,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	string ResolveSlapbackEventName(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN)
 	{
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled())
+				return closeSettings.ResolveCloseSlapbackEventName();
+		}
+
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackEventName != string.Empty && IsEmitterPrefabPath(m_sTrenchSlapbackEmitterPrefab))
 			return m_sTrenchSlapbackEventName;
 
@@ -1089,7 +1117,31 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	bool IsDebugEnabled()
 	{
+		if (m_bDebug)
+			return true;
+
+		BS5_AudioDebugSettingsComponent debugSettings = GetDebugSettingsComponent();
+		if (!debugSettings)
+			return false;
+
+		return debugSettings.IsAnyDebugEnabled();
+	}
+
+	bool IsLegacyDebugEnabled()
+	{
 		return m_bDebug;
+	}
+
+	bool IsDebugChannelEnabled(BS5_DebugChannel channel, BS5_DebugLevel level = BS5_DebugLevel.BASIC)
+	{
+		if (m_bDebug)
+			return true;
+
+		BS5_AudioDebugSettingsComponent debugSettings = GetDebugSettingsComponent();
+		if (!debugSettings)
+			return false;
+
+		return debugSettings.Allows(channel, level);
 	}
 
 	bool IsSoundMapAnchorPlannerEnabled()
@@ -2134,8 +2186,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 			cadence = GetBurstTailCadenceHighPressure();
 
 		bool acceptShot = ((m_iLimiterBurstShotCount - 1) % cadence) == 0;
-		if (!acceptShot && m_bDebug)
-			PrintFormat("BS5 dispatch skipped: burst limiter shot=%1 cadence=%2 pressure=%3 suppressed=%4", m_iLimiterBurstShotCount, cadence, tailPressure, suppressed);
+		if (!acceptShot && IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch skipped burstLimiter shot=" + m_iLimiterBurstShotCount + " cadence=" + cadence + " pressure=" + tailPressure + " suppressed=" + suppressed);
 
 		return acceptShot;
 	}
@@ -2173,6 +2225,32 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return BS5_WeaponEchoSettingsComponent.Cast(owner.FindComponent(BS5_WeaponEchoSettingsComponent));
 	}
 
+	BS5_CloseReflectionSettingsComponent GetCloseReflectionSettingsComponent()
+	{
+		if (m_CloseReflectionSettings)
+			return m_CloseReflectionSettings;
+
+		IEntity owner = GetOwner();
+		if (!owner)
+			return null;
+
+		m_CloseReflectionSettings = BS5_CloseReflectionSettingsComponent.Cast(owner.FindComponent(BS5_CloseReflectionSettingsComponent));
+		return m_CloseReflectionSettings;
+	}
+
+	BS5_AudioDebugSettingsComponent GetDebugSettingsComponent()
+	{
+		if (m_DebugSettings)
+			return m_DebugSettings;
+
+		IEntity owner = GetOwner();
+		if (!owner)
+			return null;
+
+		m_DebugSettings = BS5_AudioDebugSettingsComponent.Cast(owner.FindComponent(BS5_AudioDebugSettingsComponent));
+		return m_DebugSettings;
+	}
+
 	protected BS5_WeaponEchoRplCharacterComponent GetCharacterComponent()
 	{
 		IEntity owner = GetOwner();
@@ -2192,7 +2270,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	protected void DebugValidateConfiguration(IEntity owner)
 	{
-		if (!m_bDebug)
+		if (!IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
 			return;
 
 		if (ResolveMasterEmitterPrefab(false) == string.Empty)
@@ -2209,6 +2287,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		if (m_bEnableSlapback && ResolveSlapbackEventName() == string.Empty)
 			PrintFormat("BS5 sanity warning: missing slapback event name on %1", owner);
+
+		BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+		if (!closeSettings)
+			PrintFormat("BS5 sanity warning: missing close reflection settings component on %1", owner);
+		else if (closeSettings.IsEnabled())
+			PrintFormat("BS5 close reflection config: acp=%1 prefab=%2 event=%3", closeSettings.ResolveCloseSlapbackAcp(), closeSettings.ResolveCloseSlapbackEmitterPrefab(), closeSettings.ResolveCloseSlapbackEventName());
 
 		if (GetMaxCandidateCount() < GetMaxTailEmittersPerShot())
 			PrintFormat("BS5 sanity warning: max candidates (%1) is lower than tail emitters per shot (%2) on %3", GetMaxCandidateCount(), GetMaxTailEmittersPerShot(), owner);

@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 0 0 1 0 0 0 1 0
+    0 1 0 0 0 0 0 0 1 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -166,7 +166,7 @@ AudioClass {
     3 4
    }
    inputvalues {
-    0 0 0.5
+    1 0 0.5
    }
    inputvaluesmin {
     0 0 0
@@ -961,7 +961,9 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 9
+   volume_dB 8
+   priority 40
+   eventNoRepeatTimeMSec 200
   }
  }
  buses {
@@ -1072,7 +1074,7 @@ AudioClass {
    id 343047
    name "Narrow Tails Bus"
    version 7
-   tl 352 2192
+   tl 353 2195
    ctl 0 -21
    ins {
     ConnectionsClass "con:0" {
@@ -1343,7 +1345,7 @@ AudioClass {
    pi {
     503316482 0
    }
-   path "{B764D803219C775E}Sounds/FinalMix.afm"
+   path "$profile:.tmp/AudioEditor/#B764D803219C775E#FinalMix.afm"
    inputs {
     "WPN_Handling" "WPN_Shots" "WPN_Explosions" "WNP_BulletHits" "CHAR" "ENV_AMB_2D" "VEH_Animations" "Impacts" "Dialog" "ENV_Doors" "VEH_Engine" "VEH_Tires" "VON" "SFX" "SFX_Reverb_OBSOLETE" "VON_Reverb_Small" "Dialog_Reverb" "Impacts_EXT" "ENV_AMB_3D" "WPN_SonicCracks" "CHAR_Gear" "PA" "SFX_Reverb_Exterior" "ENV_AMB_3D_Reverb_Exterior" "SFX_Direct" "SFX_Reverb_Small" "SFX_Reverb_Medium" "SFX_Reverb_Large" "WPN_Shots_Player" "Dialog_Reverb_Small" "Dialog_Reverb_Medium" "Dialog_Reverb_Large" "WPN_TravelingProjectile" "Dialog_Delay_Exterior" "SFX_Reverb_InCabin" "VON_Reverb_Medium" "VON_Reverb_Large"
    }
@@ -1824,27 +1826,26 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -60
-   Pitch 2
+   Volume 2
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "Tail_Sniper_Wave_02.wav" {
-     Filename "{E35DA7680A0E4619}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_02.wav"
+    AudioBankSampleClass "AddLayer_DistantCrackling_Close_01.wav" {
+     Filename "{E61EFA31DFC0CC1C}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Close_01.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "Tail_Sniper_Wave_03.wav" {
-     Filename "{9457CFE0FEACA969}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_03.wav"
+    AudioBankSampleClass "AddLayer_DistantCrackling_Close_02.wav" {
+     Filename "{7F0043A8C227FD8C}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Close_02.wav"
      Probability 100
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "Tail_Sniper_Wave_04.wav" {
-     Filename "{939035B1982A13AA}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_04.wav"
+    AudioBankSampleClass "AddLayer_DistantCrackling_Close_03.wav" {
+     Filename "{080A2B20368512FC}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Close_03.wav"
      Probability 100
      Index 2
      SampleMetadata ""
@@ -1880,7 +1881,6 @@ AudioClass {
     35 0
    }
    Volume 3
-   Pitch 2
    "Pitch variance" 2
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -1934,7 +1934,7 @@ AudioClass {
    id 171012
    name "Tail Meadows Close"
    version 7
-   tl -256 1585.323
+   tl -256 1584
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2154,9 +2154,9 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -4
+   Volume -6
    "Volume variance" 2
-   Pitch 7
+   Pitch 5
    "Pitch variance" 2
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2219,42 +2219,24 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 7
-   Pitch 3
+   Volume 2
+   Pitch 1
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Fade in time" 600
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "127mm_forest_1.wav" {
-     Filename "{5FC12449D8B6A0FC}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_1.wav"
+    AudioBankSampleClass "dynrev_highpower_city1.wav" {
+     Filename "{08C374261025D980}Assets/Gunpowder/Tails/City/Rough/dynrev_highpower_city1.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "127mm_forest_2.wav" {
-     Filename "{C6DF9DD0C551916C}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_2.wav"
+    AudioBankSampleClass "dynrev_highpower_city2.wav" {
+     Filename "{91DDCDBF0DC2E810}Assets/Gunpowder/Tails/City/Rough/dynrev_highpower_city2.wav"
      Probability 100
      Index 1
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "127mm_forest_3.wav" {
-     Filename "{B1D5F55831F37E1C}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_3.wav"
-     Probability 100
-     Index 2
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "127mm_forest_4.wav" {
-     Filename "{B6120F095775C4DF}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_4.wav"
-     Probability 100
-     Index 3
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "BF01_Weapons_Handheld_Shared_Reflections_All_Parametric_01 108.wav" {
-     Filename "{5A2002401CFC90A3}Assets/Gunpowder/Tails/SC_Reflectors/BF01_Weapons_Handheld_Shared_Reflections_All_Parametric_01 108.wav"
-     Probability 100
-     Index 4
      SampleMetadata ""
     }
    }
@@ -2287,8 +2269,9 @@ AudioClass {
    pi {
     35 0
    }
+   Volume 3
    "Volume variance" 1
-   Pitch 3
+   Pitch -3
    "Pitch variance" 0.84
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2342,7 +2325,7 @@ AudioClass {
    id 190468
    name "Tail Hills Far"
    version 7
-   tl -240 2336
+   tl -224 2336
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2375,28 +2358,34 @@ AudioClass {
    pi {
     35 0
    }
-   Pitch 4
+   Pitch 2
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_01.wav" {
-     Filename "{DACBFE747CFED021}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_01.wav"
+    AudioBankSampleClass "Tail_Sniper_Wave_01.wav" {
+     Filename "{7A431EF117E97789}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_01.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_02.wav" {
-     Filename "{43D547ED6119E1B1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_02.wav"
+    AudioBankSampleClass "Tail_Sniper_Wave_02.wav" {
+     Filename "{E35DA7680A0E4619}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_02.wav"
      Probability 100
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_03.wav" {
-     Filename "{34DF2F6595BB0EC1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_03.wav"
+    AudioBankSampleClass "Tail_Sniper_Wave_03.wav" {
+     Filename "{9457CFE0FEACA969}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_03.wav"
      Probability 100
      Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Tail_Sniper_Wave_04.wav" {
+     Filename "{939035B1982A13AA}Assets/Gunpowder/Tails/Field/Tail_Sniper_Wave_04.wav"
+     Probability 100
+     Index 3
      SampleMetadata ""
     }
    }
@@ -2438,7 +2427,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 15
+   Volume 8
    "Volume variance" 0.2
    Pitch 1
    "Pitch variance" 0.7
@@ -2446,22 +2435,28 @@ AudioClass {
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_01.wav" {
-     Filename "{DACBFE747CFED021}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_01.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_31.wav" {
+     Filename "{21F66A14B75CFE2B}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_31.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_02.wav" {
-     Filename "{43D547ED6119E1B1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_02.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_32.wav" {
+     Filename "{B8E8D38DAABBCFBB}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_32.wav"
      Probability 100
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "AddLayer_DistantCrackling_Far_03.wav" {
-     Filename "{34DF2F6595BB0EC1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_03.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_33.wav" {
+     Filename "{CFE2BB055E1920CB}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_33.wav"
      Probability 100
      Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Tail_Reflections_Far_34.wav" {
+     Filename "{C8254154389F9A08}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_34.wav"
+     Probability 100
+     Index 3
      SampleMetadata ""
     }
    }
@@ -2503,28 +2498,26 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 5
    "Volume variance" 0.3
-   Pitch 2
    "Pitch variance" 0.7
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "BaseTail_SmallArms_Meadows_Far_01.wav" {
-     Filename "{136651A69DB6C12E}Sounds/Weapons/_SharedData/WeaponTails/BaseTail_SmallArms/BaseTail_SmallArms_Meadows_Far_01.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_32.wav" {
+     Filename "{B8E8D38DAABBCFBB}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_32.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "BaseTail_SmallArms_Meadows_Far_02.wav" {
-     Filename "{8A78E83F8051F0BE}Sounds/Weapons/_SharedData/WeaponTails/BaseTail_SmallArms/BaseTail_SmallArms_Meadows_Far_02.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_33.wav" {
+     Filename "{CFE2BB055E1920CB}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_33.wav"
      Probability 100
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "BaseTail_SmallArms_Meadows_Far_03.wav" {
-     Filename "{FD7280B774F31FCE}Sounds/Weapons/_SharedData/WeaponTails/BaseTail_SmallArms/BaseTail_SmallArms_Meadows_Far_03.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_34.wav" {
+     Filename "{C8254154389F9A08}Assets/Gunpowder/Tails/Field/Tail_Reflections_Far_34.wav"
      Probability 100
      Index 2
      SampleMetadata ""
@@ -2640,21 +2633,21 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -4
-   Pitch 6
-   "Pitch variance" 2.012
+   Volume -6
+   "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
+   Preload 1
    Samples {
-    AudioBankSampleClass "AT_rifle_echo_3p_close_stereo_02.wav" {
-     Filename "{F644D77E98B418EE}Assets/Gunpowder/SlapBacks/AT_rifle_echo_3p_close_stereo_02.wav"
+    AudioBankSampleClass "Tail_Close_OpenField_23.wav" {
+     Filename "{4DBB5F4D24990B0E}Assets/Gunpowder/Tails/Field/Tail_Close_OpenField_23.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "AT_rifle_echo_3p_close_stereo_03.wav" {
-     Filename "{814EBFF66C16F79E}Assets/Gunpowder/SlapBacks/AT_rifle_echo_3p_close_stereo_03.wav"
+    AudioBankSampleClass "Tail_Close_OpenField_24.wav" {
+     Filename "{4A7CA51C421FB1CD}Assets/Gunpowder/Tails/Field/Tail_Close_OpenField_24.wav"
      Probability 100
      Index 1
      SampleMetadata ""
@@ -2689,41 +2682,24 @@ AudioClass {
    pi {
     35 0
    }
+   Volume 3
    "Volume variance" 2
-   Pitch 5
+   Pitch 4
    "Pitch variance" 1
    Resampler FIR_4
    "Disable streaming" 1
    Preload 1
    Samples {
-    AudioBankSampleClass "Tail_Far_Urban_05.wav" {
-     Filename "{03CDD3293A445789}Assets/Gunpowder/Tails/City/Tail_Far_Urban_05.wav"
+    AudioBankSampleClass "weap_refl_shotgun_urb_ext_dist_lr_03.wav" {
+     Filename "{2B76A6AD20755D22}Assets/Gunpowder/Tails/City/Rough/weap_refl_shotgun_urb_ext_dist_lr_03.wav"
      Probability 100
      Index 0
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "Tail_Far_Urban_06.wav" {
-     Filename "{9AD36AB027A36619}Assets/Gunpowder/Tails/City/Tail_Far_Urban_06.wav"
-     Probability 100
-     Index 1
      SampleMetadata ""
     }
     AudioBankSampleClass "weap_refl_shotgun_urb_ext_dist_lr_02.wav" {
      Filename "{5C7CCE25D4D7B252}Assets/Gunpowder/Tails/City/Rough/weap_refl_shotgun_urb_ext_dist_lr_02.wav"
      Probability 100
-     Index 2
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "weap_refl_shotgun_urb_ext_dist_lr_03.wav" {
-     Filename "{2B76A6AD20755D22}Assets/Gunpowder/Tails/City/Rough/weap_refl_shotgun_urb_ext_dist_lr_03.wav"
-     Probability 100
-     Index 3
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "weap_refl_shotgun_urb_ext_dist_lr_04.wav" {
-     Filename "{2CB15CFC46F3E7E1}Assets/Gunpowder/Tails/City/Rough/weap_refl_shotgun_urb_ext_dist_lr_04.wav"
-     Probability 100
-     Index 4
+     Index 1
      SampleMetadata ""
     }
    }

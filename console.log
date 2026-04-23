@@ -1,0 +1,29 @@
+18:43:12.458   ENGINE       : FileSystem: Adding relative directory 'C:\Users\AshylArma\Documents\My Games\ArmaReforgerWorkbench\profile' to filesystem under name profile
+18:43:12.459  PROFILING    : Workbench Create Engine took: 9.663500 ms
+18:43:13.488  INIT         : INIT         : Workbench Init Engine
+18:43:13.489   DEFAULT      : Change in Qt version detected (unknown -> 6.8.3). Clearing layouts registry.
+18:43:13.491   ENGINE       : Initializing engine, version 187974
+18:43:13.491   ENGINE       : CLI Params: -gproj G:\BettersMods\BetterSounds5\addon.gproj 
+18:43:13.491   ENGINE       : Addon dirs:
+18:43:13.491    ENGINE       : dir: 'G:/BettersMods/BetterSounds5/'
+18:43:13.491    ENGINE       : dir: './addons'
+18:43:13.492    ENGINE       : dir: 'C:/Users/AshylArma/Documents/My Games/ArmaReforgerWorkbench/addons'
+18:43:13.492   ENGINE       : Available addons:
+18:43:13.492    ENGINE       : gproj: 'G:/BettersMods/BetterSounds5/addon.gproj' guid: '6717325A0F4513E2'
+18:43:13.492    ENGINE       : gproj: 'C:/Users/AshylArma/Documents/My Games/ArmaReforgerWorkbench/addons/TYRYHgt/addon.gproj' guid: '66EA90EA3C2067B2'
+18:43:13.492 INIT         : Workbench startup
+18:43:13.492  INIT         : Workbench Init Engine
+18:43:13.492   ENGINE    (E): Addon 'BetterSounds5' dependency '58D0FB3206B6F859' can't be added
+18:43:13.492   ENGINE       : Addon dirs:
+18:43:13.492    ENGINE       : dir: 'G:/BettersMods/BetterSounds5/'
+18:43:13.492    ENGINE       : dir: './addons'
+18:43:13.492    ENGINE       : dir: 'C:/Users/AshylArma/Documents/My Games/ArmaReforgerWorkbench/addons'
+18:43:13.492   ENGINE       : Available addons:
+18:43:13.492    ENGINE       : gproj: 'G:/BettersMods/BetterSounds5/addon.gproj' guid: '6717325A0F4513E2'
+18:43:13.492    ENGINE       : gproj: 'C:/Users/AshylArma/Documents/My Games/ArmaReforgerWorkbench/addons/TYRYHgt/addon.gproj' guid: '66EA90EA3C2067B2'
+18:43:13.492   ENGINE    (E): Game addon '58D0FB3206B6F859' not found
+18:43:15.119   ENGINE    (E): Cannot initialize game project settings!
+18:43:15.119  PROFILING    : Workbench Init Engine took: 1630.290000 ms
+18:43:18.441 PROFILING    : Workbench startup took: 6100.334700 ms
+18:43:18.441 ENGINE       : Game destroyed.
+18:43:18.441 ENGINE       : Game destroyed.

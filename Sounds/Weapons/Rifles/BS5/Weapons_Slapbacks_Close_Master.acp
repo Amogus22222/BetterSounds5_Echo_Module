@@ -550,28 +550,6 @@ AudioClass {
    }
    path "{96AFB8206E4CF0E6}Sounds/_SharedData/Signals/OneSignal/UnderPlayerControl.sig"
   }
-  SignalClass "437261" {
-   id 437261
-   name "Signal 427"
-   tl 32 384
-   res "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
-   inputsport {
-    1
-   }
-   outputsport {
-    2
-   }
-   inputvalues {
-    1
-   }
-   inputvaluesmin {
-    0
-   }
-   inputvaluesmax {
-    1
-   }
-   path "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
-  }
   SignalClass "438285" {
    id 438285
    name "Signal 428"
@@ -638,6 +616,28 @@ AudioClass {
    }
    path "{4C2550602ED48B3A}Sounds/Weapons/Rifles/BS5/multiply.sig"
   }
+  SignalClass "441357" {
+   id 441357
+   name "Signal 431"
+   tl 502.44 409.583
+   res "{A8D1E3C947B24A17}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig"
+   inputsport {
+    1
+   }
+   outputsport {
+    2
+   }
+   inputvalues {
+    1
+   }
+   inputvaluesmin {
+    0
+   }
+   inputvaluesmax {
+    1
+   }
+   path "{A8D1E3C947B24A17}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig"
+  }
  }
  filters {
   FilterClass "426006" {
@@ -648,28 +648,23 @@ AudioClass {
    pi {
     3 0
    }
-   wetDry 0.8
-   DSPObject BiquadDSPTypeClass dsp {
-    biquadType BandPass
-    fc 1349
-    Q 0.448
-    gain 2
+   wetDry 0.99
+   DSPObject DistortionDSPTypeClass dsp {
+    distortionType SoftClipper
+    drive 10.7
    }
   }
   FilterClass "428054" {
    id 428054
    name "Filter 418"
    version 5
-   tl 336 1008
+   tl 336 960
    pi {
     3 0
    }
    DSPObject CompressorDSPTypeClass dsp {
-    threshold -18.8
-    ratio 8.2
-    attack 21
-    release 761
-    kneeWidth 4
+    threshold -27.9
+    ratio 6.7
    }
   }
   FilterClass "429078" {
@@ -700,24 +695,6 @@ AudioClass {
     attack 131
     release 401
     kneeWidth 3
-   }
-  }
-  FilterClass "443414" {
-   id 443414
-   name "Filter 416"
-   version 5
-   tl 336 896
-   pi {
-    3 0
-   }
-   wetDry 0.32
-   DSPObject Reverb2DSPTypeClass dsp {
-    RoomDimensions 12 6
-    SourcePosition 0.4 0.3
-    MicPosition 0.99 0.5
-    Absorption 0.21
-    Damping 0.11
-    ModulationDepth 0.73
    }
   }
  }
@@ -775,20 +752,7 @@ AudioClass {
       }
      }
     }
-    ConnectionsClass "con:3" {
-     id 3
-     links {
-      ConnectionClass "443414:65" {
-       id 443414
-       port 65
-      }
-     }
-    }
    }
-   pi {
-    14 0
-   }
-   ports 3
   }
  }
  vars {
@@ -812,8 +776,8 @@ AudioClass {
     ConnectionsClass "con:1" {
      id 1
      links {
-      ConnectionClass "437261:2" {
-       id 437261
+      ConnectionClass "441357:2" {
+       id 441357
        port 2
       }
      }
@@ -834,13 +798,17 @@ AudioClass {
        id 287762
        port 65
       }
+      ConnectionClass "445458:65" {
+       id 445458
+       port 65
+      }
      }
     }
    }
    pi {
     54 0
    }
-   volume_dB 4
+   volume_dB 8
    type "One shot"
   }
  }
@@ -855,16 +823,8 @@ AudioClass {
     ConnectionsClass "con:64" {
      id 64
      links {
-      ConnectionClass "435204:65" {
-       id 435204
-       port 65
-      }
       ConnectionClass "436228:65" {
        id 436228
-       port 65
-      }
-      ConnectionClass "439300:65" {
-       id 439300
        port 65
       }
      }
@@ -1092,14 +1052,14 @@ AudioClass {
    id 287762
    name "EnvLayer Shader"
    version 5
-   tl 656 640
+   tl 640 624
    ctl 0 -21
    ins {
     ConnectionsClass "con:0" {
      id 0
      links {
-      ConnectionClass "440348:65" {
-       id 440348
+      ConnectionClass "442396:65" {
+       id 442396
        port 65
       }
      }
@@ -1145,6 +1105,63 @@ AudioClass {
     23 0
    }
   }
+  ShaderClass "445458" {
+   id 445458
+   name "EnvLayer Shader"
+   version 5
+   tl 688 96
+   ctl 0 -21
+   ins {
+    ConnectionsClass "con:0" {
+     id 0
+     links {
+      ConnectionClass "444444:65" {
+       id 444444
+       port 65
+      }
+     }
+    }
+    ConnectionsClass "con:1" {
+     id 1
+     links {
+      ConnectionClass "446483:65" {
+       id 446483
+       port 65
+      }
+     }
+    }
+    ConnectionsClass "con:2" {
+     id 2
+     links {
+      ConnectionClass "406549:65" {
+       id 406549
+       port 65
+      }
+     }
+    }
+    ConnectionsClass "con:4" {
+     id 4
+     links {
+      ConnectionClass "427031:65" {
+       id 427031
+       port 65
+      }
+     }
+    }
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "447492:65" {
+       id 447492
+       port 65
+      }
+     }
+    }
+   }
+   pi {
+    23 0
+   }
+  }
  }
  amplitudes {
   AmplitudeClass "6163" : "{0D21136AFB782262}Sounds/_SharedData/Configs/Amplitude/_SharedData/Amplitude_-16LUFS_to_-15LUFS.conf" {
@@ -1159,13 +1176,51 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 45.44924
-     Y 0.41059
+     X 22.84216
+     Y 0.77442
     }
     CurvePoint "3" {
-     X 101.03421
+     X 59.11649
+     Y 0.29057
     }
     CurvePoint "4" {
+     X 119.70665
+     Y 0.08134
+    }
+    CurvePoint "5" {
+     X 201.13741
+    }
+    CurvePoint "6" {
+     X 201.13751
+    }
+   }
+  }
+  AmplitudeClass "446483" {
+   id 446483
+   name "Amplitude -16LUFS to -15LUFS"
+   comment "556"
+   version 5
+   tl 608 16
+   ctl 0 -21
+   curve Custom
+   AttenuationCurve {
+    CurvePoint "1" {
+     Y 1
+    }
+    CurvePoint "2" {
+     X 24.77426
+     Y 0.64915
+    }
+    CurvePoint "3" {
+     X 51.3362
+    }
+    CurvePoint "4" {
+     X 77.38889
+    }
+    CurvePoint "5" {
+     X 150.33743
+    }
+    CurvePoint "6" {
      X 201.13751
     }
    }
@@ -1240,62 +1295,13 @@ AudioClass {
    pi {
     20 0
    }
+   dynamicUpdate 1
    type AirAbsorption
-   enableDirectivity 0
+   filterStrength 2
+   directivityFactor 0.32
   }
  }
  banks_local {
-  BankLocalClass "435204" {
-   id 435204
-   name "EL Houses Far"
-   version 7
-   tl -144 1008
-   ins {
-    ConnectionsClass "con:0" {
-     id 0
-     links {
-      ConnectionClass "334861:6" {
-       id 334861
-       port 6
-      }
-     }
-    }
-    ConnectionsClass "con:1" {
-     id 1
-     links {
-      ConnectionClass "407565:1" {
-       id 407565
-       port 1
-      }
-     }
-    }
-   }
-   pi {
-    35 0
-   }
-   Volume -3
-   Pitch -3
-   "Termination Fade Out" 100
-   Resampler FIR_4
-   "Fade in time" 10
-   Sustain 500
-   "Fade out time" 1100
-   Preload 1
-   Samples {
-    AudioBankSampleClass "explosion_add_attack-002.wav.wav" {
-     Filename "{A70A07ED2168463D}Assets/Gunpowder/SlapBacks/explosion_add_attack-002.wav.wav"
-     Probability 100
-     Index 0
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "explosion_add_attack-001.wav.wav" {
-     Filename "{A91443A51C9F49E7}Assets/Gunpowder/SlapBacks/explosion_add_attack-001.wav.wav"
-     Probability 100
-     Index 1
-     SampleMetadata ""
-    }
-   }
-  }
   BankLocalClass "436228" {
    id 436228
    name "EL Houses Far"
@@ -1324,26 +1330,29 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -4
    "Volume variance" 0.2
-   Pitch 2
+   Pitch 3
    "Termination Fade Out" 100
    Resampler FIR_4
+   Offset 60
+   "Fade in time" 10
+   Sustain 300
+   "Fade out time" 1000
    Preload 1
    Samples {
-    AudioBankSampleClass "test_urban_full_V3_reflection_only_02.wav" {
-     Filename "{591F251A08974FD0}Assets/Gunpowder/Tails/Field/test_urban_full_V3_reflection_only_02.wav"
+    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
+     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
    }
   }
-  BankLocalClass "439300" {
-   id 439300
+  BankLocalClass "447492" {
+   id 447492
    name "EL Houses Far"
    version 7
-   tl -144 864
+   tl 80 -17.323
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -1367,18 +1376,18 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -12
-   "Volume variance" 1
-   Pitch 14
    "Termination Fade Out" 100
    Resampler FIR_4
+   Offset 60
    "Fade in time" 10
-   Sustain 500
-   "Fade out time" 700
+   Sustain 200
+   "Fade out function" Cos
+   "Fade out time" 800
+   "Disable streaming" 1
    Preload 1
    Samples {
-    AudioBankSampleClass "tail_urban_city_close_04.wav" {
-     Filename "{85FED01DA1225A6A}Assets/Gunpowder/Tails/SC_Reflectors/tail_urban_city_close_04.wav"
+    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
+     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
      Probability 100
      Index 0
      SampleMetadata ""
@@ -1387,43 +1396,51 @@ AudioClass {
   }
  }
  spatialities {
-  SpatialityClass "440348" {
-   id 440348
-   name "Spatiality 430"
+  SpatialityClass "442396" {
+   id 442396
+   name "Spatiality 432"
    version 5
-   tl 560 528
+   tl 288 432
    SpatialFactorSource Curve
    SFCurve {
     CurvePoint "1" {
-     Y 0.58605
+     Y 0.24779
     }
     CurvePoint "2" {
-     X 8.84534
-     Y 0.8511
+     X 6.59922
+     Y 0.65148
     }
     CurvePoint "3" {
-     X 30.29972
+     X 12.98716
+     Y 0.77375
+    }
+    CurvePoint "4" {
+     X 22.32047
+     Y 0.86537
+    }
+    CurvePoint "5" {
+     X 40.0292
      Y 1
     }
    }
   }
-  SpatialityClass "441372" {
-   id 441372
+  SpatialityClass "444444" {
+   id 444444
    name "Spatiality 430"
    version 5
-   tl 944 432
+   tl 931 15
    SpatialFactorSource Curve
    SFCurve {
     CurvePoint "1" {
      Y 0.58605
     }
     CurvePoint "2" {
-     X 20.15231
-     Y 0.63921
+     X 8.92519
+     Y 0.92185
     }
     CurvePoint "3" {
-     X 44.66106
-     Y 0.52235
+     X 30.29972
+     Y 1
     }
    }
   }

@@ -1,11 +1,40 @@
 GenericEntity {
  ID "CFBAA4B725411E45"
  components {
+  BS5_AudioDebugSettingsComponent "{692681A02B441188}" {
+   Enabled 0
+   m_iDebugLevel 2
+   m_bDebugDriver 0
+   m_bDebugGeneral 0
+   m_bDebugAnalysis 1
+   m_bDebugSlapback 1
+   m_bDebugClose 1
+   m_bDebugEmit 0
+   m_bDebugLimiter 0
+  }
+  BS5_CloseReflectionSettingsComponent "{692681A02B441177}" {
+   m_bEnableCloseReflection 1
+   m_sCloseSlapbackAcp "{1A9C4D83B5E24761}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Master.acp"
+   m_sCloseSlapbackEmitterPrefab "{64E4F2017A4A2C5B}Prefabs/Props/BS5_SlapbackEmitter_Close.et"
+   m_sCloseSlapbackEventName "SOUND_SHOT"
+   m_fMaxCloseDistanceMeters 15
+   m_fBaseEvidenceMin 0.1
+   m_fAcceptScoreMin 0.44
+   m_fSidePairAcceptScore 0.25
+   m_fFrontBackPairAcceptScore 0.4
+   m_fRescuePairAcceptScore 0.52
+   m_fRoofSingleAcceptScore 0.3
+   m_fTrenchOverrideMargin 0.06
+   m_bAllowRoofRescue 1
+   m_bAllowWallRescue 1
+   m_fIntensityMultiplier 1.2
+   m_fSurfaceHardnessFloor 0.5
+  }
   BS5_EchoDriverComponent "{692681A021648F3D}" {
    m_sMasterAcp "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
    m_sSlapbackAcp "{A5088F4119AED643}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Master.acp"
    m_sTrenchSlapbackAcp "{F6788D70EAFBDFE1}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Trench_Master.acp"
-   m_sSuppressedMasterAcp "{5B784125E2E54AA0}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp"
+   m_sSuppressedMasterAcp "{064282CFD84AFC4E}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp.acp"
    m_sSuppressedSlapbackAcp "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"
    m_sTrenchSlapbackEventName "SOUND_SHOT"
    m_sTrenchSlapbackEmitterPrefab "{C21E4F890A7B63D5}Prefabs/Props/BS5_SlapbackEmitter_Trench.et"
@@ -84,11 +113,12 @@ GenericEntity {
    m_fTertiaryTailDistanceMax 520
    m_fTailEmitterLifetimeSeconds 3.9
    m_fTailEmitterHighPressureLifetimeSeconds 2.8
-   m_fTailEmitterMinManagedLifetimeSeconds 1.2
+   m_fTailEmitterMinManagedLifetimeSeconds 1.8
    m_fSlapbackEmitterLifetimeSeconds 1
-   m_fSlapbackMinDistanceMeters 0.2
+   m_fSlapbackMinDistanceMeters 0.1
    m_fSlapbackMergeDistanceMeters 1.5
    m_fSlapbackWallOffsetMeters 0.1
+   m_fSlapbackPathLengthScale 1.3
    m_fFacadeDelayScale 1
    m_fSoundMapForwardConeDegrees 120
    m_fSoundMapForwardMaxDistanceMeters 700
@@ -116,9 +146,8 @@ GenericEntity {
    m_fSoundMapFarTailHardLimitMeters 560
    m_fSoundMapNearUrbanTailMaxDistanceMeters 180
    m_fSoundMapPathRaycastDistanceMeters 220
-   m_fDistanceGainNearMeters 35
-   m_fDistanceGainFarMeters 300
-   m_bDebug 1
+   m_fDistanceGainNearMeters 5
+   m_fDistanceGainFarMeters 255
   }
   BS5_WeaponEchoRplCharacterComponent "{692681A026ACA6B2}" {
    m_DefaultEchoAcp "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"

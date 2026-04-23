@@ -8,7 +8,7 @@ AudioOutputStateResClass {
    outputsport {
     2 14 19 27
    }
-   path "$profile:.tmp/AudioEditor/#8A428597F8C3A3ED#FinalMix_Interior.sig"
+   path "{8A428597F8C3A3ED}Sounds/_SharedData/Signals/FinalMix/FinalMix_Interior.sig"
   }
   SignalClass "62477" {
    id 62477
@@ -22,8 +22,8 @@ AudioOutputStateResClass {
       ConnectionsClass connections {
        id 26
        links {
-        ConnectionClass "281630:65" {
-         id 281630
+        ConnectionClass "369694:65" {
+         id 369694
          port 65
         }
        }
@@ -890,29 +890,6 @@ AudioOutputStateResClass {
     }
    }
   }
-  VariableClass "281630" {
-   id 281630
-   name "Variable Tinnitus"
-   version 5
-   tl 1072 -192
-   varName "Tinnitus"
-   varResource "{A60F08955792B575}Sounds/_SharedData/Variables/GlobalVariables.conf"
-   curve {
-    CurvePoint "1" {
-    }
-    CurvePoint "2" {
-     X 0.25
-     Y 1
-    }
-    CurvePoint "3" {
-     X 2.5
-     Y 1
-    }
-    CurvePoint "4" {
-     X 4
-    }
-   }
-  }
   VariableClass "311326" {
    id 311326
    name "Variable L4"
@@ -958,6 +935,45 @@ AudioOutputStateResClass {
     CurvePoint "2" {
      X 1
      Y 0.9
+    }
+   }
+  }
+  VariableClass "369694" {
+   id 369694
+   name "Variable Tinnitus"
+   version 5
+   tl 1306.399 -263.87
+   varName "Tinnitus"
+   varResource "{A60F08955792B575}Sounds/_SharedData/Variables/GlobalVariables.conf"
+   curve {
+    CurvePoint "1" {
+    }
+    CurvePoint "2" {
+     X 0.05982
+     Y 0.33355
+    }
+    CurvePoint "3" {
+     X 0.25267
+     Y 0.74884
+    }
+    CurvePoint "4" {
+     X 0.59808
+     Y 0.99111
+    }
+    CurvePoint "5" {
+     X 3.78356
+     Y 1
+    }
+    CurvePoint "6" {
+     X 6.51502
+     Y 0.59815
+    }
+    CurvePoint "7" {
+     X 9.74202
+     Y 0.2961
+    }
+    CurvePoint "8" {
+     X 14.90646
     }
    }
   }

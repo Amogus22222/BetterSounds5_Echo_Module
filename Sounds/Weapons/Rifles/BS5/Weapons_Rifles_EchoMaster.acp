@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 0 0 0 0 0 0 1 0
+    0 1 0 0 1 0 0 0 0 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -166,7 +166,7 @@ AudioClass {
     3 4
    }
    inputvalues {
-    1 382.2 0.5
+    0 0 0.5
    }
    inputvaluesmin {
     0 0 0
@@ -392,7 +392,7 @@ AudioClass {
     6 7 8 58 59 104 121 123 158 212 214 227 229 230
    }
    inputvalues {
-    0 1 1 1 0 0 688.6 0.5
+    0 1 1 0 0 0 688.6 0.5
    }
    inputvaluesmin {
     0 0 0 0 -1 0 0 0
@@ -1345,7 +1345,7 @@ AudioClass {
    pi {
     503316482 0
    }
-   path "{B764D803219C775E}Sounds/FinalMix.afm"
+   path "$profile:.tmp/AudioEditor/#B764D803219C775E#FinalMix.afm"
    inputs {
     "WPN_Handling" "WPN_Shots" "WPN_Explosions" "WNP_BulletHits" "CHAR" "ENV_AMB_2D" "VEH_Animations" "Impacts" "Dialog" "ENV_Doors" "VEH_Engine" "VEH_Tires" "VON" "SFX" "SFX_Reverb_OBSOLETE" "VON_Reverb_Small" "Dialog_Reverb" "Impacts_EXT" "ENV_AMB_3D" "WPN_SonicCracks" "CHAR_Gear" "PA" "SFX_Reverb_Exterior" "ENV_AMB_3D_Reverb_Exterior" "SFX_Direct" "SFX_Reverb_Small" "SFX_Reverb_Medium" "SFX_Reverb_Large" "WPN_Shots_Player" "Dialog_Reverb_Small" "Dialog_Reverb_Medium" "Dialog_Reverb_Large" "WPN_TravelingProjectile" "Dialog_Delay_Exterior" "SFX_Reverb_InCabin" "VON_Reverb_Medium" "VON_Reverb_Large"
    }
@@ -2219,42 +2219,21 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 7
+   Volume -4.852
    Pitch 3
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
+   "Random start offset" 1
    "Fade in time" 600
+   Sustain 700
+   "Fade out time" 1300
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "127mm_forest_1.wav" {
-     Filename "{5FC12449D8B6A0FC}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_1.wav"
-     Probability 100
-     Index 0
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "127mm_forest_2.wav" {
-     Filename "{C6DF9DD0C551916C}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_2.wav"
-     Probability 100
-     Index 1
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "127mm_forest_3.wav" {
-     Filename "{B1D5F55831F37E1C}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_3.wav"
-     Probability 100
-     Index 2
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "127mm_forest_4.wav" {
-     Filename "{B6120F095775C4DF}Assets/Gunpowder/Tails/SC_Reflectors/127mm_forest_4.wav"
-     Probability 100
-     Index 3
-     SampleMetadata ""
-    }
     AudioBankSampleClass "BF01_Weapons_Handheld_Shared_Reflections_All_Parametric_01 108.wav" {
      Filename "{5A2002401CFC90A3}Assets/Gunpowder/Tails/SC_Reflectors/BF01_Weapons_Handheld_Shared_Reflections_All_Parametric_01 108.wav"
      Probability 100
-     Index 4
+     Index 0
      SampleMetadata ""
     }
    }
