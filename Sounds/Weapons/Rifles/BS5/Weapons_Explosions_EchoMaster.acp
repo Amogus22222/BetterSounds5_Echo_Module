@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 0 0 0 0 0 0 0 0
+    0 1 1 0 0 0 0 0 0 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -1543,7 +1543,7 @@ AudioClass {
    id 341010
    name "Wide Tails Shader"
    version 5
-   tl 608 2000
+   tl 612 2002
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2009,12 +2009,14 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -4
-   Pitch 2
+   Volume -12
    "Pitch variance" 1.012
    "Termination Fade Out" 100
    Resampler FIR_4
-   Offset 40
+   Offset 100
+   "Fade in time" 200
+   Sustain 500
+   "Fade out time" 2500
    "Disable streaming" 1
    Samples {
     AudioBankSampleClass "Forest.wav" {
@@ -2029,7 +2031,7 @@ AudioClass {
    id 178180
    name "EL Forest Far"
    version 7
-   tl -240 1184
+   tl -240 1200
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2062,7 +2064,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -8
+   Volume -16
    "Pitch variance" 0.7
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2473,6 +2475,7 @@ AudioClass {
    pi {
     35 0
    }
+   Pitch -5
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
