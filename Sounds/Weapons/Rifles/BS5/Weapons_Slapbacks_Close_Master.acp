@@ -1376,6 +1376,7 @@ AudioClass {
    pi {
     35 0
    }
+   Volume 2
    "Termination Fade Out" 100
    Resampler FIR_4
    Offset 60

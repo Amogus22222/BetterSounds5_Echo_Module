@@ -515,12 +515,15 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_iLimiterBurstShotCount = 0;
 		m_iLimiterBurstGeneration = 0;
 		DebugValidateConfiguration(owner);
-		string initFlagsLog = "driver init";
-		initFlagsLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails);
-		initFlagsLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-		initFlagsLog += " limiter=" + BS5_DebugLog.BoolText(m_bEnablePlaybackLimiter);
-		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, initFlagsLog);
-		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "driver slapEvent=" + m_sSlapbackEventName);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+		{
+			string initFlagsLog = "driver init";
+			initFlagsLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails);
+			initFlagsLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+			initFlagsLog += " limiter=" + BS5_DebugLog.BoolText(m_bEnablePlaybackLimiter);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, initFlagsLog);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "driver slapEvent=" + m_sSlapbackEventName);
+		}
 	}
 
 	override void OnDelete(IEntity owner)
@@ -569,19 +572,23 @@ class BS5_EchoDriverComponent : ScriptComponent
 		}
 
 		bool allowTailEmit = ShouldEmitShotForPlaybackLimiter(suppressed);
-		string dispatchLog = "dispatch shot";
-		dispatchLog += " suppressed=" + BS5_DebugLog.BoolText(suppressed);
-		dispatchLog += " allowTail=" + BS5_DebugLog.BoolText(allowTailEmit);
-		dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
-		dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-		dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
-		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
-		string volumeLog = "dispatch volumes";
-		volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
-		volumeLog += " slapVol=" + BS5_PlayerAudioSettings.GetSlapbackVolume();
-		volumeLog += " slapCloseVol=" + BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
-		volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
-		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, volumeLog);
+		bool driverDebugEnabled = IsDebugChannelEnabled(BS5_DebugChannel.DRIVER);
+		if (driverDebugEnabled)
+		{
+			string dispatchLog = "dispatch shot";
+			dispatchLog += " suppressed=" + BS5_DebugLog.BoolText(suppressed);
+			dispatchLog += " allowTail=" + BS5_DebugLog.BoolText(allowTailEmit);
+			dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
+			dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+			dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
+			string volumeLog = "dispatch volumes";
+			volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
+			volumeLog += " slapVol=" + BS5_PlayerAudioSettings.GetSlapbackVolume();
+			volumeLog += " slapCloseVol=" + BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+			volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, volumeLog);
+		}
 		if (!allowTailEmit && !IsSlapbackEnabled())
 		{
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip no tail by cadence and slapback disabled");
@@ -600,7 +607,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		StoreCachedResult(result, suppressed);
 
-		BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "shot analysis " + result.m_sDebugSummary);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "shot analysis " + result.m_sDebugSummary);
 		if (result.m_sSlapbackDebugSummary != string.Empty)
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.SLAPBACK, result.m_sSlapbackDebugSummary);
 		if (result.m_sCloseDebugSummary != string.Empty)
@@ -608,13 +616,16 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		if (m_bEnableTails || m_bEnableSlapback)
 		{
-			string emitLog = "dispatch emit";
-			emitLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails && allowTailEmit);
-			emitLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-			emitLog += " tailCandidates=" + result.m_aCandidates.Count();
-			emitLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
-			emitLog += " slapMode=" + result.m_sSlapbackMode;
-			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, emitLog);
+			if (driverDebugEnabled)
+			{
+				string emitLog = "dispatch emit";
+				emitLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails && allowTailEmit);
+				emitLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+				emitLog += " tailCandidates=" + result.m_aCandidates.Count();
+				emitLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
+				emitLog += " slapMode=" + result.m_sSlapbackMode;
+				BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, emitLog);
+			}
 			ActivateDispatchGuard(origin, planarForward);
 			BS5_EchoRuntime.EmitShot(this, owner, result, allowTailEmit);
 		}

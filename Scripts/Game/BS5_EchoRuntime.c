@@ -2208,15 +2208,18 @@ class BS5_EchoEmissionService
 			{
 				string candidateSlapbackEvent = settings.ResolveSlapbackEventName(slapCandidate.m_eSourceType);
 				ResourceName candidateSlapbackProject = settings.ResolveSlapbackAcp(slapCandidate.m_eSourceType, result.m_bSuppressedShot);
-				string slapQueueLog = "slapback queue";
-				slapQueueLog += " index=" + slapIndex;
-				slapQueueLog += " source=" + BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType);
-				slapQueueLog += " event=" + candidateSlapbackEvent;
-				slapQueueLog += " dist=" + slapCandidate.m_fDistance;
-				slapQueueLog += " score=" + slapCandidate.m_fScore;
-				slapQueueLog += " pan=" + slapCandidate.m_fPanBias;
-				slapQueueLog += " userVol=" + candidateUserVolume;
-				BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, slapQueueLog);
+				if (debugEnabled)
+				{
+					string slapQueueLog = "slapback queue";
+					slapQueueLog += " index=" + slapIndex;
+					slapQueueLog += " source=" + BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType);
+					slapQueueLog += " event=" + candidateSlapbackEvent;
+					slapQueueLog += " dist=" + slapCandidate.m_fDistance;
+					slapQueueLog += " score=" + slapCandidate.m_fScore;
+					slapQueueLog += " pan=" + slapCandidate.m_fPanBias;
+					slapQueueLog += " userVol=" + candidateUserVolume;
+					BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, slapQueueLog);
+				}
 				QueueEmission(owner, result, candidateSlapbackProject, candidateSlapbackEvent, slapCandidate, true, false, settings);
 			}
 		}
@@ -2381,12 +2384,15 @@ class BS5_EchoEmissionService
 		if (!TryAdmitPlaybackVoice(context, driver, debugEnabled))
 			return;
 
-		string pendingLog = "emit pending";
-		pendingLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		pendingLog += " event=" + context.m_sEventName;
-		pendingLog += " weight=" + GetContextVoiceWeight(context);
-		pendingLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, pendingLog);
+		if (debugEnabled)
+		{
+			string pendingLog = "emit pending";
+			pendingLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			pendingLog += " event=" + context.m_sEventName;
+			pendingLog += " weight=" + GetContextVoiceWeight(context);
+			pendingLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, pendingLog);
+		}
 		if (!context.m_bSlapback && TryPlayManagedAudioSource(context, driver, debugEnabled))
 		{
 			RegisterActiveVoice(context, null, driver, debugEnabled);
@@ -2405,7 +2411,8 @@ class BS5_EchoEmissionService
 		if (driver && !driver.TryAcquireActiveEmitterBudget(context.m_bSlapback))
 		{
 			ReleasePlaybackVoice(context);
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending skip active emitter budget slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending skip active emitter budget slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return;
 		}
 		if (driver)
@@ -2416,7 +2423,8 @@ class BS5_EchoEmissionService
 		{
 			ReleasePlaybackVoice(context);
 			ReleaseDriverEmitterBudget(context);
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending abort fallback emitter spawn failed prefab=" + context.m_sEmitterPrefab);
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending abort fallback emitter spawn failed prefab=" + context.m_sEmitterPrefab);
 			return;
 		}
 
@@ -2629,13 +2637,16 @@ class BS5_EchoEmissionService
 			{
 				if (!StealPlaybackVoice(context, driver, true, debugEnabled))
 				{
-					string ownerCapLog = "emit pending skip owner cap";
-					ownerCapLog += " active=" + ownerActive;
-					ownerCapLog += " weight=" + voiceWeight;
-					ownerCapLog += " max=" + ownerLimit;
-					ownerCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, ownerCapLog);
-					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending owner detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+					if (debugEnabled)
+					{
+						string ownerCapLog = "emit pending skip owner cap";
+						ownerCapLog += " active=" + ownerActive;
+						ownerCapLog += " weight=" + voiceWeight;
+						ownerCapLog += " max=" + ownerLimit;
+						ownerCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+						BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, ownerCapLog);
+						BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending owner detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+					}
 					return false;
 				}
 			}
@@ -2650,14 +2661,17 @@ class BS5_EchoEmissionService
 		{
 			if (!StealPlaybackVoice(context, driver, false, debugEnabled))
 			{
-				string globalCapLog = "emit pending skip global cap";
-				globalCapLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-				globalCapLog += " active=" + globalActive;
-				globalCapLog += " weight=" + voiceWeight;
-				globalCapLog += " max=" + globalMax;
-				globalCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, globalCapLog);
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending global detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+				if (debugEnabled)
+				{
+					string globalCapLog = "emit pending skip global cap";
+					globalCapLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+					globalCapLog += " active=" + globalActive;
+					globalCapLog += " weight=" + voiceWeight;
+					globalCapLog += " max=" + globalMax;
+					globalCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, globalCapLog);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending global detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+				}
 				return false;
 			}
 		}
@@ -2780,21 +2794,24 @@ class BS5_EchoEmissionService
 		context.m_fLimiterPriority = voice.m_fPriority;
 		s_aActiveVoices.Insert(voice);
 
-		string registerLog = "limiter register";
-		registerLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		registerLog += " activeTail=" + CountActiveVoices(false);
-		registerLog += " activeSlap=" + CountActiveVoices(true);
-		registerLog += " pendingTail=" + s_iPendingTailVoices;
-		registerLog += " pendingSlap=" + s_iPendingSlapbackVoices;
-		registerLog += " weight=" + GetContextVoiceWeight(context);
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerLog);
-		string registerDetailLog = "limiter detail";
-		registerDetailLog += " priority=" + voice.m_fPriority;
-		registerDetailLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-		registerDetailLog += " dist=" + context.m_fCandidateDistance;
-		registerDetailLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
-		registerDetailLog += " soundManager=" + BS5_DebugLog.BoolText(context.m_bPlayedViaSoundManager);
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerDetailLog);
+		if (debugEnabled)
+		{
+			string registerLog = "limiter register";
+			registerLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			registerLog += " activeTail=" + CountActiveVoices(false);
+			registerLog += " activeSlap=" + CountActiveVoices(true);
+			registerLog += " pendingTail=" + s_iPendingTailVoices;
+			registerLog += " pendingSlap=" + s_iPendingSlapbackVoices;
+			registerLog += " weight=" + GetContextVoiceWeight(context);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerLog);
+			string registerDetailLog = "limiter detail";
+			registerDetailLog += " priority=" + voice.m_fPriority;
+			registerDetailLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+			registerDetailLog += " dist=" + context.m_fCandidateDistance;
+			registerDetailLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
+			registerDetailLog += " soundManager=" + BS5_DebugLog.BoolText(context.m_bPlayedViaSoundManager);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerDetailLog);
+		}
 	}
 
 	protected static void UnregisterActiveVoice(BS5_PendingEmissionContext context, IEntity emitterEntity)
@@ -3106,25 +3123,31 @@ class BS5_EchoEmissionService
 			if (callQueue)
 			{
 				callQueue.CallLater(BS5_EchoEmissionService.EmitPending, START_GATE_DEFER_MS, false, context);
-				string deferLog = "start gate defer";
-				deferLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-				deferLog += " active=" + activeStarts;
-				deferLog += " weight=" + weight;
-				deferLog += " max=" + maxStarts;
-				deferLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, deferLog);
+				if (debugEnabled)
+				{
+					string deferLog = "start gate defer";
+					deferLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+					deferLog += " active=" + activeStarts;
+					deferLog += " weight=" + weight;
+					deferLog += " max=" + maxStarts;
+					deferLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, deferLog);
+				}
 				return false;
 			}
 		}
 
-		string dropLog = "start gate drop";
-		dropLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		dropLog += " active=" + activeStarts;
-		dropLog += " weight=" + weight;
-		dropLog += " max=" + maxStarts;
-		dropLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, dropLog);
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "start gate drop detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+		if (debugEnabled)
+		{
+			string dropLog = "start gate drop";
+			dropLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			dropLog += " active=" + activeStarts;
+			dropLog += " weight=" + weight;
+			dropLog += " max=" + maxStarts;
+			dropLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, dropLog);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "start gate drop detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+		}
 		return false;
 	}
 
@@ -3175,7 +3198,8 @@ class BS5_EchoEmissionService
 
 		if (context.m_bSlapback && context.m_sEventName != "SOUND_SHOT")
 		{
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
 			return TryPlayManagedAudioSourceEvent(context, soundManager, "SOUND_SHOT", debugEnabled);
 		}
 
@@ -3192,7 +3216,8 @@ class BS5_EchoEmissionService
 		audioConfig.m_sSoundEventName = eventName;
 		if (!audioConfig.IsValid())
 		{
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager config invalid event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager config invalid event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
@@ -3213,7 +3238,8 @@ class BS5_EchoEmissionService
 		if (audioSource.m_AudioHandle == -1)
 		{
 			audioSource.Terminate(false);
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager play failed event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager play failed event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
@@ -3221,12 +3247,15 @@ class BS5_EchoEmissionService
 		context.m_AudioSource = audioSource;
 		context.m_hPlayback = audioSource.m_AudioHandle;
 		context.m_bPlayedViaSoundManager = true;
-		string managedPlayLog = "SoundManager play";
-		managedPlayLog += " event=" + context.m_sEventName;
-		managedPlayLog += " handle=" + context.m_hPlayback;
-		managedPlayLog += " weight=" + GetContextVoiceWeight(context);
-		managedPlayLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, managedPlayLog);
+		if (debugEnabled)
+		{
+			string managedPlayLog = "SoundManager play";
+			managedPlayLog += " event=" + context.m_sEventName;
+			managedPlayLog += " handle=" + context.m_hPlayback;
+			managedPlayLog += " weight=" + GetContextVoiceWeight(context);
+			managedPlayLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, managedPlayLog);
+		}
 		return true;
 	}
 

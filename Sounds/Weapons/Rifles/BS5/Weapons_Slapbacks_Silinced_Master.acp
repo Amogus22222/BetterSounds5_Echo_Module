@@ -1274,7 +1274,8 @@ AudioClass {
     35 0
    }
    Volume -3
-   Pitch -3
+   "Volume variance" 1
+   Pitch -2
    "Termination Fade Out" 100
    Resampler FIR_4
    "Fade in time" 10

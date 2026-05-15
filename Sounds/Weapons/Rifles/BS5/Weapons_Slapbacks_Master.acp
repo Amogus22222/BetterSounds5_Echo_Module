@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 0 0 1 0 0 0 1 0
+    0 1 0 0 0 0 0 0 1 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -616,6 +616,28 @@ AudioClass {
    }
    path "{4C2550602ED48B3A}Sounds/Weapons/Rifles/BS5/multiply.sig"
   }
+  SignalClass "449549" {
+   id 449549
+   name "Signal 439"
+   tl -109.177 453.887
+   res "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
+   inputsport {
+    1
+   }
+   outputsport {
+    2
+   }
+   inputvalues {
+    1
+   }
+   inputvaluesmin {
+    0
+   }
+   inputvaluesmax {
+    1
+   }
+   path "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
+  }
  }
  filters {
   FilterClass "426006" {
@@ -757,6 +779,12 @@ AudioClass {
    ins {
     ConnectionsClass "con:1" {
      id 1
+     links {
+      ConnectionClass "449549:2" {
+       id 449549
+       port 2
+      }
+     }
     }
     ConnectionsClass "con:2" {
      id 2
@@ -1089,7 +1117,7 @@ AudioClass {
    id 448530
    name "EnvLayer Shader"
    version 5
-   tl 464 256
+   tl 544 336
    ctl 0 -21
    ins {
     ConnectionsClass "con:0" {
