@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 0 0 1 0 0 0 0 0
+    0 1 0 0 0 0 0 0 0 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -166,7 +166,7 @@ AudioClass {
     3 4
    }
    inputvalues {
-    0 0 0.5
+    1 248.9 0.5
    }
    inputvaluesmin {
     0 0 0
@@ -602,11 +602,11 @@ AudioClass {
    }
    path "{96AFB8206E4CF0E6}Sounds/_SharedData/Signals/OneSignal/UnderPlayerControl.sig"
   }
-  SignalClass "432141" {
-   id 432141
-   name "Signal 422"
-   tl -128 192
-   res "{A6E4D7B8C9F01234}Sounds/_SharedData/Signals/BS5/BS5_Intensity.sig"
+  SignalClass "445453" {
+   id 445453
+   name "Signal 435"
+   tl 163.931 142.749
+   res "{6B7EC87FA93C8216}Sounds/_SharedData/Signals/BS5/BS5_UserExplosionVolume.sig"
    inputsport {
     1
    }
@@ -622,7 +622,7 @@ AudioClass {
    inputvaluesmax {
     1
    }
-   path "{A6E4D7B8C9F01234}Sounds/_SharedData/Signals/BS5/BS5_Intensity.sig"
+   path "{6B7EC87FA93C8216}Sounds/_SharedData/Signals/BS5/BS5_UserExplosionVolume.sig"
   }
  }
  filters {
@@ -925,8 +925,8 @@ AudioClass {
     ConnectionsClass "con:1" {
      id 1
      links {
-      ConnectionClass "432141:2" {
-       id 432141
+      ConnectionClass "445453:2" {
+       id 445453
        port 2
       }
      }
@@ -962,7 +962,6 @@ AudioClass {
     54 0
    }
    volume_dB 15
-   priority 40
    eventNoRepeatTimeMSec 200
   }
  }
@@ -1189,10 +1188,6 @@ AudioClass {
        id 177156
        port 65
       }
-      ConnectionClass "195588:65" {
-       id 195588
-       port 65
-      }
      }
     }
    }
@@ -1217,6 +1212,10 @@ AudioClass {
      links {
       ConnectionClass "168964:65" {
        id 168964
+       port 65
+      }
+      ConnectionClass "195588:65" {
+       id 195588
        port 65
       }
      }
@@ -1880,8 +1879,8 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 3
-   Pitch 2
+   Volume -6
+   Pitch 6
    "Pitch variance" 2
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2279,7 +2278,9 @@ AudioClass {
    pi {
     35 0
    }
-   Pitch 2
+   Volume -18
+   "Volume variance" 6
+   Pitch -4
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2315,7 +2316,7 @@ AudioClass {
    id 192516
    name "EL Hills Far"
    version 7
-   tl -272 1296
+   tl -240 1264
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2348,7 +2349,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 3
+   Volume 12
    "Volume variance" 0.2
    Pitch -4
    "Pitch variance" 0.7
@@ -2356,16 +2357,22 @@ AudioClass {
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "bhe_explosion_hill.wav" {
-     Filename "{068541034E249CC3}Assets/explosions/bhe_explosion_hill.wav"
+    AudioBankSampleClass "AddLayer_DistantCrackling_Far_01.wav" {
+     Filename "{DACBFE747CFED021}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_01.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "bhe_explosion_hill2.wav" {
-     Filename "{718F298BBA8673B3}Assets/explosions/bhe_explosion_hill2.wav"
+    AudioBankSampleClass "AddLayer_DistantCrackling_Far_02.wav" {
+     Filename "{43D547ED6119E1B1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_02.wav"
      Probability 100
      Index 1
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "AddLayer_DistantCrackling_Far_03.wav" {
+     Filename "{34DF2F6595BB0EC1}Sounds/Weapons/_SharedData/AddLayers/AddLayer_DistantCrackling_Far_03.wav"
+     Probability 100
+     Index 2
      SampleMetadata ""
     }
    }
@@ -2538,48 +2545,24 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -6
-   Pitch 2
+   Volume -10
+   Pitch -4
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
    Preload 1
    Samples {
-    AudioBankSampleClass "Tail_1.wav" {
-     Filename "{993DBCE339B45E37}Assets/explosions/Tail_1.wav"
+    AudioBankSampleClass "bhe_explosion_hill2.wav" {
+     Filename "{718F298BBA8673B3}Assets/explosions/bhe_explosion_hill2.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "Tail_2.wav" {
-     Filename "{0023057A24536FA7}Assets/explosions/Tail_2.wav"
+    AudioBankSampleClass "bhe_explosion_hill.wav" {
+     Filename "{068541034E249CC3}Assets/explosions/bhe_explosion_hill.wav"
      Probability 100
      Index 1
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "Shell_Explsion_Flyby.wav" {
-     Filename "{D615CBDC117461F3}Assets/explosions/Shell_Explsion_Flyby.wav"
-     Probability 100
-     Index 2
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "Shell_Explosion_Voy.wav" {
-     Filename "{C1E9F51F0F8A56A2}Assets/explosions/Shell_Explosion_Voy.wav"
-     Probability 100
-     Index 3
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "Shell_Explosion_Far_1.wav" {
-     Filename "{ACEFE6B9F551B47A}Assets/explosions/Shell_Explosion_Far_1.wav"
-     Probability 100
-     Index 4
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "Shell_Explosion_Mid_2.wav" {
-     Filename "{13EFD629F56592DA}Assets/explosions/Shell_Explosion_Mid_2.wav"
-     Probability 100
-     Index 5
      SampleMetadata ""
     }
    }
@@ -2710,10 +2693,16 @@ AudioClass {
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "Meadow.wav" {
-     Filename "{1BB2C28155BA41AC}Assets/explosions/Meadow.wav"
+    AudioBankSampleClass "Tail_2.wav" {
+     Filename "{0023057A24536FA7}Assets/explosions/Tail_2.wav"
      Probability 100
      Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Tail_1.wav" {
+     Filename "{993DBCE339B45E37}Assets/explosions/Tail_1.wav"
+     Probability 100
+     Index 3
      SampleMetadata ""
     }
    }

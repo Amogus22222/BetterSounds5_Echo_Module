@@ -54,16 +54,15 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 			{
 				soundComponentEvent = "SOUND_SHOT";
 				eventIndex = fallbackEventIndex;
-				if (debugEnabled)
-					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter slapback event fallback requested=" + context.m_sEventName + " fallback=" + soundComponentEvent + " prefab=" + context.m_sEmitterPrefab);
+				BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-event-fallback|" + context.m_sEmitterPrefab + "|" + context.m_sEventName, "emitter slapback event fallback requested=" + context.m_sEventName + " fallback=" + soundComponentEvent + " prefab=" + context.m_sEmitterPrefab);
 			}
 		}
 
 		if (context.m_bAllowDirectProjectPlayback && context.m_sProject != string.Empty)
 		{
 			handle = TryPlayAudioSystemProject(context, transform, signalNames, signalValues);
-			if (handle == -1 && debugEnabled)
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter project play failed fallback=prefab project=" + context.m_sProject + " event=" + context.m_sEventName + " prefab=" + context.m_sEmitterPrefab);
+			if (handle == -1)
+				BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-project-fallback|" + context.m_sProject + "|" + context.m_sEventName + "|" + context.m_sEmitterPrefab, "emitter project play failed fallback=prefab project=" + context.m_sProject + " event=" + context.m_sEventName + " prefab=" + context.m_sEmitterPrefab);
 		}
 
 		if (handle == -1 && eventIndex >= 0)

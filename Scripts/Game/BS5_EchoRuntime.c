@@ -124,9 +124,15 @@ class BS5_EchoRuntime
 		if (!entity)
 			return null;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(entity.FindComponent(BS5_EchoDriverComponent));
-		if (driver)
-			return driver;
+		IEntity currentEntity = entity;
+		for (int parentDepth = 0; parentDepth < 8 && currentEntity; parentDepth++)
+		{
+			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(currentEntity.FindComponent(BS5_EchoDriverComponent));
+			if (driver)
+				return driver;
+
+			currentEntity = currentEntity.GetParent();
+		}
 
 		IEntity rootEntity = entity.GetRootParent();
 		if (!rootEntity || rootEntity == entity)
@@ -721,6 +727,36 @@ class BS5_EchoEnvironmentAnalyzer
 			debugSummary += " closeRescue=" + result.m_iCloseReflectionRescueRayCount;
 			result.m_sDebugSummary = debugSummary;
 
+			if (settings.IsDebugChannelEnabled(BS5_DebugChannel.SOUNDMAP))
+			{
+				string perfCounts = "perf counts";
+				perfCounts += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+				perfCounts += " techPreset=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
+				perfCounts += " planner=" + result.m_sAnchorPlannerMode;
+				perfCounts += " forwardRays=" + result.m_iTailSectorCount;
+				perfCounts += " forwardSamples=" + result.m_iTailHeightSamples;
+				perfCounts += " soundMapSamples=" + result.m_iSoundMapSamples;
+				perfCounts += " omniAnchors=" + result.m_iSoundMapOmniAnchors;
+				perfCounts += " urbanEntities=" + result.m_iSoundMapUrbanMicroQueries;
+				perfCounts += " urbanFacades=" + result.m_iSoundMapUrbanMicroFacades;
+				perfCounts += " pathSamples=" + settings.GetSoundMapPathSampleCount();
+				perfCounts += " pathRaycasts=" + result.m_iSoundMapPathRaycasts;
+				perfCounts += " closeRescueTraces=" + result.m_iCloseReflectionRescueRayCount;
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.SOUNDMAP, perfCounts);
+
+				string perfEffective = "perf effective";
+				perfEffective += " soundMapEnabled=" + BS5_DebugLog.BoolText(settings.IsSoundMapAnchorPlannerEnabled());
+				perfEffective += " cone=" + settings.GetSoundMapForwardConeDegrees();
+				perfEffective += " maxDistance=" + settings.GetSoundMapForwardMaxDistanceMeters();
+				perfEffective += " configRays=" + settings.GetSoundMapForwardRayCount();
+				perfEffective += " configSamples=" + settings.GetSoundMapForwardSampleCount();
+				perfEffective += " omniDirs=" + settings.GetSoundMapOmniDirectionCount();
+				perfEffective += " omniAnchorCap=" + settings.GetSoundMapOmniAnchorCount();
+				perfEffective += " urbanRadius=" + settings.GetSoundMapUrbanMicroScanRadiusMeters();
+				perfEffective += " urbanEntityCap=" + settings.GetSoundMapUrbanMicroMaxEntities();
+				perfEffective += " pathValidation=" + BS5_DebugLog.BoolText(settings.IsSoundMapPathPlausibilityValidationEnabled());
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.SOUNDMAP, perfEffective);
+			}
 		}
 		return result;
 	}
@@ -2495,7 +2531,7 @@ class BS5_EchoEmissionService
 
 		if (eventName == string.Empty || emitterPrefab == string.Empty)
 		{
-			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "queue skip invalid prefab/event event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
+			BS5_DebugLog.OnceEnabled(settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT), BS5_DebugChannel.EMIT, "queue-invalid|" + eventName + "|" + emitterPrefab + "|" + slapback, "queue skip invalid prefab/event event=" + eventName + " prefab=" + emitterPrefab + " slapback=" + BS5_DebugLog.BoolText(slapback));
 			return;
 		}
 
@@ -3427,7 +3463,7 @@ class BS5_EchoEmissionService
 	{
 		if (!context || context.m_sProject == string.Empty || context.m_sEventName == string.Empty)
 		{
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager skip invalid context/project/event");
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-invalid-context|" + context, "SoundManager skip invalid context/project/event");
 			return false;
 		}
 
@@ -3441,7 +3477,7 @@ class BS5_EchoEmissionService
 		SCR_SoundManagerModule soundManager = SCR_SoundManagerModule.GetInstance(game.GetWorld());
 		if (!soundManager)
 		{
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager skip missing module");
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-missing-module", "SoundManager skip missing module");
 			return false;
 		}
 
@@ -3450,8 +3486,7 @@ class BS5_EchoEmissionService
 
 		if (context.m_bSlapback && context.m_sEventName != "SOUND_SHOT")
 		{
-			if (debugEnabled)
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-slapback-event-fallback|" + context.m_sEventName, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
 			return TryPlayManagedAudioSourceEvent(context, soundManager, "SOUND_SHOT", debugEnabled);
 		}
 
@@ -3468,15 +3503,14 @@ class BS5_EchoEmissionService
 		audioConfig.m_sSoundEventName = eventName;
 		if (!audioConfig.IsValid())
 		{
-			if (debugEnabled)
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager config invalid event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-config-invalid|" + context.m_sProject + "|" + eventName, "SoundManager config invalid project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
 		SCR_AudioSource audioSource = soundManager.CreateAudioSource(audioConfig, context.m_vEmitPosition);
 		if (!audioSource)
 		{
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager source null event=" + eventName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-source-null|" + context.m_sProject + "|" + eventName, "SoundManager source null project=" + context.m_sProject + " event=" + eventName);
 			return false;
 		}
 
@@ -3490,8 +3524,7 @@ class BS5_EchoEmissionService
 		if (audioSource.m_AudioHandle == -1)
 		{
 			audioSource.Terminate(false);
-			if (debugEnabled)
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager play failed event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-play-failed|" + context.m_sProject + "|" + eventName + "|" + context.m_bSlapback, "SoundManager play failed fallback=prefab project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
@@ -3664,8 +3697,7 @@ class BS5_EchoEmissionService
 			if (s_aInvalidEmitterResourceNames.Count() >= INVALID_EMITTER_RESOURCE_CACHE_LIMIT)
 				s_aInvalidEmitterResourceNames.Remove(0);
 			s_aInvalidEmitterResourceNames.Insert(emitterPrefabName);
-			if (debugEnabled)
-				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter resource load failed cached invalid prefab=" + emitterPrefabName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-resource-invalid|" + emitterPrefabName, "emitter resource load failed cached invalid prefab=" + emitterPrefabName);
 			return null;
 		}
 

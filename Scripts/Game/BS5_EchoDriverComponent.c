@@ -592,7 +592,10 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
 		bool suppressed = IsSuppressedMuzzle(muzzle);
-		bool launcherShot = IsLauncherShot(owner, projectileEntity);
+		bool underbarrelLauncherShot = IsUnderbarrelLauncherShot(projectileEntity);
+		if (underbarrelLauncherShot)
+			suppressed = true;
+		bool launcherShot = !underbarrelLauncherShot && IsLauncherShot(owner, projectileEntity);
 
 		if (ShouldSuppressDuplicateDispatch(origin, planarForward))
 		{
@@ -611,6 +614,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 			dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
 			dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
 			dispatchLog += " launcherShot=" + BS5_DebugLog.BoolText(launcherShot);
+			dispatchLog += " underbarrel=" + BS5_DebugLog.BoolText(underbarrelLauncherShot);
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
 			string volumeLog = "dispatch volumes";
 			volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
@@ -2309,6 +2313,20 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (prefabName.IndexOf("prefabs/weapons/ammo/ammo_rocket") != -1)
 			return true;
 		if (prefabName.IndexOf("prefabs/weapons/launchers") != -1)
+			return true;
+
+		return false;
+	}
+
+	protected bool IsUnderbarrelLauncherShot(IEntity projectileEntity)
+	{
+		ResourceName projectilePrefab = GetEntityPrefabNameLower(projectileEntity);
+		if (projectilePrefab == string.Empty)
+			return false;
+
+		if (projectilePrefab.IndexOf("prefabs/weapons/ammo/ammo_grenade") != -1)
+			return true;
+		if (projectilePrefab.IndexOf("prefabs/weapons/core/ammo_grenadelauncher") != -1)
 			return true;
 
 		return false;

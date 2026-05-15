@@ -1,5 +1,7 @@
 class BS5_DebugLog
 {
+	protected static ref array<string> s_aOnceKeys;
+
 	static bool IsEnabled(BS5_EchoDriverComponent driver, BS5_DebugChannel channel = BS5_DebugChannel.GENERAL, BS5_DebugLevel level = BS5_DebugLevel.BASIC)
 	{
 		if (!driver)
@@ -42,6 +44,35 @@ class BS5_DebugLog
 			return;
 
 		Print("[BS5][" + ChannelName(channel) + "] " + message);
+	}
+
+	static void OnceEnabled(bool enabled, BS5_DebugChannel channel, string key, string message)
+	{
+		if (!enabled)
+			return;
+
+		if (WasOnceKeyLogged(key))
+			return;
+
+		Print("[BS5][" + ChannelName(channel) + "] " + message);
+	}
+
+	protected static bool WasOnceKeyLogged(string key)
+	{
+		if (key == string.Empty)
+			key = "empty";
+
+		if (!s_aOnceKeys)
+			s_aOnceKeys = new array<string>();
+
+		for (int i = 0; i < s_aOnceKeys.Count(); i++)
+		{
+			if (s_aOnceKeys[i] == key)
+				return true;
+		}
+
+		s_aOnceKeys.Insert(key);
+		return false;
 	}
 
 	static string BoolText(bool value)
