@@ -6,11 +6,15 @@ class BS5_EchoDriverComponentClass : ScriptComponentClass
 class BS5_EchoDriverComponent : ScriptComponent
 {
 	protected static const ResourceName DEFAULT_MASTER_EMITTER_PREFAB = "{995F66906C1D9EDC}Prefabs/Props/BS5_TailEmitter.et";
+	protected static const ResourceName DEFAULT_EXPLOSION_ACP = "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp";
+	protected static const ResourceName DEFAULT_EXPLOSION_EMITTER_PREFAB = "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et";
+	protected static const ResourceName DEFAULT_EXPLOSION_SLAPBACK_ACP = "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp";
+	protected static const ResourceName DEFAULT_EXPLOSION_SLAPBACK_EMITTER_PREFAB = "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et";
 	protected static const ResourceName DEFAULT_MACHINEGUN_MASTER_EMITTER_PREFAB = "{4CB3F211A7DF906E}Prefabs/Props/BS5_TailEmitter_MG.et";
 	protected static const ResourceName DEFAULT_SUPPRESSED_MASTER_EMITTER_PREFAB = "{A59D3E1092B44A6C}Prefabs/Props/BS5_TailEmitter_Silenced.et";
 	protected static const ResourceName DEFAULT_SLAPBACK_EMITTER_PREFAB = "{29D823F0744A8637}Prefabs/Props/BS5_SlapbackEmitter.et";
 	protected static const ResourceName DEFAULT_SUPPRESSED_SLAPBACK_EMITTER_PREFAB = "{D07C4B82E65C4F31}Prefabs/Props/BS5_SlapbackEmitter_Silenced.et";
-	protected static const ResourceName MACHINEGUN_MASTER_ACP = "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp";
+	protected static const ResourceName MACHINEGUN_MASTER_ACP = "{1C6E4055FD8532F6}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp.acp";
 
 	[Attribute(defvalue: "", desc: "Optional ACP override for long tail playback. Direct ACP playback is tried first; if the engine rejects it, playback falls back to the emitter prefab SoundComponent.")]
 	protected ResourceName m_sMasterAcp;
@@ -27,6 +31,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "", desc: "Optional ACP override for suppressed slapback playback. Direct ACP playback is tried first; if the engine rejects it, playback falls back to the suppressed slapback emitter prefab.")]
 	protected ResourceName m_sSuppressedSlapbackAcp;
 
+	[Attribute(defvalue: "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp", desc: "Dedicated ACP used for explosion-like echo tails.")]
+	protected ResourceName m_sExplosionAcp;
+
+	[Attribute(defvalue: "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp", desc: "Dedicated ACP used for explosion-like slapbacks. Uses normal slapback volume and event routing.")]
+	protected ResourceName m_sExplosionSlapbackAcp;
+
 	[Attribute(defvalue: "SOUND_SHOT", desc: "Audio event triggered on the master tail emitter prefab.")]
 	protected string m_sMasterEventName;
 
@@ -36,14 +46,17 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "BS5_TRENCH_SLAPBACK", desc: "Audio event triggered on the trench slapback emitter prefab.")]
 	protected string m_sTrenchSlapbackEventName;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated audio event used for explosion-like long tails. Leave empty to reuse the main tail event.")]
+	[Attribute(defvalue: "SOUND_SHOT", desc: "Dedicated audio event used for explosion-like long tails.")]
 	protected string m_sExplosionEventName;
-
-	[Attribute(defvalue: "BS5_EXPLOSION_SLAPBACK", desc: "Audio event used for explosion-like near slapback reflections.")]
-	protected string m_sExplosionSlapbackEventName;
 
 	[Attribute(defvalue: "{995F66906C1D9EDC}Prefabs/Props/BS5_TailEmitter.et", desc: "Emitter prefab spawned for long tail playback. Its SoundComponent defines the actual master ACP.")]
 	protected ResourceName m_sMasterEmitterPrefab;
+
+	[Attribute(defvalue: "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et", desc: "Emitter prefab spawned for explosion-like echo playback. Its SoundComponent defines the explosion ACP.")]
+	protected ResourceName m_sExplosionEmitterPrefab;
+
+	[Attribute(defvalue: "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et", desc: "Emitter prefab spawned for explosion-like slapback playback. Uses normal slapback settings and signals.")]
+	protected ResourceName m_sExplosionSlapbackEmitterPrefab;
 
 	[Attribute(defvalue: "{29D823F0744A8637}Prefabs/Props/BS5_SlapbackEmitter.et", desc: "Emitter prefab spawned for slapback playback. Its SoundComponent defines the actual slapback ACP.")]
 	protected ResourceName m_sSlapbackEmitterPrefab;
@@ -77,6 +90,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	[Attribute(defvalue: "25", desc: "Maximum wall distance in meters that is eligible for close slapback anchors.")]
 	protected float m_fNearSlapbackRadius;
+
+	[Attribute(defvalue: "16", desc: "Maximum wall distance in meters for suppressed slapback anchors.")]
+	protected float m_fSuppressedNearSlapbackRadius;
+
+	[Attribute(defvalue: "25", desc: "Maximum wall distance in meters for explosion-like slapback anchors.")]
+	protected float m_fExplosionNearSlapbackRadius;
 
 	[Attribute(defvalue: "0.9", desc: "Forward offset in meters applied to the slapback probe origin so the traces start closer to the muzzle and avoid self-hits.")]
 	protected float m_fNearProbeForwardOffsetMeters;
@@ -135,7 +154,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "16", desc: "Global weighted cap of simultaneously playing BS5 tail native source voices across all weapons. Older far/quiet voices may be stolen above this cap.")]
 	protected int m_iLimiterGlobalMaxTailVoices;
 
-	[Attribute(defvalue: "6", desc: "Global weighted cap of simultaneously playing BS5 slapback native source voices across all weapons.")]
+	[Attribute(defvalue: "12", desc: "Global weighted cap of simultaneously playing BS5 slapback native source voices across all weapons.")]
 	protected int m_iLimiterGlobalMaxSlapbackVoices;
 
 	[Attribute(defvalue: "8", desc: "Maximum delayed weighted tail source starts waiting for playback. Extra low-priority delayed tails are dropped before spawning emitters.")]
@@ -162,10 +181,10 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "0.94", desc: "Global tail voice pressure where the limiter may steal old far/quiet voices aggressively.")]
 	protected float m_fLimiterCriticalPressureThreshold;
 
-	[Attribute(defvalue: "4", desc: "Maximum weighted tail source starts allowed per rolling 100 ms gate before defer/drop.")]
+	[Attribute(defvalue: "12", desc: "Maximum weighted tail source starts allowed per rolling 100 ms gate before defer/drop.")]
 	protected int m_iLimiterMaxTailStartsPer100Ms;
 
-	[Attribute(defvalue: "4", desc: "Maximum weighted slapback source starts allowed per rolling 100 ms gate before defer/drop.")]
+	[Attribute(defvalue: "12", desc: "Maximum weighted slapback source starts allowed per rolling 100 ms gate before defer/drop.")]
 	protected int m_iLimiterMaxSlapbackStartsPer100Ms;
 
 	[Attribute(defvalue: "0.08", desc: "Fade-out time in seconds used when the limiter steals or prunes BS5 playback.")]
@@ -191,6 +210,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	[Attribute(defvalue: "2", desc: "Maximum number of slapback emitters spawned for a single weapon shot.")]
 	protected int m_iMaxSlapbackEmittersPerShot;
+
+	[Attribute(defvalue: "3", desc: "Maximum number of slapback emitters spawned for a single explosion-like event.")]
+	protected int m_iMaxExplosionSlapbackEmittersPerShot;
 
 	[Attribute(defvalue: "16", desc: "Hard cap of simultaneously alive tail emitter entities for this weapon. Extra tails are skipped to protect performance.")]
 	protected int m_iMaxActiveTailEmitters;
@@ -351,6 +373,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "1.0", desc: "Global intensity multiplier applied to explosion-like events before candidate scoring.")]
 	protected float m_fExplosionIntensityMultiplier;
 
+	[Attribute(defvalue: "1.7", desc: "Lifetime multiplier applied only to explosion-like echo emitters.")]
+	protected float m_fExplosionEmitterLifetimeScale;
+
 	[Attribute(defvalue: "1.0", desc: "Multiplier exposed to ACP as BS5_ReverbSend.")]
 	protected float m_fReverbSendScale;
 
@@ -453,15 +478,18 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "1.0", desc: "Curve exponent for scripted distance-based tail attenuation. Values above 1 keep more gain near the shooter and fall off later.")]
 	protected float m_fDistanceGainCurvePower;
 
-	[Attribute(defvalue: "0", desc: "Enables verbose BS5 runtime logging for analysis and tuning.")]
+	[Attribute(defvalue: "0", desc: "Legacy master debug switch. Prefer BS5_AudioDebugSettingsComponent for channel-based debug.")]
 	protected bool m_bDebug;
 
 	protected vector m_vLastOrigin;
 	protected vector m_vLastForward;
 	protected ref BS5_EchoAnalysisResult m_LastResult;
+	protected BS5_CloseReflectionSettingsComponent m_CloseReflectionSettings;
+	protected BS5_AudioDebugSettingsComponent m_DebugSettings;
 	protected int m_iCacheGeneration;
 	protected bool m_bCacheValid;
 	protected bool m_bLastSuppressed;
+	protected bool m_bLastExplosionLike;
 	protected vector m_vTailSectorCacheOrigin;
 	protected vector m_vTailSectorCacheForward;
 	protected BS5_TailProfileType m_eTailSectorCacheProfile;
@@ -492,6 +520,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_iCacheGeneration = 0;
 		m_bCacheValid = false;
 		m_bLastSuppressed = false;
+		m_bLastExplosionLike = false;
 		m_vTailSectorCacheOrigin = vector.Zero;
 		m_vTailSectorCacheForward = "0 0 1";
 		m_eTailSectorCacheProfile = BS5_TailProfileType.OPEN_MEADOW;
@@ -513,16 +542,39 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_iLimiterBurstShotCount = 0;
 		m_iLimiterBurstGeneration = 0;
 		DebugValidateConfiguration(owner);
-		string initFlagsLog = "driver init";
-		initFlagsLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails);
-		initFlagsLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-		initFlagsLog += " limiter=" + BS5_DebugLog.BoolText(m_bEnablePlaybackLimiter);
-		BS5_DebugLog.Line(this, initFlagsLog);
-		BS5_DebugLog.Line(this, "driver slapEvent=" + m_sSlapbackEventName);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+		{
+			string initFlagsLog = "driver init";
+			initFlagsLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails);
+			initFlagsLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+			initFlagsLog += " limiter=" + BS5_DebugLog.BoolText(m_bEnablePlaybackLimiter);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, initFlagsLog);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "driver slapEvent=" + m_sSlapbackEventName);
+		}
 	}
 
 	override void OnDelete(IEntity owner)
 	{
+		BS5_EchoEmissionService.CancelOwnerContexts(owner);
+
+		ScriptCallQueue callQueue = null;
+		if (GetGame())
+			callQueue = GetGame().GetCallqueue();
+		if (callQueue)
+		{
+			callQueue.RemoveByName(this, "InvalidateCache");
+			callQueue.RemoveByName(this, "ResetPlaybackLimiterBurst");
+			callQueue.RemoveByName(this, "ClearDispatchGuard");
+		}
+
+		m_iCacheGeneration++;
+		m_iLimiterBurstGeneration++;
+		m_bCacheValid = false;
+		m_LastResult = null;
+		m_bLastExplosionLike = false;
+		m_bDispatchGuardActive = false;
+		m_iLimiterBurstShotCount = 0;
+
 		super.OnDelete(owner);
 	}
 
@@ -540,29 +592,40 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
 		bool suppressed = IsSuppressedMuzzle(muzzle);
+		bool underbarrelLauncherShot = IsUnderbarrelLauncherShot(projectileEntity);
+		if (underbarrelLauncherShot)
+			suppressed = true;
+		bool launcherShot = !underbarrelLauncherShot && IsLauncherShot(owner, projectileEntity);
 
 		if (ShouldSuppressDuplicateDispatch(origin, planarForward))
 		{
-			BS5_DebugLog.Line(this, "dispatch skip duplicate same-frame shot");
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip duplicate same-frame shot");
 			return;
 		}
 
 		bool allowTailEmit = ShouldEmitShotForPlaybackLimiter(suppressed);
-		string dispatchLog = "dispatch shot";
-		dispatchLog += " suppressed=" + BS5_DebugLog.BoolText(suppressed);
-		dispatchLog += " allowTail=" + BS5_DebugLog.BoolText(allowTailEmit);
-		dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
-		dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-		dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
-		BS5_DebugLog.Line(this, dispatchLog);
-		string volumeLog = "dispatch volumes";
-		volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
-		volumeLog += " slapVol=" + BS5_PlayerAudioSettings.GetSlapbackVolume();
-		volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
-		BS5_DebugLog.Line(this, volumeLog);
+		bool driverDebugEnabled = IsDebugChannelEnabled(BS5_DebugChannel.DRIVER);
+		if (driverDebugEnabled)
+		{
+			string dispatchLog = "dispatch shot";
+			dispatchLog += " suppressed=" + BS5_DebugLog.BoolText(suppressed);
+			dispatchLog += " allowTail=" + BS5_DebugLog.BoolText(allowTailEmit);
+			dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
+			dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+			dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
+			dispatchLog += " launcherShot=" + BS5_DebugLog.BoolText(launcherShot);
+			dispatchLog += " underbarrel=" + BS5_DebugLog.BoolText(underbarrelLauncherShot);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
+			string volumeLog = "dispatch volumes";
+			volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
+			volumeLog += " slapVol=" + BS5_PlayerAudioSettings.GetSlapbackVolume();
+			volumeLog += " slapCloseVol=" + BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+			volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, volumeLog);
+		}
 		if (!allowTailEmit && !IsSlapbackEnabled())
 		{
-			BS5_DebugLog.Line(this, "dispatch skip no tail by cadence and slapback disabled");
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip no tail by cadence and slapback disabled");
 			m_vLastOrigin = origin;
 			m_vLastForward = planarForward;
 			m_bLastSuppressed = suppressed;
@@ -570,25 +633,36 @@ class BS5_EchoDriverComponent : ScriptComponent
 		}
 
 		BS5_EchoAnalysisResult result = ResolveCachedResult(owner, origin, planarForward, false, suppressed);
+		if (result && result.m_bLauncherShot != launcherShot)
+			result = null;
 		if (!result)
 			result = BS5_EchoRuntime.AnalyzeShot(this, owner, origin, planarForward, suppressed);
 
 		if (!result)
 			return;
 
-		StoreCachedResult(result, suppressed);
+		result.m_bLauncherShot = launcherShot;
+		StoreCachedResult(result, suppressed, false);
 
-		BS5_DebugLog.Line(this, "shot analysis " + result.m_sDebugSummary);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "shot analysis " + result.m_sDebugSummary);
+		if (result.m_sSlapbackDebugSummary != string.Empty)
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.SLAPBACK, result.m_sSlapbackDebugSummary);
+		if (result.m_sCloseDebugSummary != string.Empty)
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.CLOSE, result.m_sCloseDebugSummary);
 
 		if (m_bEnableTails || m_bEnableSlapback)
 		{
-			string emitLog = "dispatch emit";
-			emitLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails && allowTailEmit);
-			emitLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
-			emitLog += " tailCandidates=" + result.m_aCandidates.Count();
-			emitLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
-			emitLog += " slapMode=" + result.m_sSlapbackMode;
-			BS5_DebugLog.Line(this, emitLog);
+			if (driverDebugEnabled)
+			{
+				string emitLog = "dispatch emit";
+				emitLog += " tails=" + BS5_DebugLog.BoolText(m_bEnableTails && allowTailEmit);
+				emitLog += " slapback=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
+				emitLog += " tailCandidates=" + result.m_aCandidates.Count();
+				emitLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
+				emitLog += " slapMode=" + result.m_sSlapbackMode;
+				BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, emitLog);
+			}
 			ActivateDispatchGuard(origin, planarForward);
 			BS5_EchoRuntime.EmitShot(this, owner, result, allowTailEmit);
 		}
@@ -610,7 +684,20 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector origin = transform[3];
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
+		HandleExplosionAt(owner, origin, planarForward, true);
+	}
 
+	void HandleExplosionAt(IEntity owner, vector origin, vector forward, bool requireExplosionEnabled = true)
+	{
+		if (!owner)
+			owner = GetOwner();
+		if (!owner)
+			return;
+
+		if (requireExplosionEnabled && !m_bEnableExplosionReuse)
+			return;
+
+		vector planarForward = FlattenHeading(forward);
 		BS5_EchoAnalysisResult result = ResolveCachedResult(owner, origin, planarForward, true, false);
 		if (!result)
 			result = BS5_EchoRuntime.AnalyzeExplosion(this, owner, origin, planarForward);
@@ -618,13 +705,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (!result)
 			return;
 
-		StoreCachedResult(result, false);
+		StoreCachedResult(result, false, true);
 
-		if (m_bDebug)
-			PrintFormat("BS5 explosion analysis: %1", result.m_sDebugSummary);
+		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "explosion analysis " + result.m_sDebugSummary);
 
-		if (m_bEnableExplosionReuse)
-			BS5_EchoRuntime.EmitExplosion(this, owner, result);
+		BS5_EchoRuntime.EmitExplosion(this, owner, result);
 
 		m_vLastOrigin = origin;
 		m_vLastForward = planarForward;
@@ -665,10 +751,25 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return "";
 	}
 
+	ResourceName ResolveLauncherMasterAcp(bool suppressed = false)
+	{
+		if (suppressed)
+			return ResolveMasterAcp(true);
+
+		return MACHINEGUN_MASTER_ACP;
+	}
+
 	ResourceName ResolveSlapbackAcp(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN, bool suppressed = false)
 	{
 		if (suppressed && m_sSuppressedSlapbackAcp != "")
 			return m_sSuppressedSlapbackAcp;
+
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled())
+				return closeSettings.ResolveCloseSlapbackAcp();
+		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackAcp != "")
 			return m_sTrenchSlapbackAcp;
@@ -696,7 +797,34 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	ResourceName ResolveExplosionAcp()
 	{
-		return ResolveMasterAcp(false);
+		if (m_sExplosionAcp != string.Empty)
+			return m_sExplosionAcp;
+
+		return DEFAULT_EXPLOSION_ACP;
+	}
+
+	ResourceName ResolveExplosionSlapbackAcp()
+	{
+		if (m_sExplosionSlapbackAcp != string.Empty)
+			return m_sExplosionSlapbackAcp;
+
+		return DEFAULT_EXPLOSION_SLAPBACK_ACP;
+	}
+
+	ResourceName ResolveExplosionEmitterPrefab()
+	{
+		if (IsEmitterPrefabPath(m_sExplosionEmitterPrefab))
+			return m_sExplosionEmitterPrefab;
+
+		return DEFAULT_EXPLOSION_EMITTER_PREFAB;
+	}
+
+	ResourceName ResolveExplosionSlapbackEmitterPrefab()
+	{
+		if (IsEmitterPrefabPath(m_sExplosionSlapbackEmitterPrefab))
+			return m_sExplosionSlapbackEmitterPrefab;
+
+		return DEFAULT_EXPLOSION_SLAPBACK_EMITTER_PREFAB;
 	}
 
 	ResourceName ResolveMasterEmitterPrefab(bool suppressed = false)
@@ -721,6 +849,14 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return DEFAULT_MASTER_EMITTER_PREFAB;
 	}
 
+	ResourceName ResolveLauncherMasterEmitterPrefab(bool suppressed = false)
+	{
+		if (suppressed)
+			return ResolveMasterEmitterPrefab(true);
+
+		return DEFAULT_MACHINEGUN_MASTER_EMITTER_PREFAB;
+	}
+
 	ResourceName ResolveSlapbackEmitterPrefab(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN, bool suppressed = false)
 	{
 		if (suppressed)
@@ -729,6 +865,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 				return m_sSuppressedSlapbackEmitterPrefab;
 
 			return DEFAULT_SUPPRESSED_SLAPBACK_EMITTER_PREFAB;
+		}
+
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled() && IsEmitterPrefabPath(closeSettings.ResolveCloseSlapbackEmitterPrefab()))
+				return closeSettings.ResolveCloseSlapbackEmitterPrefab();
 		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
@@ -761,6 +904,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	string ResolveSlapbackEventName(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN)
 	{
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		{
+			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+			if (closeSettings && closeSettings.IsEnabled())
+				return closeSettings.ResolveCloseSlapbackEventName();
+		}
+
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackEventName != string.Empty && IsEmitterPrefabPath(m_sTrenchSlapbackEmitterPrefab))
 			return m_sTrenchSlapbackEventName;
 
@@ -784,14 +934,6 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return m_sExplosionEventName;
 
 		return ResolveMasterEventName();
-	}
-
-	string ResolveExplosionSlapbackEventName()
-	{
-		if (m_sExplosionSlapbackEventName != string.Empty)
-			return m_sExplosionSlapbackEventName;
-
-		return "BS5_EXPLOSION_SLAPBACK";
 	}
 
 	protected BS5_TechnicalPreset GetActiveTechnicalPreset()
@@ -821,6 +963,26 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return 1.0;
 	}
 
+	float GetSuppressedNearSlapbackRadius()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fSuppressedNearSlapbackRadius;
+		if (preset && preset.m_fSuppressedNearSlapbackRadius > 0.0)
+			value = preset.m_fSuppressedNearSlapbackRadius;
+		if (value > 0.0)
+			return value;
+		return GetNearSlapbackRadius();
+	}
+
+	float GetSlapbackRadius(bool suppressed = false, bool explosionLike = false)
+	{
+		if (explosionLike)
+			return GetExplosionNearRadius();
+		if (suppressed)
+			return GetSuppressedNearSlapbackRadius();
+		return GetNearSlapbackRadius();
+	}
+
 	float GetNearProbeForwardOffsetMeters()
 	{
 		return BS5_EchoMath.MaxFloat(0.0, m_fNearProbeForwardOffsetMeters);
@@ -838,12 +1000,25 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	float GetExplosionNearRadius()
 	{
-		return GetNearSlapbackRadius() * 0.75;
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fExplosionNearSlapbackRadius;
+		if (preset && preset.m_fExplosionNearSlapbackRadius > 0.0)
+			value = preset.m_fExplosionNearSlapbackRadius;
+		if (value > 0.0)
+			return value;
+		return GetNearSlapbackRadius();
 	}
 
 	float GetExplosionIntensityMultiplier()
 	{
 		return m_fExplosionIntensityMultiplier;
+	}
+
+	float GetExplosionEmitterLifetimeSeconds()
+	{
+		float baseLifetime = GetEmitterLifetimeSeconds(false);
+		float scale = BS5_EchoMath.Clamp(m_fExplosionEmitterLifetimeScale, 1.0, 4.0);
+		return baseLifetime * scale;
 	}
 
 	int GetMaxTailEmittersPerShot()
@@ -870,7 +1045,20 @@ class BS5_EchoDriverComponent : ScriptComponent
 		int value = m_iMaxSlapbackEmittersPerShot;
 		if (preset)
 			value = preset.m_iMaxSlapbackEmittersPerShot;
-		return Math.Clamp(value, 1, 2);
+		if (value < 1)
+			return 1;
+		return value;
+	}
+
+	int GetMaxExplosionSlapbackEmittersPerShot()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iMaxExplosionSlapbackEmittersPerShot;
+		if (preset && preset.m_iMaxExplosionSlapbackEmittersPerShot > 0)
+			value = preset.m_iMaxExplosionSlapbackEmittersPerShot;
+		if (value > 0)
+			return value;
+		return GetMaxSlapbackEmittersPerShot();
 	}
 
 	int GetMaxActiveTailEmitters()
@@ -1064,6 +1252,11 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return m_bEnableSlapback && BS5_PlayerAudioSettings.IsSlapbackEnabled();
 	}
 
+	bool IsExplosionReuseEnabled()
+	{
+		return m_bEnableExplosionReuse;
+	}
+
 	bool IsPlayerSlapbackEnabled()
 	{
 		return BS5_PlayerAudioSettings.IsSlapbackEnabled();
@@ -1071,7 +1264,31 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	bool IsDebugEnabled()
 	{
+		if (m_bDebug)
+			return true;
+
+		BS5_AudioDebugSettingsComponent debugSettings = GetDebugSettingsComponent();
+		if (!debugSettings)
+			return false;
+
+		return debugSettings.IsAnyDebugEnabled();
+	}
+
+	bool IsLegacyDebugEnabled()
+	{
 		return m_bDebug;
+	}
+
+	bool IsDebugChannelEnabled(BS5_DebugChannel channel, BS5_DebugLevel level = BS5_DebugLevel.BASIC)
+	{
+		if (m_bDebug)
+			return true;
+
+		BS5_AudioDebugSettingsComponent debugSettings = GetDebugSettingsComponent();
+		if (!debugSettings)
+			return false;
+
+		return debugSettings.Allows(channel, level);
 	}
 
 	bool IsSoundMapAnchorPlannerEnabled()
@@ -1989,6 +2206,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (explosionLike && !m_bEnableExplosionReuse)
 			return null;
 
+		if (explosionLike != m_bLastExplosionLike)
+			return null;
+
 		float positionTolerance = GetCachePositionToleranceMeters();
 		if (vector.DistanceSq(origin, m_vLastOrigin) > positionTolerance * positionTolerance)
 			return null;
@@ -2015,12 +2235,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return planarForward;
 	}
 
-	protected void StoreCachedResult(BS5_EchoAnalysisResult result, bool suppressed)
+	protected void StoreCachedResult(BS5_EchoAnalysisResult result, bool suppressed, bool explosionLike)
 	{
 		m_iCacheGeneration++;
 		m_LastResult = result;
 		m_bCacheValid = true;
 		m_bLastSuppressed = suppressed;
+		m_bLastExplosionLike = explosionLike;
 
 		float cacheLifetime = m_fCacheTtlSeconds;
 		if (m_fBurstReuseWindowSeconds > cacheLifetime)
@@ -2074,12 +2295,69 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return GetOwner();
 	}
 
+	protected bool IsLauncherShot(IEntity owner, IEntity projectileEntity)
+	{
+		ResourceName projectilePrefab = GetEntityPrefabNameLower(projectileEntity);
+		if (IsLauncherShotPrefab(projectilePrefab))
+			return true;
+
+		ResourceName ownerPrefab = GetEntityPrefabNameLower(owner);
+		return IsLauncherShotPrefab(ownerPrefab);
+	}
+
+	protected bool IsLauncherShotPrefab(ResourceName prefabName)
+	{
+		if (prefabName == string.Empty)
+			return false;
+
+		if (prefabName.IndexOf("prefabs/weapons/ammo/ammo_rocket") != -1)
+			return true;
+		if (prefabName.IndexOf("prefabs/weapons/launchers") != -1)
+			return true;
+
+		return false;
+	}
+
+	protected bool IsUnderbarrelLauncherShot(IEntity projectileEntity)
+	{
+		ResourceName projectilePrefab = GetEntityPrefabNameLower(projectileEntity);
+		if (projectilePrefab == string.Empty)
+			return false;
+
+		if (projectilePrefab.IndexOf("prefabs/weapons/ammo/ammo_grenade") != -1)
+			return true;
+		if (projectilePrefab.IndexOf("prefabs/weapons/core/ammo_grenadelauncher") != -1)
+			return true;
+
+		return false;
+	}
+
+	protected ResourceName GetEntityPrefabNameLower(IEntity entity)
+	{
+		if (!entity)
+			return string.Empty;
+
+		IEntity normalizedEntity = entity.GetRootParent();
+		if (!normalizedEntity)
+			normalizedEntity = entity;
+
+		EntityPrefabData prefabData = normalizedEntity.GetPrefabData();
+		if (!prefabData)
+			return string.Empty;
+
+		ResourceName prefabName = prefabData.GetPrefabName();
+		if (prefabName != string.Empty)
+			prefabName.ToLower();
+
+		return prefabName;
+	}
+
 	protected bool IsEmitterPrefabPath(ResourceName resourceName)
 	{
 		if (resourceName == string.Empty)
 			return false;
 
-		return resourceName.IndexOf(".et") != -1;
+		return resourceName.EndsWith(".et");
 	}
 
 	protected bool ShouldSuppressDuplicateDispatch(vector origin, vector forward)
@@ -2116,8 +2394,8 @@ class BS5_EchoDriverComponent : ScriptComponent
 			cadence = GetBurstTailCadenceHighPressure();
 
 		bool acceptShot = ((m_iLimiterBurstShotCount - 1) % cadence) == 0;
-		if (!acceptShot && m_bDebug)
-			PrintFormat("BS5 dispatch skipped: burst limiter shot=%1 cadence=%2 pressure=%3 suppressed=%4", m_iLimiterBurstShotCount, cadence, tailPressure, suppressed);
+		if (!acceptShot && IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch skipped burstLimiter shot=" + m_iLimiterBurstShotCount + " cadence=" + cadence + " pressure=" + tailPressure + " suppressed=" + suppressed);
 
 		return acceptShot;
 	}
@@ -2155,6 +2433,32 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return BS5_WeaponEchoSettingsComponent.Cast(owner.FindComponent(BS5_WeaponEchoSettingsComponent));
 	}
 
+	BS5_CloseReflectionSettingsComponent GetCloseReflectionSettingsComponent()
+	{
+		if (m_CloseReflectionSettings)
+			return m_CloseReflectionSettings;
+
+		IEntity owner = GetOwner();
+		if (!owner)
+			return null;
+
+		m_CloseReflectionSettings = BS5_CloseReflectionSettingsComponent.Cast(owner.FindComponent(BS5_CloseReflectionSettingsComponent));
+		return m_CloseReflectionSettings;
+	}
+
+	BS5_AudioDebugSettingsComponent GetDebugSettingsComponent()
+	{
+		if (m_DebugSettings)
+			return m_DebugSettings;
+
+		IEntity owner = GetOwner();
+		if (!owner)
+			return null;
+
+		m_DebugSettings = BS5_AudioDebugSettingsComponent.Cast(owner.FindComponent(BS5_AudioDebugSettingsComponent));
+		return m_DebugSettings;
+	}
+
 	protected BS5_WeaponEchoRplCharacterComponent GetCharacterComponent()
 	{
 		IEntity owner = GetOwner();
@@ -2174,53 +2478,62 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	protected void DebugValidateConfiguration(IEntity owner)
 	{
-		if (!m_bDebug)
+		if (!IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
 			return;
 
 		if (ResolveMasterEmitterPrefab(false) == string.Empty)
-			PrintFormat("BS5 sanity warning: missing tail emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing tail emitter prefab owner=" + owner);
 
 		if (ResolveMasterEmitterPrefab(true) == string.Empty)
-			PrintFormat("BS5 sanity warning: missing suppressed tail emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing suppressed tail emitter prefab owner=" + owner);
 
 		if (ResolveMasterEventName() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing tail event name on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing tail event name owner=" + owner);
 
 		if (m_bEnableSlapback && ResolveSlapbackEmitterPrefab() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing slapback emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing slapback emitter prefab owner=" + owner);
 
 		if (m_bEnableSlapback && ResolveSlapbackEventName() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing slapback event name on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing slapback event name owner=" + owner);
+
+		BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
+		if (!closeSettings)
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing close reflection settings component owner=" + owner);
+		else if (closeSettings.IsEnabled())
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "close reflection config acp=" + closeSettings.ResolveCloseSlapbackAcp() + " prefab=" + closeSettings.ResolveCloseSlapbackEmitterPrefab() + " event=" + closeSettings.ResolveCloseSlapbackEventName());
 
 		if (GetMaxCandidateCount() < GetMaxTailEmittersPerShot())
-			PrintFormat("BS5 sanity warning: max candidates (%1) is lower than tail emitters per shot (%2) on %3", GetMaxCandidateCount(), GetMaxTailEmittersPerShot(), owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning max candidates=" + GetMaxCandidateCount() + " lower than tail emitters=" + GetMaxTailEmittersPerShot() + " owner=" + owner);
 
-		PrintFormat("BS5 soundmap anchor config: enabled=%1 legacyFallback=%2 cone=%3 maxDistance=%4 rays=%5 samples=%6",
-			IsSoundMapAnchorPlannerEnabled(),
-			AllowLegacyAnchorFallback(),
-			GetSoundMapForwardConeDegrees(),
-			GetSoundMapForwardMaxDistanceMeters(),
-			GetSoundMapForwardRayCount(),
-			GetSoundMapForwardSampleCount());
+		string soundMapConfig = "soundmap anchor config";
+		soundMapConfig += " enabled=" + BS5_DebugLog.BoolText(IsSoundMapAnchorPlannerEnabled());
+		soundMapConfig += " legacyFallback=" + BS5_DebugLog.BoolText(AllowLegacyAnchorFallback());
+		soundMapConfig += " cone=" + GetSoundMapForwardConeDegrees();
+		soundMapConfig += " maxDistance=" + GetSoundMapForwardMaxDistanceMeters();
+		soundMapConfig += " rays=" + GetSoundMapForwardRayCount();
+		soundMapConfig += " samples=" + GetSoundMapForwardSampleCount();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapConfig);
 
-		PrintFormat("BS5 soundmap anchor thresholds: omniRadius=%1 omniDirs=%2 omniAnchors=%3 city=%4 forest=%5 meadow=%6 hill=%7",
-			GetSoundMapOmniRadiusMeters(),
-			GetSoundMapOmniDirectionCount(),
-			GetSoundMapOmniAnchorCount(),
-			GetSoundMapCityThreshold(),
-			GetSoundMapForestThreshold(),
-			GetSoundMapMeadowThreshold(),
-			GetSoundMapHillReliefThreshold());
+		string soundMapThresholds = "soundmap anchor thresholds";
+		soundMapThresholds += " omniRadius=" + GetSoundMapOmniRadiusMeters();
+		soundMapThresholds += " omniDirs=" + GetSoundMapOmniDirectionCount();
+		soundMapThresholds += " omniAnchors=" + GetSoundMapOmniAnchorCount();
+		soundMapThresholds += " city=" + GetSoundMapCityThreshold();
+		soundMapThresholds += " forest=" + GetSoundMapForestThreshold();
+		soundMapThresholds += " meadow=" + GetSoundMapMeadowThreshold();
+		soundMapThresholds += " hill=" + GetSoundMapHillReliefThreshold();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapThresholds);
 
-		PrintFormat("BS5 soundmap physical tuning: frontSlope=%1 profileSamples=%2 backsideDrop=%3 urbanMicro=%4 urbanRadius=%5 urbanEntities=%6 urbanBoost=%7 distJitter=%8",
-			IsSoundMapTerrainFrontSlopeValidationEnabled(),
-			GetSoundMapTerrainProfileSampleCount(),
-			GetSoundMapTerrainBacksideDropMeters(),
-			IsSoundMapUrbanMicroScanEnabled(),
-			GetSoundMapUrbanMicroScanRadiusMeters(),
-			GetSoundMapUrbanMicroMaxEntities(),
-			GetSoundMapUrbanScoreBoost(),
-			GetSoundMapDistanceJitter());
+		string soundMapPhysical = "soundmap physical tuning";
+		soundMapPhysical += " frontSlope=" + BS5_DebugLog.BoolText(IsSoundMapTerrainFrontSlopeValidationEnabled());
+		soundMapPhysical += " profileSamples=" + GetSoundMapTerrainProfileSampleCount();
+		soundMapPhysical += " backsideDrop=" + GetSoundMapTerrainBacksideDropMeters();
+		soundMapPhysical += " urbanMicro=" + BS5_DebugLog.BoolText(IsSoundMapUrbanMicroScanEnabled());
+		soundMapPhysical += " urbanRadius=" + GetSoundMapUrbanMicroScanRadiusMeters();
+		soundMapPhysical += " urbanEntities=" + GetSoundMapUrbanMicroMaxEntities();
+		soundMapPhysical += " urbanBoost=" + GetSoundMapUrbanScoreBoost();
+		soundMapPhysical += " distJitter=" + GetSoundMapDistanceJitter();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapPhysical);
 
 		string pathTuning = "BS5 soundmap path gate:";
 		pathTuning += " enabled=" + IsSoundMapPathPlausibilityValidationEnabled();
@@ -2230,42 +2543,46 @@ class BS5_EchoDriverComponent : ScriptComponent
 		pathTuning += " hardFar=" + GetSoundMapFarTailHardLimitMeters();
 		pathTuning += " nearUrban=" + GetSoundMapNearUrbanTailMaxDistanceMeters();
 		pathTuning += " raycastDistance=" + GetSoundMapPathRaycastDistanceMeters();
-		Print(pathTuning);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, pathTuning);
 
-		PrintFormat("BS5 tail scan config: sectors=%1 heights=%2 low=%3 high=%4 cluster=%5 groundNormalMaxY=%6 forwardWeight=%7 sideWeight=%8",
-			GetTailSectorCount(),
-			GetTailHeightSampleCount(),
-			GetTailScanHeightLowMeters(),
-			GetTailScanHeightHighMeters(),
-			GetTailClusterDistanceMeters(),
-			GetTailGroundNormalMaxY(),
-			GetTailForwardSectorWeight(),
-			GetTailSideSectorWeight());
+		string tailScanConfig = "tail scan config";
+		tailScanConfig += " sectors=" + GetTailSectorCount();
+		tailScanConfig += " heights=" + GetTailHeightSampleCount();
+		tailScanConfig += " low=" + GetTailScanHeightLowMeters();
+		tailScanConfig += " high=" + GetTailScanHeightHighMeters();
+		tailScanConfig += " cluster=" + GetTailClusterDistanceMeters();
+		tailScanConfig += " groundNormalMaxY=" + GetTailGroundNormalMaxY();
+		tailScanConfig += " forwardWeight=" + GetTailForwardSectorWeight();
+		tailScanConfig += " sideWeight=" + GetTailSideSectorWeight();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, tailScanConfig);
 
-		PrintFormat("BS5 hybrid tail config: envRadius=%1 forwardSeeds=%2 lateralSeeds=%3 pitchClamp=%4 merge=%5 settlementMax=%6 terrainMax=%7 openMin=%8 openMax=%9",
-			GetEnvQueryRadiusMeters(),
-			GetForwardAnchorTraceCount(),
-			GetLateralAnchorTraceCount(),
-			GetAnchorPitchClampDegrees(),
-			GetAnchorMergeDistanceMeters(),
-			GetSettlementMaxDistanceMeters(),
-			GetTerrainMaxDistanceMeters(),
-			GetOpenTailMinDistanceMeters(),
-			GetOpenTailMaxDistanceMeters());
+		string hybridTailConfig = "hybrid tail config";
+		hybridTailConfig += " envRadius=" + GetEnvQueryRadiusMeters();
+		hybridTailConfig += " forwardSeeds=" + GetForwardAnchorTraceCount();
+		hybridTailConfig += " lateralSeeds=" + GetLateralAnchorTraceCount();
+		hybridTailConfig += " pitchClamp=" + GetAnchorPitchClampDegrees();
+		hybridTailConfig += " merge=" + GetAnchorMergeDistanceMeters();
+		hybridTailConfig += " settlementMax=" + GetSettlementMaxDistanceMeters();
+		hybridTailConfig += " terrainMax=" + GetTerrainMaxDistanceMeters();
+		hybridTailConfig += " openMin=" + GetOpenTailMinDistanceMeters();
+		hybridTailConfig += " openMax=" + GetOpenTailMaxDistanceMeters();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, hybridTailConfig);
 
-		PrintFormat("BS5 production tail config: suppressedEmitters=%1 suppressedDistance=%2 suppressedIntensity=%3 indoorCount=%4 indoorMax=%5 indoorLateral=%6",
-			GetMaxSuppressedTailEmittersPerShot(),
-			GetSuppressedDistanceMultiplier(),
-			GetSuppressedIntensityMultiplier(),
-			GetIndoorTailTargetCount(),
-			GetIndoorMaxDistanceMeters(),
-			GetIndoorLateralSpreadScale());
+		string productionTailConfig = "production tail config";
+		productionTailConfig += " suppressedEmitters=" + GetMaxSuppressedTailEmittersPerShot();
+		productionTailConfig += " suppressedDistance=" + GetSuppressedDistanceMultiplier();
+		productionTailConfig += " suppressedIntensity=" + GetSuppressedIntensityMultiplier();
+		productionTailConfig += " indoorCount=" + GetIndoorTailTargetCount();
+		productionTailConfig += " indoorMax=" + GetIndoorMaxDistanceMeters();
+		productionTailConfig += " indoorLateral=" + GetIndoorLateralSpreadScale();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, productionTailConfig);
 
-		PrintFormat("BS5 distance gain config: near=%1 far=%2 farVolume=%3 curve=%4",
-			GetDistanceGainNearMeters(),
-			GetDistanceGainFarMeters(),
-			GetDistanceGainFarVolume(),
-			GetDistanceGainCurvePower());
+		string distanceGainConfig = "distance gain config";
+		distanceGainConfig += " near=" + GetDistanceGainNearMeters();
+		distanceGainConfig += " far=" + GetDistanceGainFarMeters();
+		distanceGainConfig += " farVolume=" + GetDistanceGainFarVolume();
+		distanceGainConfig += " curve=" + GetDistanceGainCurvePower();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, distanceGainConfig);
 	}
 }
 

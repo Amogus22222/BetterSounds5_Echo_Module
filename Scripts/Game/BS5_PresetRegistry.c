@@ -14,11 +14,17 @@ class BS5_SoundPresetConfigEntry
 	[Attribute(defvalue: "Vanilla")]
 	string m_sDisplayName;
 
-	[Attribute(defvalue: "0.65")]
+	[Attribute(defvalue: "0.75")]
 	float m_fEchoVolume;
 
-	[Attribute(defvalue: "0.40")]
+	[Attribute(defvalue: "0.60")]
 	float m_fSlapbackVolume;
+
+	[Attribute(defvalue: "0.80")]
+	float m_fSlapbackCloseVolume;
+
+	[Attribute(defvalue: "0.75")]
+	float m_fExplosionVolume;
 }
 
 [BaseContainerProps(configRoot: true)]
@@ -49,6 +55,12 @@ class BS5_TechnicalPresetConfigEntry
 	[Attribute(defvalue: "25")]
 	float m_fNearSlapbackRadius;
 
+	[Attribute(defvalue: "16")]
+	float m_fSuppressedNearSlapbackRadius;
+
+	[Attribute(defvalue: "25")]
+	float m_fExplosionNearSlapbackRadius;
+
 	[Attribute(defvalue: "9")]
 	int m_iMaxCandidateCount;
 
@@ -63,6 +75,9 @@ class BS5_TechnicalPresetConfigEntry
 
 	[Attribute(defvalue: "2")]
 	int m_iMaxSlapbackEmittersPerShot;
+
+	[Attribute(defvalue: "3")]
+	int m_iMaxExplosionSlapbackEmittersPerShot;
 
 	[Attribute(defvalue: "24")]
 	int m_iMaxActiveTailEmitters;
@@ -227,6 +242,8 @@ class BS5_SoundPreset
 	string m_sDisplayName;
 	float m_fEchoVolume;
 	float m_fSlapbackVolume;
+	float m_fSlapbackCloseVolume;
+	float m_fExplosionVolume;
 }
 
 class BS5_TechnicalPreset
@@ -237,11 +254,14 @@ class BS5_TechnicalPreset
 	bool m_bAllowLegacyAnchorFallback;
 	float m_fScanRadius;
 	float m_fNearSlapbackRadius;
+	float m_fSuppressedNearSlapbackRadius;
+	float m_fExplosionNearSlapbackRadius;
 	int m_iMaxCandidateCount;
 	int m_iMaxTraceCount;
 	int m_iMaxTailEmittersPerShot;
 	int m_iMaxSuppressedTailEmittersPerShot;
 	int m_iMaxSlapbackEmittersPerShot;
+	int m_iMaxExplosionSlapbackEmittersPerShot;
 	int m_iMaxActiveTailEmitters;
 	int m_iMaxActiveSlapbackEmitters;
 	int m_iLimiterGlobalMaxTailVoices;
@@ -298,8 +318,8 @@ class BS5_TechnicalPreset
 
 class BS5_PresetRegistry
 {
-	protected static const ResourceName SOUND_PRESETS_CONFIG = "Configs/BS5/Presets/BS5_SoundPresets.conf";
-	protected static const ResourceName TECHNICAL_PRESETS_CONFIG = "Configs/BS5/Presets/BS5_TechnicalPresets.conf";
+	protected static const ResourceName SOUND_PRESETS_CONFIG = "{781576466220AFAF}Configs/BS5/Presets/BS5_SoundPresets.conf";
+	protected static const ResourceName TECHNICAL_PRESETS_CONFIG = "{C1D3C936760CEC8B}Configs/BS5/Presets/BS5_TechnicalPresets.conf";
 	protected static const string DEFAULT_SOUND_PRESET_ID = "vanilla";
 	protected static const string DEFAULT_TECHNICAL_PRESET_ID = "default";
 	protected static const string CUSTOM_SOUND_PRESET_ID = "custom";
@@ -443,9 +463,13 @@ class BS5_PresetRegistry
 		if (!preset)
 			return;
 
+		BS5_PlayerAudioSettings.BeginSettingsBatch();
 		BS5_PlayerAudioSettings.SetSoundPresetId(preset.m_sId, false);
 		BS5_PlayerAudioSettings.SetEchoVolume(preset.m_fEchoVolume, false, false);
-		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, saveImmediately, false);
+		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, false, false);
+		BS5_PlayerAudioSettings.SetSlapbackCloseVolume(preset.m_fSlapbackCloseVolume, false, false);
+		BS5_PlayerAudioSettings.SetExplosionVolume(preset.m_fExplosionVolume, false, false);
+		BS5_PlayerAudioSettings.EndSettingsBatch(saveImmediately);
 	}
 
 	static void ApplyTechnicalPreset(string id, bool saveImmediately = true)
@@ -454,9 +478,9 @@ class BS5_PresetRegistry
 		if (!preset)
 			return;
 
+		BS5_PlayerAudioSettings.BeginSettingsBatch();
 		BS5_PlayerAudioSettings.SetTechnicalPresetId(preset.m_sId, false);
-		if (saveImmediately)
-			BS5_PlayerAudioSettings.Save();
+		BS5_PlayerAudioSettings.EndSettingsBatch(saveImmediately);
 	}
 
 	protected static void EnsureInitialized()
@@ -491,7 +515,7 @@ class BS5_PresetRegistry
 			if (!entry || entry.m_sId == string.Empty)
 				continue;
 
-			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume);
+			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume, entry.m_fSlapbackCloseVolume, entry.m_fExplosionVolume);
 		}
 	}
 
@@ -516,10 +540,10 @@ class BS5_PresetRegistry
 
 	protected static void AddFallbackSoundPresets()
 	{
-		AddSoundPreset("vanilla", "Vanilla", 0.65, 0.40);
-		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 0.90, 0.70);
-		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.50);
-		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.45);
+		AddSoundPreset("vanilla", "Vanilla", 0.75, 0.60, 0.80, 0.75);
+		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 1.00, 1.00, 1.00, 1.00);
+		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.60, 0.60, 0.80);
+		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.85, 0.95, 0.90);
 	}
 
 	protected static void AddFallbackTechnicalPresets()
@@ -537,7 +561,7 @@ class BS5_PresetRegistry
 		AddTechnicalPresetFromEntry(entry);
 	}
 
-	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume)
+	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume, float slapbackCloseVolume, float explosionVolume)
 	{
 		if (FindSoundPreset(id))
 			return;
@@ -547,6 +571,8 @@ class BS5_PresetRegistry
 		preset.m_sDisplayName = displayName;
 		preset.m_fEchoVolume = BS5_EchoMath.Clamp01(echoVolume);
 		preset.m_fSlapbackVolume = BS5_EchoMath.Clamp01(slapbackVolume);
+		preset.m_fSlapbackCloseVolume = BS5_EchoMath.Clamp01(slapbackCloseVolume);
+		preset.m_fExplosionVolume = BS5_EchoMath.Clamp01(explosionVolume);
 		s_aSoundPresets.Insert(preset);
 	}
 
@@ -564,11 +590,14 @@ class BS5_PresetRegistry
 		preset.m_bAllowLegacyAnchorFallback = entry.m_bAllowLegacyAnchorFallback;
 		preset.m_fScanRadius = entry.m_fScanRadius;
 		preset.m_fNearSlapbackRadius = entry.m_fNearSlapbackRadius;
+		preset.m_fSuppressedNearSlapbackRadius = entry.m_fSuppressedNearSlapbackRadius;
+		preset.m_fExplosionNearSlapbackRadius = entry.m_fExplosionNearSlapbackRadius;
 		preset.m_iMaxCandidateCount = entry.m_iMaxCandidateCount;
 		preset.m_iMaxTraceCount = entry.m_iMaxTraceCount;
 		preset.m_iMaxTailEmittersPerShot = entry.m_iMaxTailEmittersPerShot;
 		preset.m_iMaxSuppressedTailEmittersPerShot = entry.m_iMaxSuppressedTailEmittersPerShot;
 		preset.m_iMaxSlapbackEmittersPerShot = entry.m_iMaxSlapbackEmittersPerShot;
+		preset.m_iMaxExplosionSlapbackEmittersPerShot = entry.m_iMaxExplosionSlapbackEmittersPerShot;
 		preset.m_iMaxActiveTailEmitters = entry.m_iMaxActiveTailEmitters;
 		preset.m_iMaxActiveSlapbackEmitters = entry.m_iMaxActiveSlapbackEmitters;
 		preset.m_iLimiterGlobalMaxTailVoices = entry.m_iLimiterGlobalMaxTailVoices;
@@ -630,17 +659,20 @@ class BS5_PresetRegistry
 		entry.m_sDisplayName = "Default";
 		entry.m_bUseSoundMapAnchorPlanner = true;
 		entry.m_bAllowLegacyAnchorFallback = false;
-		entry.m_fScanRadius = 700.0;
-		entry.m_fNearSlapbackRadius = 25.0;
-		entry.m_iMaxCandidateCount = 9;
-		entry.m_iMaxTraceCount = 9;
+		entry.m_fScanRadius = 875.0;
+		entry.m_fNearSlapbackRadius = 34.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 44.0;
+		entry.m_iMaxCandidateCount = 13;
+		entry.m_iMaxTraceCount = 13;
 		entry.m_iMaxTailEmittersPerShot = 2;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 3;
+		entry.m_iMaxSlapbackEmittersPerShot = 5;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 8;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 6;
+		entry.m_iMaxActiveSlapbackEmitters = 8;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 8;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
 		entry.m_iLimiterMaxPendingTailVoices = 8;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 6;
 		entry.m_iLimiterBurstCadenceNormal = 4;
@@ -649,8 +681,8 @@ class BS5_PresetRegistry
 		entry.m_iLimiterHighPressureTailEmittersPerShot = 1;
 		entry.m_fLimiterHighPressureThreshold = 0.80;
 		entry.m_fLimiterCriticalPressureThreshold = 0.94;
-		entry.m_iLimiterMaxTailStartsPer100Ms = 4;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 4;
+		entry.m_iLimiterMaxTailStartsPer100Ms = 12;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 12;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -658,37 +690,37 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 2.8;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 1.2;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
-		entry.m_fEnvQueryRadiusMeters = 400.0;
-		entry.m_iForwardAnchorTraceCount = 18;
-		entry.m_iLateralAnchorTraceCount = 8;
-		entry.m_iTailSectorCount = 9;
-		entry.m_iTailHeightSampleCount = 3;
+		entry.m_fEnvQueryRadiusMeters = 500.0;
+		entry.m_iForwardAnchorTraceCount = 23;
+		entry.m_iLateralAnchorTraceCount = 10;
+		entry.m_iTailSectorCount = 12;
+		entry.m_iTailHeightSampleCount = 4;
 		entry.m_fSoundMapForwardConeDegrees = 120.0;
-		entry.m_fSoundMapForwardMaxDistanceMeters = 700.0;
-		entry.m_iSoundMapForwardRayCount = 9;
-		entry.m_iSoundMapForwardSampleCount = 7;
-		entry.m_fSoundMapOmniRadiusMeters = 450.0;
-		entry.m_iSoundMapOmniDirectionCount = 8;
-		entry.m_iSoundMapOmniAnchorCount = 2;
-		entry.m_fSoundMapCityThreshold = 0.045;
-		entry.m_fSoundMapForestThreshold = 0.16;
-		entry.m_fSoundMapMeadowThreshold = 0.32;
-		entry.m_fSoundMapHillReliefThreshold = 0.20;
+		entry.m_fSoundMapForwardMaxDistanceMeters = 875.0;
+		entry.m_iSoundMapForwardRayCount = 12;
+		entry.m_iSoundMapForwardSampleCount = 9;
+		entry.m_fSoundMapOmniRadiusMeters = 563.0;
+		entry.m_iSoundMapOmniDirectionCount = 10;
+		entry.m_iSoundMapOmniAnchorCount = 3;
+		entry.m_fSoundMapCityThreshold = 0.036;
+		entry.m_fSoundMapForestThreshold = 0.128;
+		entry.m_fSoundMapMeadowThreshold = 0.256;
+		entry.m_fSoundMapHillReliefThreshold = 0.16;
 		entry.m_bSoundMapTerrainFrontSlopeValidation = true;
-		entry.m_iSoundMapTerrainProfileSampleCount = 9;
+		entry.m_iSoundMapTerrainProfileSampleCount = 12;
 		entry.m_fSoundMapTerrainBacksideDropMeters = 2.8;
 		entry.m_bSoundMapUrbanMicroScan = true;
-		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 180.0;
-		entry.m_iSoundMapUrbanMicroMaxEntities = 28;
-		entry.m_fSoundMapUrbanScoreBoost = 0.18;
+		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 225.0;
+		entry.m_iSoundMapUrbanMicroMaxEntities = 35;
+		entry.m_fSoundMapUrbanScoreBoost = 0.225;
 		entry.m_fSoundMapDistanceJitter = 0.16;
 		entry.m_bSoundMapPathPlausibilityValidation = true;
-		entry.m_iSoundMapPathSampleCount = 6;
+		entry.m_iSoundMapPathSampleCount = 8;
 		entry.m_fSoundMapPathTerrainClearanceMeters = 2.2;
-		entry.m_fSoundMapFarTailSoftLimitMeters = 420.0;
-		entry.m_fSoundMapFarTailHardLimitMeters = 560.0;
-		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 180.0;
-		entry.m_fSoundMapPathRaycastDistanceMeters = 220.0;
+		entry.m_fSoundMapFarTailSoftLimitMeters = 525.0;
+		entry.m_fSoundMapFarTailHardLimitMeters = 700.0;
+		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 225.0;
+		entry.m_fSoundMapPathRaycastDistanceMeters = 275.0;
 	}
 
 	protected static void FillLightTechnicalPreset(BS5_TechnicalPresetConfigEntry entry)
@@ -696,17 +728,20 @@ class BS5_PresetRegistry
 		FillDefaultTechnicalPreset(entry);
 		entry.m_sId = "light";
 		entry.m_sDisplayName = "Light";
-		entry.m_fScanRadius = 420.0;
-		entry.m_fNearSlapbackRadius = 18.0;
-		entry.m_iMaxCandidateCount = 4;
-		entry.m_iMaxTraceCount = 4;
+		entry.m_fScanRadius = 525.0;
+		entry.m_fNearSlapbackRadius = 13.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 23.0;
+		entry.m_iMaxCandidateCount = 5;
+		entry.m_iMaxTraceCount = 5;
 		entry.m_iMaxTailEmittersPerShot = 1;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 1;
+		entry.m_iMaxSlapbackEmittersPerShot = 2;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 3;
 		entry.m_iMaxActiveTailEmitters = 6;
-		entry.m_iMaxActiveSlapbackEmitters = 2;
+		entry.m_iMaxActiveSlapbackEmitters = 3;
 		entry.m_iLimiterGlobalMaxTailVoices = 6;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 2;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 3;
 		entry.m_iLimiterMaxPendingTailVoices = 3;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 2;
 		entry.m_iLimiterBurstCadenceNormal = 7;
@@ -716,7 +751,7 @@ class BS5_PresetRegistry
 		entry.m_fLimiterHighPressureThreshold = 0.70;
 		entry.m_fLimiterCriticalPressureThreshold = 0.88;
 		entry.m_iLimiterMaxTailStartsPer100Ms = 2;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 1;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 3;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -724,34 +759,34 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 1.5;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 0.8;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
-		entry.m_fEnvQueryRadiusMeters = 160.0;
-		entry.m_iForwardAnchorTraceCount = 4;
+		entry.m_fEnvQueryRadiusMeters = 200.0;
+		entry.m_iForwardAnchorTraceCount = 5;
 		entry.m_iLateralAnchorTraceCount = 0;
-		entry.m_iTailSectorCount = 4;
-		entry.m_iTailHeightSampleCount = 1;
+		entry.m_iTailSectorCount = 5;
+		entry.m_iTailHeightSampleCount = 2;
 		entry.m_fSoundMapForwardConeDegrees = 95.0;
-		entry.m_fSoundMapForwardMaxDistanceMeters = 420.0;
-		entry.m_iSoundMapForwardRayCount = 4;
-		entry.m_iSoundMapForwardSampleCount = 4;
-		entry.m_fSoundMapOmniRadiusMeters = 220.0;
-		entry.m_iSoundMapOmniDirectionCount = 4;
+		entry.m_fSoundMapForwardMaxDistanceMeters = 525.0;
+		entry.m_iSoundMapForwardRayCount = 5;
+		entry.m_iSoundMapForwardSampleCount = 5;
+		entry.m_fSoundMapOmniRadiusMeters = 275.0;
+		entry.m_iSoundMapOmniDirectionCount = 5;
 		entry.m_iSoundMapOmniAnchorCount = 0;
-		entry.m_fSoundMapCityThreshold = 0.07;
-		entry.m_fSoundMapForestThreshold = 0.22;
-		entry.m_fSoundMapMeadowThreshold = 0.38;
-		entry.m_fSoundMapHillReliefThreshold = 0.27;
-		entry.m_iSoundMapTerrainProfileSampleCount = 4;
+		entry.m_fSoundMapCityThreshold = 0.056;
+		entry.m_fSoundMapForestThreshold = 0.176;
+		entry.m_fSoundMapMeadowThreshold = 0.304;
+		entry.m_fSoundMapHillReliefThreshold = 0.216;
+		entry.m_iSoundMapTerrainProfileSampleCount = 5;
 		entry.m_fSoundMapTerrainBacksideDropMeters = 4.0;
 		entry.m_bSoundMapUrbanMicroScan = true;
-		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 90.0;
-		entry.m_iSoundMapUrbanMicroMaxEntities = 8;
-		entry.m_fSoundMapUrbanScoreBoost = 0.10;
+		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 113.0;
+		entry.m_iSoundMapUrbanMicroMaxEntities = 10;
+		entry.m_fSoundMapUrbanScoreBoost = 0.125;
 		entry.m_fSoundMapDistanceJitter = 0.08;
-		entry.m_iSoundMapPathSampleCount = 3;
+		entry.m_iSoundMapPathSampleCount = 4;
 		entry.m_fSoundMapPathTerrainClearanceMeters = 2.6;
-		entry.m_fSoundMapFarTailSoftLimitMeters = 280.0;
-		entry.m_fSoundMapFarTailHardLimitMeters = 360.0;
-		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 130.0;
+		entry.m_fSoundMapFarTailSoftLimitMeters = 350.0;
+		entry.m_fSoundMapFarTailHardLimitMeters = 450.0;
+		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 163.0;
 		entry.m_fSoundMapPathRaycastDistanceMeters = 999.0;
 	}
 
@@ -760,17 +795,20 @@ class BS5_PresetRegistry
 		FillDefaultTechnicalPreset(entry);
 		entry.m_sId = "dynamic";
 		entry.m_sDisplayName = "Dynamic";
-		entry.m_fScanRadius = 700.0;
-		entry.m_fNearSlapbackRadius = 25.0;
-		entry.m_iMaxCandidateCount = 9;
-		entry.m_iMaxTraceCount = 9;
+		entry.m_fScanRadius = 875.0;
+		entry.m_fNearSlapbackRadius = 40.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 50.0;
+		entry.m_iMaxCandidateCount = 15;
+		entry.m_iMaxTraceCount = 15;
 		entry.m_iMaxTailEmittersPerShot = 2;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 3;
+		entry.m_iMaxSlapbackEmittersPerShot = 6;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 9;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 6;
+		entry.m_iMaxActiveSlapbackEmitters = 10;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 8;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
 		entry.m_iLimiterMaxPendingTailVoices = 8;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 6;
 		entry.m_iLimiterBurstCadenceNormal = 4;
@@ -779,8 +817,8 @@ class BS5_PresetRegistry
 		entry.m_iLimiterHighPressureTailEmittersPerShot = 1;
 		entry.m_fLimiterHighPressureThreshold = 0.80;
 		entry.m_fLimiterCriticalPressureThreshold = 0.94;
-		entry.m_iLimiterMaxTailStartsPer100Ms = 4;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 4;
+		entry.m_iLimiterMaxTailStartsPer100Ms = 12;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 12;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -788,37 +826,37 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 2.8;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 1.2;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
-		entry.m_fEnvQueryRadiusMeters = 400.0;
-		entry.m_iForwardAnchorTraceCount = 18;
-		entry.m_iLateralAnchorTraceCount = 8;
-		entry.m_iTailSectorCount = 9;
-		entry.m_iTailHeightSampleCount = 4;
+		entry.m_fEnvQueryRadiusMeters = 500.0;
+		entry.m_iForwardAnchorTraceCount = 23;
+		entry.m_iLateralAnchorTraceCount = 10;
+		entry.m_iTailSectorCount = 12;
+		entry.m_iTailHeightSampleCount = 5;
 		entry.m_fSoundMapForwardConeDegrees = 95.0;
-		entry.m_fSoundMapForwardMaxDistanceMeters = 620.0;
-		entry.m_iSoundMapForwardRayCount = 11;
-		entry.m_iSoundMapForwardSampleCount = 8;
-		entry.m_fSoundMapOmniRadiusMeters = 320.0;
-		entry.m_iSoundMapOmniDirectionCount = 12;
-		entry.m_iSoundMapOmniAnchorCount = 1;
-		entry.m_fSoundMapCityThreshold = 0.038;
-		entry.m_fSoundMapForestThreshold = 0.19;
-		entry.m_fSoundMapMeadowThreshold = 0.36;
-		entry.m_fSoundMapHillReliefThreshold = 0.24;
+		entry.m_fSoundMapForwardMaxDistanceMeters = 775.0;
+		entry.m_iSoundMapForwardRayCount = 14;
+		entry.m_iSoundMapForwardSampleCount = 10;
+		entry.m_fSoundMapOmniRadiusMeters = 400.0;
+		entry.m_iSoundMapOmniDirectionCount = 15;
+		entry.m_iSoundMapOmniAnchorCount = 2;
+		entry.m_fSoundMapCityThreshold = 0.030;
+		entry.m_fSoundMapForestThreshold = 0.152;
+		entry.m_fSoundMapMeadowThreshold = 0.288;
+		entry.m_fSoundMapHillReliefThreshold = 0.192;
 		entry.m_bSoundMapTerrainFrontSlopeValidation = true;
-		entry.m_iSoundMapTerrainProfileSampleCount = 10;
+		entry.m_iSoundMapTerrainProfileSampleCount = 13;
 		entry.m_fSoundMapTerrainBacksideDropMeters = 2.4;
 		entry.m_bSoundMapUrbanMicroScan = true;
-		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 220.0;
-		entry.m_iSoundMapUrbanMicroMaxEntities = 32;
-		entry.m_fSoundMapUrbanScoreBoost = 0.24;
+		entry.m_fSoundMapUrbanMicroScanRadiusMeters = 275.0;
+		entry.m_iSoundMapUrbanMicroMaxEntities = 40;
+		entry.m_fSoundMapUrbanScoreBoost = 0.30;
 		entry.m_fSoundMapDistanceJitter = 0.20;
 		entry.m_bSoundMapPathPlausibilityValidation = true;
-		entry.m_iSoundMapPathSampleCount = 7;
+		entry.m_iSoundMapPathSampleCount = 9;
 		entry.m_fSoundMapPathTerrainClearanceMeters = 2.0;
-		entry.m_fSoundMapFarTailSoftLimitMeters = 360.0;
-		entry.m_fSoundMapFarTailHardLimitMeters = 500.0;
-		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 220.0;
-		entry.m_fSoundMapPathRaycastDistanceMeters = 180.0;
+		entry.m_fSoundMapFarTailSoftLimitMeters = 450.0;
+		entry.m_fSoundMapFarTailHardLimitMeters = 625.0;
+		entry.m_fSoundMapNearUrbanTailMaxDistanceMeters = 275.0;
+		entry.m_fSoundMapPathRaycastDistanceMeters = 225.0;
 	}
 
 	protected static BS5_SoundPreset FindSoundPreset(string id)

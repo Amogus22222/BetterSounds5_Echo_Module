@@ -36,88 +36,10 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		vector transform[4];
 		owner.GetTransform(transform);
 
-		SetSignalValue("BS5_Intensity", context.m_fIntensity);
-		SetSignalValue("BS5_DelaySeconds", context.m_fDelaySeconds);
-
-		float slapbackValue = 0.0;
-		if (context.m_bSlapback)
-			slapbackValue = 1.0;
-		SetSignalValue("BS5_IsSlapback", slapbackValue);
-		SetSignalValue("BS5_SlapbackMode", GetSlapbackModeSignal(context));
-
-		float explosionValue = 0.0;
-		if (context.m_bExplosion)
-			explosionValue = 1.0;
-		SetSignalValue("BS5_IsExplosion", explosionValue);
-
-		float suppressedValue = 0.0;
-		if (context.m_bSuppressed)
-			suppressedValue = 1.0;
-		SetSignalValue("BS5_IsSuppressed", suppressedValue);
-
-		BS5_EchoEnvironmentType environmentType = BS5_EchoEnvironmentType.OPEN_FIELD;
-		float masterDelay = 0.0;
-		float slapbackDelay = 0.0;
-		if (context.m_Result)
-		{
-			environmentType = context.m_Result.m_eEnvironment;
-			masterDelay = context.m_Result.m_fMasterDelaySeconds;
-			slapbackDelay = context.m_Result.m_fSlapbackDelaySeconds;
-		}
-
-		SetSignalValue("BS5_EnvironmentId", BS5_EchoMath.EnvironmentId(environmentType));
-		SetSignalValue("BS5_MasterDelaySeconds", masterDelay);
-		SetSignalValue("BS5_SlapbackDelaySeconds", slapbackDelay);
-		SetSignalValue("BS5_CandidateRank", context.m_iCandidateRank);
-		SetSignalValue("BS5_DistanceNorm", context.m_fDistanceNorm);
-		SetSignalValue("BS5_DistanceGain", context.m_fDistanceGain);
-		float slapbackDistanceMeters = 0.0;
-		float slapbackDistanceNorm = 0.0;
-		float slapbackDistanceGain = 1.0;
-		if (context.m_bSlapback)
-		{
-			slapbackDistanceMeters = context.m_fCandidateDistance;
-			slapbackDistanceNorm = context.m_fDistanceNorm;
-			slapbackDistanceGain = context.m_fDistanceGain;
-		}
-		SetSignalValue("BS5_SlapbackDistanceMeters", slapbackDistanceMeters);
-		SetSignalValue("BS5_SlapbackDistanceNorm", slapbackDistanceNorm);
-		SetSignalValue("BS5_SlapbackDistanceGain", slapbackDistanceGain);
-		SetSignalValue("BS5_UserEchoVolume", context.m_fUserEchoVolume);
-		SetSignalValue("BS5_UserSlapbackVolume", context.m_fUserSlapbackVolume);
-		SetSignalValue("BS5_PanBias", context.m_fPanBias);
-		SetSignalValue("BS5_DirectionSupport", context.m_fDirectionSupport);
-		SetSignalValue("BS5_ReverbSend", context.m_fReverbSend);
-		SetSignalValue("BS5_TailWidth", context.m_fTailWidth);
-		SetSignalValue("BS5_TailBrightness", context.m_fTailBrightness);
-		SetSignalValue("BS5_SurfaceHardness", context.m_fSurfaceHardness);
-
-		if (context.m_Result)
-		{
-			float indoorSignal = context.m_Result.m_fIndoorScore;
-			float roomSizeSignal = context.m_Result.m_fRoomSize;
-			float roomSizeNorm = 0.0;
-			if (roomSizeSignal > 0.0)
-				roomSizeNorm = BS5_EchoMath.Clamp01(roomSizeSignal / 140.0);
-
-			SetSignalValue("Interior", indoorSignal);
-			SetSignalValue("RoomSize", roomSizeSignal);
-			SetSignalValue("BS5_IndoorBias", indoorSignal);
-			SetSignalValue("BS5_RoomSizeNorm", roomSizeNorm);
-			SetSignalValue("BS5_EnvOpen", context.m_Result.m_fOpenScore);
-			SetSignalValue("BS5_EnvUrban", context.m_Result.m_fUrbanScore);
-			SetSignalValue("BS5_EnvForest", context.m_Result.m_fForestScore);
-			SetSignalValue("BS5_EnvHill", context.m_Result.m_fHillScore);
-			SetSignalValue("BS5_EnvHard", context.m_Result.m_fHardSurfaceScore);
-			SetSignalValue("BS5_EnvIndoor", context.m_Result.m_fIndoorScore);
-			SetSignalValue("BS5_EnvTrench", context.m_Result.m_fTrenchScore);
-			SetSignalValue("BS5_EnvFront", context.m_Result.m_fFrontConfinement);
-			SetSignalValue("BS5_EnvBack", context.m_Result.m_fBackConfinement);
-			SetSignalValue("BS5_EnvLeft", context.m_Result.m_fLeftConfinement);
-			SetSignalValue("BS5_EnvRight", context.m_Result.m_fRightConfinement);
-			SetSignalValue("BS5_Confidence", context.m_Result.m_fConfidence);
-			SetSignalValue("BS5_ReflectorCount", context.m_Result.m_aCandidates.Count());
-		}
+		array<string> signalNames = {};
+		array<float> signalValues = {};
+		BuildAudioSystemSignals(context, signalNames, signalValues);
+		ApplyAudioSignals(signalNames, signalValues);
 
 		m_SoundComponent.EnableDynamicSimulation(true);
 		m_SoundComponent.SetScriptedMethodsCall(true);
@@ -132,16 +54,15 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 			{
 				soundComponentEvent = "SOUND_SHOT";
 				eventIndex = fallbackEventIndex;
-				if (debugEnabled)
-					PrintFormat("BS5 emitter slapback event fallback: requested=%1 fallback=%2 prefab=%3", context.m_sEventName, soundComponentEvent, context.m_sEmitterPrefab);
+				BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-event-fallback|" + context.m_sEmitterPrefab + "|" + context.m_sEventName, "emitter slapback event fallback requested=" + context.m_sEventName + " fallback=" + soundComponentEvent + " prefab=" + context.m_sEmitterPrefab);
 			}
 		}
 
 		if (context.m_bAllowDirectProjectPlayback && context.m_sProject != string.Empty)
 		{
-			handle = TryPlayAudioSystemProject(context, transform);
-			if (handle == -1 && debugEnabled)
-				PrintFormat("BS5 emitter project play failed, fallback to prefab SoundComponent: project=%1 event=%2 prefab=%3", context.m_sProject, context.m_sEventName, context.m_sEmitterPrefab);
+			handle = TryPlayAudioSystemProject(context, transform, signalNames, signalValues);
+			if (handle == -1)
+				BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-project-fallback|" + context.m_sProject + "|" + context.m_sEventName + "|" + context.m_sEmitterPrefab, "emitter project play failed fallback=prefab project=" + context.m_sProject + " event=" + context.m_sEventName + " prefab=" + context.m_sEmitterPrefab);
 		}
 
 		if (handle == -1 && eventIndex >= 0)
@@ -154,7 +75,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		}
 
 		if (debugEnabled)
-			PrintFormat("BS5 emitter play: project=%1 event=%2 soundEvent=%3 eventIndex=%4 handle=%5 emitterPos=%6", context.m_sProject, context.m_sEventName, soundComponentEvent, eventIndex, handle, transform[3]);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter play project=" + context.m_sProject + " event=" + context.m_sEventName + " soundEvent=" + soundComponentEvent + " eventIndex=" + eventIndex + " handle=" + handle + " pos=" + transform[3]);
 
 		if (handle != -1)
 			context.m_hPlayback = handle;
@@ -162,7 +83,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		return handle;
 	}
 
-	protected AudioHandle TryPlayAudioSystemProject(BS5_PendingEmissionContext context, inout vector transform[4])
+	protected AudioHandle TryPlayAudioSystemProject(BS5_PendingEmissionContext context, inout vector transform[4], notnull array<string> signalNames, notnull array<float> signalValues)
 	{
 		if (!context || context.m_sProject == string.Empty || context.m_sEventName == string.Empty)
 			return -1;
@@ -174,9 +95,6 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		if (!EnsureAudioProjectReady(context.m_sProject))
 			return -1;
 
-		array<string> signalNames = {};
-		array<float> signalValues = {};
-		BuildAudioSystemSignals(context, signalNames, signalValues);
 		AudioHandle handle = AudioSystem.PlayEvent(context.m_sProject, context.m_sEventName, transform, signalNames, signalValues);
 		if (handle == -1)
 			MarkAudioProjectEventInvalid(eventKey);
@@ -231,6 +149,14 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		EnsureAudioProjectCaches();
 		if (!IsAudioProjectEventKnownInvalid(eventKey))
 			s_aInvalidAudioProjectEvents.Insert(eventKey);
+	}
+
+	static void ClearAudioProjectCaches()
+	{
+		EnsureAudioProjectCaches();
+		s_aInitializedAudioProjects.Clear();
+		s_aInvalidAudioProjects.Clear();
+		s_aInvalidAudioProjectEvents.Clear();
 	}
 
 	protected static void EnsureAudioProjectCaches()
@@ -291,6 +217,8 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		AppendAudioSignal(signalNames, signalValues, "BS5_SlapbackDistanceGain", slapbackDistanceGain);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserEchoVolume", context.m_fUserEchoVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackVolume", context.m_fUserSlapbackVolume);
+		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackCloseVolume", context.m_fUserSlapbackCloseVolume);
+		AppendAudioSignal(signalNames, signalValues, "BS5_UserExplosionVolume", context.m_fUserExplosionVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_PanBias", context.m_fPanBias);
 		AppendAudioSignal(signalNames, signalValues, "BS5_DirectionSupport", context.m_fDirectionSupport);
 		AppendAudioSignal(signalNames, signalValues, "BS5_ReverbSend", context.m_fReverbSend);
@@ -335,6 +263,9 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		if (!context || !context.m_bSlapback)
 			return 0.0;
 
+		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+			return 3.0;
+
 		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
 			return 2.0;
 
@@ -357,6 +288,16 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 			m_SoundComponent = SoundComponent.Cast(owner.FindComponent(SoundComponent));
 
 		return m_SoundComponent != null;
+	}
+
+	protected void ApplyAudioSignals(notnull array<string> signalNames, notnull array<float> signalValues)
+	{
+		int signalCount = signalNames.Count();
+		if (signalValues.Count() < signalCount)
+			signalCount = signalValues.Count();
+
+		for (int signalIndex = 0; signalIndex < signalCount; signalIndex++)
+			SetSignalValue(signalNames[signalIndex], signalValues[signalIndex]);
 	}
 
 	protected void SetSignalValue(string signalName, float value)

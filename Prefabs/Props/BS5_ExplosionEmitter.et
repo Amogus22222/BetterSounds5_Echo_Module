@@ -1,0 +1,14 @@
+GenericEntity {
+ ID "F0762B18FF953E0D"
+ components {
+  BS5_SpatialSoundEmitterComponent "{1E0331620A9516DF}" {
+  }
+  SoundComponent "{C1809519CC2693A9}" {
+   Filenames {
+    "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp"
+   }
+  }
+  SignalsManagerComponent "{D3D4FBC8F8BA726E}" {
+  }
+ }
+}

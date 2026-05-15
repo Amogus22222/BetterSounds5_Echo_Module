@@ -1,0 +1,15 @@
+GenericEntity : "{F54F6C453A8CB478}Prefabs/Weapons/Core/MachineGun_Base.et" {
+ ID "51C2A741CB6EE505"
+ components {
+  BS5_CloseReflectionSettingsComponent "{692681A02B441177}" {
+   m_bEnableCloseReflection 0
+  }
+  BS5_EchoDriverComponent "{692681A021648F3D}" {
+   m_sMasterAcp "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp"
+   m_sSlapbackAcp "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp"
+   m_sMasterEmitterPrefab "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et"
+   m_sSlapbackEmitterPrefab "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et"
+   m_iMaxSlapbackEmittersPerShot 4
+  }
+ }
+}

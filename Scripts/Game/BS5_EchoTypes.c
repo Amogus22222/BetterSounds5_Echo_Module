@@ -46,7 +46,27 @@ enum BS5_EchoCandidateSourceType
 	FORWARD_FALLBACK,
 	OMNI_CONTEXT,
 	SLAPBACK_WALL,
+	SLAPBACK_CLOSE_SPACE,
 	SLAPBACK_TRENCH
+}
+
+enum BS5_DebugChannel
+{
+	GENERAL,
+	DRIVER,
+	ANALYSIS,
+	SLAPBACK,
+	CLOSE,
+	EMIT,
+	LIMITER,
+	SOUNDMAP
+}
+
+enum BS5_DebugLevel
+{
+	OFF,
+	BASIC,
+	VERBOSE
 }
 
 class BS5_EchoReflectorCandidate
@@ -98,6 +118,7 @@ class BS5_EchoAnalysisResult
 	BS5_EchoEnvironmentType m_eEnvironment;
 	BS5_TailProfileType m_eTailProfile;
 	bool m_bSuppressedShot;
+	bool m_bLauncherShot;
 	float m_fOpenScore;
 	float m_fUrbanScore;
 	float m_fForestScore;
@@ -151,12 +172,16 @@ class BS5_EchoAnalysisResult
 	int m_iSlapbackHitCount;
 	bool m_bSlapbackAnchorFallback;
 	float m_fSlapbackWallScore;
+	float m_fSlapbackCloseScore;
 	float m_fSlapbackTrenchScore;
+	int m_iCloseReflectionRescueRayCount;
 	string m_sTailForwardTopPrefabs;
 	string m_sTailForwardConfirmTopPrefabs;
 	string m_sSoundMapDistanceBands;
 	string m_sAnchorPlannerMode;
 	string m_sSlapbackMode;
+	string m_sSlapbackDebugSummary;
+	string m_sCloseDebugSummary;
 	ref array<ref BS5_EchoReflectorCandidate> m_aCandidates;
 	ref array<ref BS5_EchoReflectorCandidate> m_aSlapbackCandidates;
 	string m_sDebugSummary;
@@ -173,6 +198,7 @@ class BS5_EchoAnalysisResult
 		m_eEnvironment = BS5_EchoEnvironmentType.OPEN_FIELD;
 		m_eTailProfile = BS5_TailProfileType.OPEN_MEADOW;
 		m_bSuppressedShot = false;
+		m_bLauncherShot = false;
 		m_fOpenScore = 0.0;
 		m_fUrbanScore = 0.0;
 		m_fForestScore = 0.0;
@@ -226,12 +252,16 @@ class BS5_EchoAnalysisResult
 		m_iSlapbackHitCount = 0;
 		m_bSlapbackAnchorFallback = false;
 		m_fSlapbackWallScore = 0.0;
+		m_fSlapbackCloseScore = 0.0;
 		m_fSlapbackTrenchScore = 0.0;
+		m_iCloseReflectionRescueRayCount = 0;
 		m_sTailForwardTopPrefabs = string.Empty;
 		m_sTailForwardConfirmTopPrefabs = string.Empty;
 		m_sSoundMapDistanceBands = string.Empty;
 		m_sAnchorPlannerMode = "legacy";
 		m_sSlapbackMode = "none";
+		m_sSlapbackDebugSummary = string.Empty;
+		m_sCloseDebugSummary = string.Empty;
 		m_sDebugSummary = string.Empty;
 		m_aCandidates.Clear();
 		m_aSlapbackCandidates.Clear();
@@ -272,6 +302,8 @@ class BS5_EnvironmentSnapshot
 class BS5_PendingEmissionContext
 {
 	IEntity m_pOwner;
+	EntityID m_OwnerId;
+	bool m_bOwnerIdValid;
 	ResourceName m_sProject;
 	ResourceName m_sEmitterPrefab;
 	string m_sEventName;
@@ -280,6 +312,8 @@ class BS5_PendingEmissionContext
 	float m_fDistanceGain;
 	float m_fUserEchoVolume;
 	float m_fUserSlapbackVolume;
+	float m_fUserSlapbackCloseVolume;
+	float m_fUserExplosionVolume;
 	float m_fDelaySeconds;
 	bool m_bSlapback;
 	bool m_bExplosion;
@@ -308,17 +342,22 @@ class BS5_PendingEmissionContext
 	bool m_bLimiterActiveRegistered;
 	bool m_bDriverBudgetAcquired;
 	bool m_bEmitterCleanupDone;
+	bool m_bCancelled;
 	int m_iLimiterTicket;
 	float m_fLimiterPriority;
 	ref BS5_EchoAnalysisResult m_Result;
 
 	void BS5_PendingEmissionContext()
 	{
+		m_pOwner = null;
+		m_bOwnerIdValid = false;
 		m_vEmitPosition = vector.Zero;
 		m_fIntensity = 1.0;
 		m_fDistanceGain = 1.0;
 		m_fUserEchoVolume = 1.0;
 		m_fUserSlapbackVolume = 1.0;
+		m_fUserSlapbackCloseVolume = 1.0;
+		m_fUserExplosionVolume = 1.0;
 		m_fDelaySeconds = 0.0;
 		m_bSlapback = false;
 		m_bExplosion = false;
@@ -347,6 +386,7 @@ class BS5_PendingEmissionContext
 		m_bLimiterActiveRegistered = false;
 		m_bDriverBudgetAcquired = false;
 		m_bEmitterCleanupDone = false;
+		m_bCancelled = false;
 		m_iLimiterTicket = 0;
 		m_fLimiterPriority = 0.0;
 	}
@@ -479,6 +519,8 @@ class BS5_EchoMath
 				return "omni_context";
 			case BS5_EchoCandidateSourceType.SLAPBACK_WALL:
 				return "slapback_wall";
+			case BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE:
+				return "slapback_close";
 			case BS5_EchoCandidateSourceType.SLAPBACK_TRENCH:
 				return "slapback_trench";
 		}

@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{2EC7D0B68D8F3303}Sounds/Environment/Ambients2D/Environment_Ambients_2D_Tinnitus.sig"
+ Configurations {
+  AudioSignalResourceClass PC {
+  }
+  AudioSignalResourceClass XBOX_ONE : PC {
+  }
+  AudioSignalResourceClass XBOX_SERIES : PC {
+  }
+  AudioSignalResourceClass PS4 : PC {
+  }
+  AudioSignalResourceClass PS5 : PC {
+  }
+  AudioSignalResourceClass HEADLESS : PC {
+  }
+ }
+}

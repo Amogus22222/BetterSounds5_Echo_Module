@@ -1,0 +1,147 @@
+GenericEntity : "{0DCE9A9A4F31BE1C}Prefabs/Weapons/Core/FragGrenade_Base.et" {
+ ID "645C73791ECA1698"
+ components {
+  SoundComponent "{57227A5D228316FB}" {
+   Filenames + {
+    "{91AEEEEE5656F9FE}Sounds/Weapons/Grenades/_SharedData/Weapons_Grenade_Pin_Unpin.acp" "{E4EB771E7DAB9522}Sounds/Weapons/Grenades/RGD5/Weapons_RGD5_Fuze.acp"
+   }
+  }
+  TimerTriggerComponent "{5184D79D041A7788}" {
+   PROJECTILE_EFFECTS {
+    ExplosionEffect "{C08BE71DFCD4898F}" {
+     EffectPrefab "{F8DFA475BC5A3B7C}Prefabs/Weapons/Warheads/Warhead_Grenade_RGD5.et"
+     ParticleEffect "{5592BC9B67C60D16}Particles/Weapon/Explosion_RGD5.ptc"
+     SoundEvent "SOUND_EXPLOSION"
+    }
+    AIExplosionEffect "{5E8ADDDFB4469EE7}" {
+    }
+    BS5_ExplosionEchoEffect "{28CB9C54A1764E9F}" {
+    }
+   }
+   TIMER 4
+  }
+  GrenadeMoveComponent "{1F80A73ADE35BFF1}" {
+   InitSpeed 30
+   Mass 0.31
+   TimeToLive 4.2
+   BallisticTableConfig "{5A1729DCE9103CB1}Configs/Weapons/AIBallisiticTables/AIBT_Grenade_RGD5.conf"
+  }
+  InventoryItemComponent "{51FAA3E3CF6F087A}" {
+   Attributes SCR_ItemAttributeCollection "{51FAA3E3C2D19BD4}" {
+    ItemDisplayName WeaponUIInfo "{56CA88CB006F2A34}" {
+     Name "#AR-Weapon_RGD5_Name"
+     Description "#AR-Weapon_RGD5_Description"
+    }
+    ItemPhysAttributes ItemPhysicalAttributes "{56CA88CB724DBCED}" {
+     Weight 0.31
+     SizeSetupStrategy Manual
+     ItemDimensions 5 5 5
+     RestingUP Up
+     RestingAdditiveOffsetLS 0.035 0 0
+    }
+    ItemAnimationAttributes ItemAnimationAttributes "{5284A988FFFB3DAC}" {
+     AnimationIKPose "{3E5C93E85F05C6B5}Assets/Weapons/Grenades/RGD5/anims/anm/p_rgd5_ik.anm"
+    }
+    CustomAttributes {
+     PreviewRenderAttributes "{52D2D341931DB0B8}" {
+      CameraPreset Left
+     }
+    }
+   }
+   WbPlacementFromAttributes 1
+  }
+  MeshObject "{51EC93F29BA5F234}" {
+   Object "{F4C76CC6740BD4A6}Assets/Weapons/Grenades/RGD5/Grenade_Rgd5.xob"
+  }
+  RigidBody "{0F2AA6AEC948C9D6}" {
+   Mass 0.31
+  }
+  SCR_WeaponAttachmentsStorageComponent "{5260C4471C2BBB50}" {
+   Enabled 0
+   Attributes SCR_ItemAttributeCollection "{5260C447136DFB32}" {
+    ItemDisplayName WeaponUIInfo "{5270B21C595BEF06}" {
+     Name "#AR-Weapon_RGD5_Name"
+     Description "#AR-Weapon_RGD5_Description"
+    }
+    ItemPhysAttributes ItemPhysicalAttributes PhysicalAttributes {
+     Weight 0.31
+     SizeSetupStrategy Volume
+     ItemVolume 100
+    }
+    ItemAnimationAttributes ItemAnimationAttributes "{528499F83B41CF2B}" {
+     IkSettings {
+      ItemIKSettings "{528499F83ECDEB9A}" {
+       MovementSpeedRange 0 3
+      }
+      ItemIKSettings "{5526E345776EBA6E}" {
+       Lowered 1
+       InAds 0
+       OutAds 0
+      }
+      ItemIKSettings "{552884E735F61DBF}" {
+       Jumping 1
+       InAds 0
+       OutAds 0
+      }
+     }
+     AnimationInstance "{4FCBEA45CAEBC9C0}anims/workspaces/player/player_main_1h.asi"
+     AnimInstanceBlendDuration 0.3
+     ExcludeBonesBlend {
+      "RightHandProp"
+     }
+     AnimationIKPose "{3E5C93E85F05C6B5}Assets/Weapons/Grenades/RGD5/anims/anm/p_rgd5_ik.anm"
+    }
+    CustomAttributes {
+     PreviewRenderAttributes "{52D4E9EC5C219949}" {
+      CameraPreset Left
+      CameraDistanceToItem 1
+      FOV 8
+      AnimationInstance "{CD706CDA25024989}anims/workspaces/player/player_inventory_1handed.asi"
+     }
+    }
+    m_Size SLOT_1x1
+   }
+   StoragePurpose 32
+  }
+  WeaponComponent "{6D23670EA18BF513}" {
+   components {
+    BaseItemAnimationComponent "{5238E9ECDDDDFCE1}" {
+     AnimGraph "{5265F3409C899103}Assets/Weapons/Grenades/workspaces/Grenade_RGD5.agr"
+     AnimInstance "{BF0FA69B8080C3ED}Assets/Weapons/Grenades/workspaces/Grenade_RGD5.asi"
+     AnimInjection AnimationAttachmentInfo "{52388762458CCEB5}" {
+      AnimGraph "{5265F3409C899103}Assets/Weapons/Grenades/workspaces/Grenade_RGD5.agr"
+      AnimInstance "{87E3824D9E6513D5}Assets/Weapons/Grenades/workspaces/Player_RDG5.asi"
+      BindingName "Grenade"
+     }
+     BindWithInjection 1
+     AutoVariablesBind 1
+     AnimVariablesToBind {
+      ""
+     }
+     MeshVisibilityConfigurations {
+      MeshesVisibilitySwitchConfig "{52E8E8AB5D70C0B1}" {
+       Event "HidePin"
+       Meshes {
+        "FragGrenade_01_Ring"
+       }
+      }
+      MeshesVisibilitySwitchConfig "{52E8EDCC837288C7}" {
+       Event "ShowPin"
+       Meshes {
+        "FragGrenade_01_Ring"
+       }
+       HideMesh 0
+      }
+     }
+    }
+   }
+   UIInfo GrenadeUIInfo "{172367262E10E042}" {
+    m_MagIndicator SCR_MagazineIndicatorConfiguration "{5874CA4BDF39B205}" : "{3E16FE5B8FFF0FC5}Configs/WeaponInfo/MagazineIndicators/frag_rgd5.conf" {
+    }
+    m_sAmmoType "#AR-AmmoType_RGD5"
+   }
+  }
+  Hierarchy "{52BAE8230238A1F9}" {
+  }
+ }
+}

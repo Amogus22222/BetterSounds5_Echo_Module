@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{064282CFD84AFC4E}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp.acp"
+ Configurations {
+  AudioProjectResourceClass PC {
+  }
+  AudioProjectResourceClass XBOX_ONE : PC {
+  }
+  AudioProjectResourceClass XBOX_SERIES : PC {
+  }
+  AudioProjectResourceClass PS4 : PC {
+  }
+  AudioProjectResourceClass PS5 : PC {
+  }
+  AudioProjectResourceClass HEADLESS : PC {
+  }
+ }
+}

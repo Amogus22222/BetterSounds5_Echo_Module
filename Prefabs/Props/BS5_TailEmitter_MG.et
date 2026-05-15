@@ -5,7 +5,7 @@ GenericEntity {
   }
   SoundComponent "{4CB3F211A7DF9070}" {
    Filenames {
-    "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp"
+    "{1C6E4055FD8532F6}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp.acp"
    }
   }
   BS5_SpatialSoundEmitterComponent "{4CB3F211A7DF906F}" {

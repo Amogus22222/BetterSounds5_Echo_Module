@@ -1,0 +1,27 @@
+Projectile {
+ ID "50C6F965BA00F9FA"
+ components {
+  ShellMoveComponent "{20FB66C5FA209A29}" {
+   InitSpeed 77
+   InitSpeedVariation 0.385
+   Mass 0.25
+   TimeToLive 30
+   LayerPreset "Projectile"
+   ProjectileEffects {
+    ProjectileDamage "{5184D7800EFDF1D7}" {
+     DamageValue 95
+    }
+    HitSoundEffect "{5C448BAB1AC02CA2}" {
+     Filename "{5B4ABAC976A4B5F1}Sounds/Weapons/_SharedData/RocketHits/Weapons_UnderbarrelGrenadeHits.acp"
+    }
+    BS5_ExplosionEchoEffect "{27C7B34D5EF04580}" {
+    }
+   }
+   BallisticTableConfig "{92AAF58623D6DA51}Configs/Weapons/AIBallisticTables/AIBT_GrenadeLauncher_Base.conf"
+   Diameter 40
+   PenetrationDepth 10
+   PenetrationDensity 1
+   PenetrationSpeed 80
+  }
+ }
+}

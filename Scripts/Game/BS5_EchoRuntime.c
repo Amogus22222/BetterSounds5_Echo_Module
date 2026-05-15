@@ -1,17 +1,29 @@
-ref array<IEntity> g_BS5SlapbackQueryEntities = new array<IEntity>();
-IEntity g_BS5SlapbackQueryExcludeRoot;
-const int BS5_SLAPBACK_QUERY_ENTITY_LIMIT = 18;
-ref array<string> g_BS5SlapbackHardPrefabHints = {
-	"house", "building", "residential", "civilian", "village", "town", "apartment", "garage", "barn", "farm", "church", "school", "hospital", "shop", "store", "industrial", "warehouse", "factory", "office", "hangar", "depot", "ruin", "shed",
-	"wall", "bunker", "compound", "checkpoint", "container", "silo", "vehicle", "car", "truck", "m998", "apc", "btr", "wreck", "concrete", "metal"
-};
-ref array<string> g_BS5SlapbackRejectPrefabHints = {
-	"decal", "pavement", "kerb", "road", "runway", "manhole", "powerline", "pole", "sign", "lamp", "light", "wire", "tree", "bush", "shrub", "hedge", "vegetation", "foliage", "grass", "reed", "plant",
-	"fence", "stone", "rock", "boulder", "lowwall", "low_wall", "retaining", "earth", "dirt", "mound", "embankment", "berm", "debris"
-};
+class BS5_ExplosionDispatchMarker
+{
+	int m_iFrame;
+	vector m_vOrigin;
+	IEntity m_pOwnerRoot;
+	IEntity m_pDamageRoot;
+	IEntity m_pHitRoot;
+	IEntity m_pInstigatorRoot;
+	string m_sSourceTag;
+
+	bool HasStrongSource()
+	{
+		return m_pOwnerRoot != null || m_pDamageRoot != null;
+	}
+}
 
 class BS5_EchoRuntime
 {
+	protected static const ResourceName DEFAULT_EXPLOSION_DRIVER_PREFAB = "{0FEFE02500672DD0}Prefabs/Props/BS5_ExplosionDriver.et";
+	protected static const bool EXPLOSION_DIAGNOSTIC_LOG = false;
+	protected static IEntity s_pExplosionDriverEntity;
+	protected static const int EXPLOSION_DISPATCH_DEDUPE_FRAMES = 2;
+	protected static const float EXPLOSION_DISPATCH_DEDUPE_DISTANCE_SQ = 4.0;
+	protected static const int EXPLOSION_DISPATCH_MARKER_LIMIT = 12;
+	protected static ref array<ref BS5_ExplosionDispatchMarker> s_aExplosionDispatchMarkers;
+
 	static BS5_EchoDriverComponent FindDriver(IEntity effectEntity, BaseMuzzleComponent muzzle)
 	{
 		BS5_EchoDriverComponent driver = TryFindDriverOnEntity(effectEntity);
@@ -31,6 +43,60 @@ class BS5_EchoRuntime
 			return driver;
 
 		return TryFindDriverOnEntity(projectileEntity);
+	}
+
+	static void DispatchExplosionEffect(IEntity owner, IEntity pHitEntity, inout vector outMat[3], IEntity damageSource, notnull Instigator instigator, string sourceTag)
+	{
+		vector origin = outMat[0];
+		if (origin.LengthSq() < 0.0001)
+		{
+			if (owner)
+				origin = owner.GetOrigin();
+			else if (damageSource)
+				origin = damageSource.GetOrigin();
+			else if (pHitEntity)
+				origin = pHitEntity.GetOrigin();
+		}
+
+		ExplosionDiag("hook source=" + sourceTag + " origin=" + origin);
+
+		if (ShouldSuppressExplosionDispatch(origin, owner, pHitEntity, damageSource, instigator, sourceTag))
+		{
+			ExplosionDiag("suppressed duplicate source=" + sourceTag);
+			return;
+		}
+
+		vector forward = outMat[1];
+		forward[1] = 0.0;
+		if (forward.LengthSq() < 0.0001 && damageSource)
+			forward = origin - damageSource.GetOrigin();
+		forward[1] = 0.0;
+		if (forward.LengthSq() < 0.0001)
+			forward = "0 0 1";
+		forward.Normalize();
+
+		BS5_EchoDriverComponent driver = FindExplosionDriver(owner, null, damageSource);
+		if (!driver && instigator)
+			driver = TryFindDriverOnEntity(instigator.GetInstigatorEntity());
+
+		if (driver && driver.IsExplosionReuseEnabled())
+		{
+			if (driver.IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+				BS5_DebugLog.Channel(driver, BS5_DebugChannel.DRIVER, "explosion dispatch source=" + sourceTag + " localDriver=1 origin=" + origin);
+			driver.HandleExplosionAt(driver.GetOwner(), origin, forward, true);
+			return;
+		}
+
+		BS5_EchoDriverComponent globalDriver = ResolveGlobalExplosionDriver(origin);
+		if (!globalDriver)
+		{
+			ExplosionDiag("no global driver source=" + sourceTag);
+			return;
+		}
+
+		if (globalDriver.IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+			BS5_DebugLog.Channel(globalDriver, BS5_DebugChannel.DRIVER, "explosion dispatch source=" + sourceTag + " localDriver=0 origin=" + origin);
+		globalDriver.HandleExplosionAt(globalDriver.GetOwner(), origin, forward, false);
 	}
 
 	static BS5_EchoAnalysisResult AnalyzeShot(BS5_EchoDriverComponent settings, IEntity owner, vector origin, vector forward, bool suppressed)
@@ -58,9 +124,15 @@ class BS5_EchoRuntime
 		if (!entity)
 			return null;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(entity.FindComponent(BS5_EchoDriverComponent));
-		if (driver)
-			return driver;
+		IEntity currentEntity = entity;
+		for (int parentDepth = 0; parentDepth < 8 && currentEntity; parentDepth++)
+		{
+			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(currentEntity.FindComponent(BS5_EchoDriverComponent));
+			if (driver)
+				return driver;
+
+			currentEntity = currentEntity.GetParent();
+		}
 
 		IEntity rootEntity = entity.GetRootParent();
 		if (!rootEntity || rootEntity == entity)
@@ -68,10 +140,286 @@ class BS5_EchoRuntime
 
 		return BS5_EchoDriverComponent.Cast(rootEntity.FindComponent(BS5_EchoDriverComponent));
 	}
+
+	protected static bool ShouldSuppressExplosionDispatch(vector origin, IEntity owner, IEntity pHitEntity, IEntity damageSource, Instigator instigator, string sourceTag)
+	{
+		Game game = GetGame();
+		if (!game)
+			return false;
+
+		BaseWorld world = game.GetWorld();
+		if (!world)
+			return false;
+
+		int frame = world.GetFrameNumber();
+		BS5_ExplosionDispatchMarker marker = BuildExplosionDispatchMarker(frame, origin, owner, pHitEntity, damageSource, instigator, sourceTag);
+		EnsureExplosionDispatchMarkers();
+
+		for (int markerIndex = s_aExplosionDispatchMarkers.Count() - 1; markerIndex >= 0; markerIndex--)
+		{
+			BS5_ExplosionDispatchMarker existingMarker = s_aExplosionDispatchMarkers[markerIndex];
+			if (!existingMarker || frame - existingMarker.m_iFrame > EXPLOSION_DISPATCH_DEDUPE_FRAMES)
+			{
+				s_aExplosionDispatchMarkers.Remove(markerIndex);
+				continue;
+			}
+
+			if (vector.DistanceSq(origin, existingMarker.m_vOrigin) >= EXPLOSION_DISPATCH_DEDUPE_DISTANCE_SQ)
+				continue;
+
+			if (ExplosionDispatchMarkersShareSource(marker, existingMarker))
+				return true;
+		}
+
+		s_aExplosionDispatchMarkers.Insert(marker);
+		while (s_aExplosionDispatchMarkers.Count() > EXPLOSION_DISPATCH_MARKER_LIMIT)
+			s_aExplosionDispatchMarkers.Remove(0);
+
+		return false;
+	}
+
+	protected static void EnsureExplosionDispatchMarkers()
+	{
+		if (!s_aExplosionDispatchMarkers)
+			s_aExplosionDispatchMarkers = new array<ref BS5_ExplosionDispatchMarker>();
+	}
+
+	protected static BS5_ExplosionDispatchMarker BuildExplosionDispatchMarker(int frame, vector origin, IEntity owner, IEntity pHitEntity, IEntity damageSource, Instigator instigator, string sourceTag)
+	{
+		BS5_ExplosionDispatchMarker marker = new BS5_ExplosionDispatchMarker();
+		marker.m_iFrame = frame;
+		marker.m_vOrigin = origin;
+		marker.m_pOwnerRoot = NormalizeDispatchEntity(owner);
+		marker.m_pDamageRoot = NormalizeDispatchEntity(damageSource);
+		marker.m_pHitRoot = NormalizeDispatchEntity(pHitEntity);
+		if (instigator)
+			marker.m_pInstigatorRoot = NormalizeDispatchEntity(instigator.GetInstigatorEntity());
+		marker.m_sSourceTag = sourceTag;
+		return marker;
+	}
+
+	protected static IEntity NormalizeDispatchEntity(IEntity entity)
+	{
+		if (!entity)
+			return null;
+
+		IEntity root = entity.GetRootParent();
+		if (root)
+			return root;
+
+		return entity;
+	}
+
+	protected static bool ExplosionDispatchMarkersShareSource(BS5_ExplosionDispatchMarker marker, BS5_ExplosionDispatchMarker existingMarker)
+	{
+		if (!marker || !existingMarker)
+			return false;
+
+		if (ExplosionDispatchEntityMatches(marker.m_pOwnerRoot, existingMarker.m_pOwnerRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pOwnerRoot, existingMarker.m_pDamageRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pDamageRoot, existingMarker.m_pOwnerRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pDamageRoot, existingMarker.m_pDamageRoot))
+			return true;
+
+		if (marker.HasStrongSource() || existingMarker.HasStrongSource())
+			return false;
+
+		if (ExplosionDispatchEntityMatches(marker.m_pInstigatorRoot, existingMarker.m_pInstigatorRoot))
+			return true;
+		if (marker.m_sSourceTag == existingMarker.m_sSourceTag && ExplosionDispatchEntityMatches(marker.m_pHitRoot, existingMarker.m_pHitRoot))
+			return true;
+
+		return false;
+	}
+
+	protected static bool ExplosionDispatchEntityMatches(IEntity firstEntity, IEntity secondEntity)
+	{
+		return firstEntity != null && secondEntity != null && firstEntity == secondEntity;
+	}
+
+	protected static BS5_EchoDriverComponent ResolveGlobalExplosionDriver(vector origin)
+	{
+		if (s_pExplosionDriverEntity)
+		{
+			BS5_EchoDriverComponent cachedDriver = BS5_EchoDriverComponent.Cast(s_pExplosionDriverEntity.FindComponent(BS5_EchoDriverComponent));
+			if (cachedDriver)
+			{
+				s_pExplosionDriverEntity.SetOrigin(origin);
+				return cachedDriver;
+			}
+		}
+
+		Game game = GetGame();
+		if (!game)
+		{
+			ExplosionDiag("no game while resolving global driver");
+			return null;
+		}
+
+		Resource driverPrefab = Resource.Load(DEFAULT_EXPLOSION_DRIVER_PREFAB);
+		if (!driverPrefab || !driverPrefab.IsValid())
+		{
+			ExplosionDiag("driver prefab load failed " + DEFAULT_EXPLOSION_DRIVER_PREFAB);
+			return null;
+		}
+
+		IEntity driverEntity = game.SpawnEntityPrefab(driverPrefab, game.GetWorld(), null);
+		if (!driverEntity)
+		{
+			ChimeraGame chimeraGame = ChimeraGame.Cast(game);
+			if (chimeraGame)
+				driverEntity = chimeraGame.SpawnEntityPrefabLocal(driverPrefab, game.GetWorld(), null);
+		}
+		if (!driverEntity)
+		{
+			ExplosionDiag("driver prefab spawn failed");
+			return null;
+		}
+
+		driverEntity.SetOrigin(origin);
+		s_pExplosionDriverEntity = driverEntity;
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(driverEntity.FindComponent(BS5_EchoDriverComponent));
+		if (!driver)
+			ExplosionDiag("driver prefab has no BS5_EchoDriverComponent");
+
+		return driver;
+	}
+
+	protected static void ExplosionDiag(string message)
+	{
+		if (!EXPLOSION_DIAGNOSTIC_LOG)
+			return;
+
+		Print("[BS5][explosion_hook] " + message);
+	}
 }
 
 class BS5_EchoEnvironmentAnalyzer
 {
+	protected static const int SLAPBACK_QUERY_ENTITY_LIMIT = 18;
+	protected static ref array<IEntity> s_SlapbackQueryEntities;
+	protected static ref array<string> s_SlapbackHardPrefabHints;
+	protected static ref array<string> s_SlapbackRejectPrefabHints;
+	protected static ref array<string> s_SlapbackBuildingPrefabHints;
+	protected static IEntity s_SlapbackQueryExcludeRoot;
+	protected static bool s_SlapbackQueryActive;
+
+	protected static void EnsureSlapbackCaches()
+	{
+		if (!s_SlapbackQueryEntities)
+			s_SlapbackQueryEntities = new array<IEntity>();
+		if (!s_SlapbackHardPrefabHints)
+		{
+			s_SlapbackHardPrefabHints = new array<string>();
+			s_SlapbackHardPrefabHints.Insert("house");
+			s_SlapbackHardPrefabHints.Insert("building");
+			s_SlapbackHardPrefabHints.Insert("residential");
+			s_SlapbackHardPrefabHints.Insert("civilian");
+			s_SlapbackHardPrefabHints.Insert("village");
+			s_SlapbackHardPrefabHints.Insert("town");
+			s_SlapbackHardPrefabHints.Insert("apartment");
+			s_SlapbackHardPrefabHints.Insert("garage");
+			s_SlapbackHardPrefabHints.Insert("barn");
+			s_SlapbackHardPrefabHints.Insert("farm");
+			s_SlapbackHardPrefabHints.Insert("church");
+			s_SlapbackHardPrefabHints.Insert("school");
+			s_SlapbackHardPrefabHints.Insert("hospital");
+			s_SlapbackHardPrefabHints.Insert("shop");
+			s_SlapbackHardPrefabHints.Insert("store");
+			s_SlapbackHardPrefabHints.Insert("industrial");
+			s_SlapbackHardPrefabHints.Insert("warehouse");
+			s_SlapbackHardPrefabHints.Insert("factory");
+			s_SlapbackHardPrefabHints.Insert("office");
+			s_SlapbackHardPrefabHints.Insert("hangar");
+			s_SlapbackHardPrefabHints.Insert("depot");
+			s_SlapbackHardPrefabHints.Insert("ruin");
+			s_SlapbackHardPrefabHints.Insert("shed");
+			s_SlapbackHardPrefabHints.Insert("wall");
+			s_SlapbackHardPrefabHints.Insert("bunker");
+			s_SlapbackHardPrefabHints.Insert("compound");
+			s_SlapbackHardPrefabHints.Insert("checkpoint");
+			s_SlapbackHardPrefabHints.Insert("container");
+			s_SlapbackHardPrefabHints.Insert("silo");
+			s_SlapbackHardPrefabHints.Insert("vehicle");
+			s_SlapbackHardPrefabHints.Insert("car");
+			s_SlapbackHardPrefabHints.Insert("truck");
+			s_SlapbackHardPrefabHints.Insert("m998");
+			s_SlapbackHardPrefabHints.Insert("apc");
+			s_SlapbackHardPrefabHints.Insert("btr");
+			s_SlapbackHardPrefabHints.Insert("wreck");
+			s_SlapbackHardPrefabHints.Insert("concrete");
+			s_SlapbackHardPrefabHints.Insert("metal");
+		}
+		if (!s_SlapbackRejectPrefabHints)
+		{
+			s_SlapbackRejectPrefabHints = new array<string>();
+			s_SlapbackRejectPrefabHints.Insert("decal");
+			s_SlapbackRejectPrefabHints.Insert("pavement");
+			s_SlapbackRejectPrefabHints.Insert("kerb");
+			s_SlapbackRejectPrefabHints.Insert("road");
+			s_SlapbackRejectPrefabHints.Insert("runway");
+			s_SlapbackRejectPrefabHints.Insert("manhole");
+			s_SlapbackRejectPrefabHints.Insert("powerline");
+			s_SlapbackRejectPrefabHints.Insert("pole");
+			s_SlapbackRejectPrefabHints.Insert("sign");
+			s_SlapbackRejectPrefabHints.Insert("lamp");
+			s_SlapbackRejectPrefabHints.Insert("light");
+			s_SlapbackRejectPrefabHints.Insert("wire");
+			s_SlapbackRejectPrefabHints.Insert("tree");
+			s_SlapbackRejectPrefabHints.Insert("bush");
+			s_SlapbackRejectPrefabHints.Insert("shrub");
+			s_SlapbackRejectPrefabHints.Insert("hedge");
+			s_SlapbackRejectPrefabHints.Insert("vegetation");
+			s_SlapbackRejectPrefabHints.Insert("foliage");
+			s_SlapbackRejectPrefabHints.Insert("grass");
+			s_SlapbackRejectPrefabHints.Insert("reed");
+			s_SlapbackRejectPrefabHints.Insert("plant");
+			s_SlapbackRejectPrefabHints.Insert("fence");
+			s_SlapbackRejectPrefabHints.Insert("stone");
+			s_SlapbackRejectPrefabHints.Insert("rock");
+			s_SlapbackRejectPrefabHints.Insert("boulder");
+			s_SlapbackRejectPrefabHints.Insert("lowwall");
+			s_SlapbackRejectPrefabHints.Insert("low_wall");
+			s_SlapbackRejectPrefabHints.Insert("retaining");
+			s_SlapbackRejectPrefabHints.Insert("earth");
+			s_SlapbackRejectPrefabHints.Insert("dirt");
+			s_SlapbackRejectPrefabHints.Insert("mound");
+			s_SlapbackRejectPrefabHints.Insert("embankment");
+			s_SlapbackRejectPrefabHints.Insert("berm");
+			s_SlapbackRejectPrefabHints.Insert("debris");
+		}
+		if (!s_SlapbackBuildingPrefabHints)
+		{
+			s_SlapbackBuildingPrefabHints = new array<string>();
+			s_SlapbackBuildingPrefabHints.Insert("house");
+			s_SlapbackBuildingPrefabHints.Insert("building");
+			s_SlapbackBuildingPrefabHints.Insert("residential");
+			s_SlapbackBuildingPrefabHints.Insert("civilian");
+			s_SlapbackBuildingPrefabHints.Insert("village");
+			s_SlapbackBuildingPrefabHints.Insert("town");
+			s_SlapbackBuildingPrefabHints.Insert("apartment");
+			s_SlapbackBuildingPrefabHints.Insert("garage");
+			s_SlapbackBuildingPrefabHints.Insert("barn");
+			s_SlapbackBuildingPrefabHints.Insert("farm");
+			s_SlapbackBuildingPrefabHints.Insert("church");
+			s_SlapbackBuildingPrefabHints.Insert("school");
+			s_SlapbackBuildingPrefabHints.Insert("hospital");
+			s_SlapbackBuildingPrefabHints.Insert("shop");
+			s_SlapbackBuildingPrefabHints.Insert("store");
+			s_SlapbackBuildingPrefabHints.Insert("industrial");
+			s_SlapbackBuildingPrefabHints.Insert("warehouse");
+			s_SlapbackBuildingPrefabHints.Insert("factory");
+			s_SlapbackBuildingPrefabHints.Insert("office");
+			s_SlapbackBuildingPrefabHints.Insert("hangar");
+			s_SlapbackBuildingPrefabHints.Insert("depot");
+			s_SlapbackBuildingPrefabHints.Insert("ruin");
+			s_SlapbackBuildingPrefabHints.Insert("shed");
+		}
+	}
+
 	static BS5_EchoAnalysisResult Analyze(BS5_EchoDriverComponent settings, IEntity owner, vector origin, vector forward, bool explosionLike, bool suppressed)
 	{
 		BS5_EchoAnalysisResult result = new BS5_EchoAnalysisResult();
@@ -103,9 +451,7 @@ class BS5_EchoEnvironmentAnalyzer
 		vector left = flatRight * -1.0;
 		vector probeOrigin = origin + (flatForward * settings.GetNearProbeForwardOffsetMeters()) + (worldUp * settings.GetNearProbeVerticalOffsetMeters());
 
-		float nearRadius = settings.GetNearSlapbackRadius();
-		if (explosionLike)
-			nearRadius = settings.GetExplosionNearRadius();
+		float nearRadius = settings.GetSlapbackRadius(suppressed, explosionLike);
 
 		float nearTraceLength = nearRadius;
 		if (nearTraceLength <= 0.0)
@@ -136,6 +482,7 @@ class BS5_EchoEnvironmentAnalyzer
 		directions.Insert((flatForward + left).Normalized());
 		directions.Insert((back + flatRight).Normalized());
 		directions.Insert((back + left).Normalized());
+		directions.Insert("0 1 0");
 
 		int traceLimit = settings.GetMaxTraceCount();
 		if (traceLimit < 1)
@@ -232,7 +579,7 @@ class BS5_EchoEnvironmentAnalyzer
 		if (probeCount > 0.0)
 			obstruction = totalHitRatio / probeCount;
 
-		float closeConfinement = BS5_EchoMath.Clamp01((settings.GetNearSlapbackRadius() - shortestHit) / settings.GetNearSlapbackRadius());
+		float closeConfinement = BS5_EchoMath.Clamp01((nearTraceLength - shortestHit) / nearTraceLength);
 		float sideConfinement = BS5_EchoMath.Clamp01(sideHits / 4.0);
 		float verticalConfinement = BS5_EchoMath.Clamp01(ceilingHits / 2.0);
 		float lowCeiling = BS5_EchoMath.Clamp01(1.0 - (terrainClearance / 5.0));
@@ -297,7 +644,6 @@ class BS5_EchoEnvironmentAnalyzer
 				BS5_HybridTailPlanner.BuildCandidates(result.m_aCandidates, settings, environmentSnapshot, result, owner, origin, flatForward, flatRight, traceExcludeArray, traceExcludeRoot, explosionLike);
 			}
 		}
-
 		float firstDelay = 0.0;
 		if (!result.m_aCandidates.IsEmpty())
 			firstDelay = result.m_aCandidates[0].m_fDelaySeconds;
@@ -307,16 +653,12 @@ class BS5_EchoEnvironmentAnalyzer
 		result.m_fMasterDelaySeconds = firstDelay;
 		result.m_fSlapbackDelaySeconds = 0.0;
 
-		if (!explosionLike)
-		{
-			if (settings.IsSlapbackEnabled())
-				CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray);
-			else if (!settings.IsPlayerSlapbackEnabled())
-				result.m_sSlapbackMode = "disabled_global";
-			else
-				result.m_sSlapbackMode = "disabled_driver";
-		}
-
+		if (settings.IsSlapbackEnabled())
+			CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray, explosionLike);
+		else if (!settings.IsPlayerSlapbackEnabled())
+			result.m_sSlapbackMode = "disabled_global";
+		else
+			result.m_sSlapbackMode = "disabled_driver";
 		if (!result.m_aSlapbackCandidates.IsEmpty())
 			result.m_fSlapbackDelaySeconds = result.m_aSlapbackCandidates[0].m_fDelaySeconds;
 
@@ -380,10 +722,42 @@ class BS5_EchoEnvironmentAnalyzer
 			debugSummary += " slapHits=" + result.m_iSlapbackHitCount;
 			debugSummary += " slapFallback=" + result.m_bSlapbackAnchorFallback;
 			debugSummary += " wallScore=" + result.m_fSlapbackWallScore;
+			debugSummary += " closeScore=" + result.m_fSlapbackCloseScore;
 			debugSummary += " trenchScore=" + result.m_fSlapbackTrenchScore;
+			debugSummary += " closeRescue=" + result.m_iCloseReflectionRescueRayCount;
 			result.m_sDebugSummary = debugSummary;
-		}
 
+			if (settings.IsDebugChannelEnabled(BS5_DebugChannel.SOUNDMAP))
+			{
+				string perfCounts = "perf counts";
+				perfCounts += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+				perfCounts += " techPreset=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
+				perfCounts += " planner=" + result.m_sAnchorPlannerMode;
+				perfCounts += " forwardRays=" + result.m_iTailSectorCount;
+				perfCounts += " forwardSamples=" + result.m_iTailHeightSamples;
+				perfCounts += " soundMapSamples=" + result.m_iSoundMapSamples;
+				perfCounts += " omniAnchors=" + result.m_iSoundMapOmniAnchors;
+				perfCounts += " urbanEntities=" + result.m_iSoundMapUrbanMicroQueries;
+				perfCounts += " urbanFacades=" + result.m_iSoundMapUrbanMicroFacades;
+				perfCounts += " pathSamples=" + settings.GetSoundMapPathSampleCount();
+				perfCounts += " pathRaycasts=" + result.m_iSoundMapPathRaycasts;
+				perfCounts += " closeRescueTraces=" + result.m_iCloseReflectionRescueRayCount;
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.SOUNDMAP, perfCounts);
+
+				string perfEffective = "perf effective";
+				perfEffective += " soundMapEnabled=" + BS5_DebugLog.BoolText(settings.IsSoundMapAnchorPlannerEnabled());
+				perfEffective += " cone=" + settings.GetSoundMapForwardConeDegrees();
+				perfEffective += " maxDistance=" + settings.GetSoundMapForwardMaxDistanceMeters();
+				perfEffective += " configRays=" + settings.GetSoundMapForwardRayCount();
+				perfEffective += " configSamples=" + settings.GetSoundMapForwardSampleCount();
+				perfEffective += " omniDirs=" + settings.GetSoundMapOmniDirectionCount();
+				perfEffective += " omniAnchorCap=" + settings.GetSoundMapOmniAnchorCount();
+				perfEffective += " urbanRadius=" + settings.GetSoundMapUrbanMicroScanRadiusMeters();
+				perfEffective += " urbanEntityCap=" + settings.GetSoundMapUrbanMicroMaxEntities();
+				perfEffective += " pathValidation=" + BS5_DebugLog.BoolText(settings.IsSoundMapPathPlausibilityValidationEnabled());
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.SOUNDMAP, perfEffective);
+			}
+		}
 		return result;
 	}
 
@@ -628,7 +1002,7 @@ class BS5_EchoEnvironmentAnalyzer
 		}
 	}
 
-	protected static void CollectSlapbackCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector probeOrigin, vector forwardDir, vector right, array<IEntity> traceExcludeArray)
+	protected static void CollectSlapbackCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector probeOrigin, vector forwardDir, vector right, array<IEntity> traceExcludeArray, bool explosionLike)
 	{
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
@@ -663,23 +1037,32 @@ class BS5_EchoEnvironmentAnalyzer
 		directions.Insert((flatForward * Math.Cos(sideAngle) - flatRight * Math.Sin(sideAngle)).Normalized());
 		directions.Insert(flatRight);
 		directions.Insert(flatRight * -1.0);
+		directions.Insert(flatForward * -1.0);
 		directions.Insert(((flatForward * -0.35) + flatRight).Normalized());
 		directions.Insert(((flatForward * -0.35) - flatRight).Normalized());
 
-		array<float> directionBiases = {1.0, 0.96, 0.96, 0.90, 0.90, 0.88, 0.88, 0.70, 0.70};
-		array<int> directionSectors = {0, 0, 0, 1, 2, 1, 2, 1, 2};
-		array<int> directionRanks = {10, 11, 12, 20, 21, 30, 31, 40, 41};
+		array<float> directionBiases = {1.0, 0.96, 0.96, 0.90, 0.90, 0.88, 0.88, 0.84, 0.70, 0.70};
+		array<int> directionSectors = {0, 0, 0, 1, 2, 1, 2, 0, 1, 2};
+		array<int> directionRanks = {10, 11, 12, 20, 21, 30, 31, 35, 40, 41};
 
-		float maxDistance = settings.GetNearSlapbackRadius();
+		bool suppressed = false;
+		if (result)
+			suppressed = result.m_bSuppressedShot;
+		float maxDistance = settings.GetSlapbackRadius(suppressed, explosionLike);
 		float minDistance = settings.GetSlapbackMinDistanceMeters();
 		int maxCandidates = settings.GetMaxSlapbackEmittersPerShot();
-		maxCandidates = Math.Clamp(maxCandidates, 1, 2);
+		if (explosionLike)
+			maxCandidates = settings.GetMaxExplosionSlapbackEmittersPerShot();
+		if (maxCandidates < 1)
+			maxCandidates = 1;
 		float trenchMaxSideDistance = settings.GetTrenchSlapbackMaxSideDistanceMeters();
 
 		array<ref BS5_EchoReflectorCandidate> wallCandidates = {};
 		BS5_EchoReflectorCandidate bestRightSide;
 		BS5_EchoReflectorCandidate bestLeftSide;
 		int hitCount = 0;
+		int wallHitCount = 0;
+		int rawCoverageMask = 0;
 		float bestWallScore = 0.0;
 		for (int i = 0; i < directions.Count(); i++)
 		{
@@ -735,6 +1118,17 @@ class BS5_EchoEnvironmentAnalyzer
 			BS5_EchoReflectorCandidate candidate = BuildSlapbackCandidate(settings, origin, hitPosition, hitNormal, direction, flatRight, hitDistance, maxDistance, score, directionBias, directionRanks[i], BS5_EchoCandidateSourceType.SLAPBACK_WALL);
 			if (wallTraceAccepted)
 			{
+				wallHitCount++;
+				float rawSideDot = vector.Dot(direction, flatRight);
+				float rawForwardDot = vector.Dot(direction, flatForward);
+				if (rawSideDot <= -0.18)
+					rawCoverageMask |= 1;
+				if (rawSideDot >= 0.18)
+					rawCoverageMask |= 2;
+				if (rawForwardDot >= 0.12)
+					rawCoverageMask |= 4;
+				if (rawForwardDot <= -0.12)
+					rawCoverageMask |= 8;
 				InsertCandidate(wallCandidates, candidate, 4);
 				if (candidate.m_fScore > bestWallScore)
 					bestWallScore = candidate.m_fScore;
@@ -766,14 +1160,38 @@ class BS5_EchoEnvironmentAnalyzer
 
 		float mergeDistance = settings.GetSlapbackMergeDistanceMeters();
 		float mergeDistanceSq = mergeDistance * mergeDistance;
-		bool trenchAccepted = false;
-		if (trenchCandidate && trenchScore >= settings.GetTrenchSlapbackMinConfidence())
+		BS5_CloseReflectionSettingsComponent closeSettings = settings.GetCloseReflectionSettingsComponent();
+		BS5_CloseReflectionPlannerResult closePlannerResult = BS5_CloseReflectionPlanner.Evaluate(settings, closeSettings, result, origin, slapbackProbeOrigin, flatForward, flatRight, wallCandidates, wallHitCount, directions.Count(), rawCoverageMask, trenchCandidate, traceExcludeArray, traceExcludeRoot);
+		float closeScore = 0.0;
+		bool closeAccepted = false;
+		bool trenchDominatesClose = false;
+		int candidateLimit = maxCandidates;
+		if (closePlannerResult && closePlannerResult.m_bAccepted && closePlannerResult.m_Candidate)
 		{
-			InsertCandidate(candidates, trenchCandidate, maxCandidates);
+			closeScore = closePlannerResult.m_fScore;
+			float trenchOverrideMargin = 0.08;
+			if (closeSettings)
+				trenchOverrideMargin = closeSettings.GetTrenchOverrideMargin();
+			if (trenchCandidate && trenchScore >= settings.GetTrenchSlapbackMinConfidence() && trenchScore >= closeScore + trenchOverrideMargin)
+				trenchDominatesClose = true;
+
+			if (!trenchDominatesClose)
+			{
+				InsertCandidate(candidates, closePlannerResult.m_Candidate, 1);
+				closeAccepted = !candidates.IsEmpty();
+				if (closeAccepted && closeSettings)
+					candidateLimit = closeSettings.GetMaxCloseSlapbackEmittersPerShot(maxCandidates);
+			}
+		}
+
+		bool trenchAccepted = false;
+		if (!closeAccepted && trenchCandidate && trenchScore >= settings.GetTrenchSlapbackMinConfidence())
+		{
+			InsertCandidate(candidates, trenchCandidate, candidateLimit);
 			trenchAccepted = true;
 		}
 
-		for (int winnerIndex = 0; winnerIndex < wallCandidates.Count() && candidates.Count() < maxCandidates; winnerIndex++)
+		for (int winnerIndex = 0; winnerIndex < wallCandidates.Count() && candidates.Count() < candidateLimit; winnerIndex++)
 		{
 			BS5_EchoReflectorCandidate winner = wallCandidates[winnerIndex];
 			if (!winner)
@@ -798,6 +1216,12 @@ class BS5_EchoEnvironmentAnalyzer
 					break;
 				}
 
+				if (existing.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+				{
+					merged = true;
+					break;
+				}
+
 				if (winner.m_fScore > existing.m_fScore)
 					candidates[existingIndex] = winner;
 				merged = true;
@@ -805,12 +1229,12 @@ class BS5_EchoEnvironmentAnalyzer
 			}
 
 			if (!merged)
-				InsertCandidate(candidates, winner, maxCandidates);
+				InsertCandidate(candidates, winner, candidateLimit);
 		}
 
 		bool anchorFallback = false;
-		if (candidates.IsEmpty() && settings.AllowSlapbackAnchorFallback())
-			anchorFallback = TryBuildSlapbackAnchorFallback(candidates, settings, result, origin, flatRight, maxCandidates);
+		if (!closeAccepted && candidates.IsEmpty() && settings.AllowSlapbackAnchorFallback())
+			anchorFallback = TryBuildSlapbackAnchorFallback(candidates, settings, result, origin, flatRight, candidateLimit, maxDistance);
 
 		if (result)
 		{
@@ -818,8 +1242,14 @@ class BS5_EchoEnvironmentAnalyzer
 			result.m_iSlapbackHitCount = hitCount;
 			result.m_bSlapbackAnchorFallback = anchorFallback;
 			result.m_fSlapbackWallScore = bestWallScore;
+			result.m_fSlapbackCloseScore = closeScore;
 			result.m_fSlapbackTrenchScore = trenchScore;
-			if (trenchAccepted)
+			result.m_iCloseReflectionRescueRayCount = 0;
+			if (closePlannerResult)
+				result.m_iCloseReflectionRescueRayCount = closePlannerResult.m_iRescueRayCount;
+			if (closeAccepted)
+				result.m_sSlapbackMode = "close";
+			else if (trenchAccepted)
 				result.m_sSlapbackMode = "trench";
 			else if (anchorFallback)
 				result.m_sSlapbackMode = "wall_anchor";
@@ -827,27 +1257,93 @@ class BS5_EchoEnvironmentAnalyzer
 				result.m_sSlapbackMode = "wall";
 			else
 				result.m_sSlapbackMode = "none";
+
+			string slapbackDebugSummary = "mode=" + result.m_sSlapbackMode;
+			slapbackDebugSummary += " candidates=" + candidates.Count();
+			slapbackDebugSummary += " rays=" + directions.Count();
+			slapbackDebugSummary += " hits=" + hitCount;
+			slapbackDebugSummary += " entityHits=" + entityHitCount;
+			slapbackDebugSummary += " wallScore=" + bestWallScore;
+			slapbackDebugSummary += " trenchScore=" + trenchScore;
+			slapbackDebugSummary += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
+			result.m_sSlapbackDebugSummary = slapbackDebugSummary;
+
+			string closeDebugSummary = "enabled=" + BS5_DebugLog.BoolText(closeSettings && closeSettings.IsEnabled());
+			closeDebugSummary += " accepted=" + BS5_DebugLog.BoolText(closeAccepted);
+			closeDebugSummary += " score=" + closeScore;
+			closeDebugSummary += " rescueRays=" + result.m_iCloseReflectionRescueRayCount;
+			closeDebugSummary += " trenchDominates=" + BS5_DebugLog.BoolText(trenchDominatesClose);
+			closeDebugSummary += " wallCandidates=" + wallCandidates.Count();
+			if (closePlannerResult)
+			{
+				closeDebugSummary += " base=" + closePlannerResult.m_fBaseEvidence;
+				closeDebugSummary += " best=" + closePlannerResult.m_fBestSupport;
+				closeDebugSummary += " coverage=" + closePlannerResult.m_fCoverageScore;
+				closeDebugSummary += " rayDensity=" + closePlannerResult.m_fRayDensityScore;
+				closeDebugSummary += " contributors=" + closePlannerResult.m_iContributorCount;
+				closeDebugSummary += " rayCoverage=" + closePlannerResult.m_iRayCoverageCount;
+				closeDebugSummary += " sidePair=" + closePlannerResult.m_fSidePairScore;
+				closeDebugSummary += " frontBack=" + closePlannerResult.m_fFrontBackPairScore;
+				closeDebugSummary += " corner=" + closePlannerResult.m_fCornerPairScore;
+				closeDebugSummary += " reason=" + closePlannerResult.m_sReason;
+			}
+			result.m_sCloseDebugSummary = closeDebugSummary;
 		}
 
-		string debugSlapMode = "none";
-		if (result)
-			debugSlapMode = result.m_sSlapbackMode;
-		string slapCollectLog = "slapback collect";
-		slapCollectLog += " mode=" + debugSlapMode;
-		slapCollectLog += " candidates=" + candidates.Count();
-		slapCollectLog += " rays=" + directions.Count();
-		slapCollectLog += " hits=" + hitCount;
-		slapCollectLog += " entityHits=" + entityHitCount;
-		BS5_DebugLog.Line(settings, slapCollectLog);
-		string slapScoreLog = "slapback score";
-		slapScoreLog += " bestWall=" + bestWallScore;
-		slapScoreLog += " trenchScore=" + trenchScore;
-		slapScoreLog += " trenchAccepted=" + BS5_DebugLog.BoolText(trenchAccepted);
-		slapScoreLog += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
-		BS5_DebugLog.Line(settings, slapScoreLog);
+		if (settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.SLAPBACK))
+		{
+			int rescueRayCount = 0;
+			if (closePlannerResult)
+				rescueRayCount = closePlannerResult.m_iRescueRayCount;
+			string debugSlapMode = "none";
+			if (result)
+				debugSlapMode = result.m_sSlapbackMode;
+			string slapCollectLog = "slapback collect";
+			slapCollectLog += " mode=" + debugSlapMode;
+			slapCollectLog += " candidates=" + candidates.Count();
+			slapCollectLog += " rays=" + directions.Count();
+			slapCollectLog += " hits=" + hitCount;
+			slapCollectLog += " entityHits=" + entityHitCount;
+			slapCollectLog += " rescueRays=" + rescueRayCount;
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.SLAPBACK, slapCollectLog);
+			string slapScoreLog = "slapback score";
+			slapScoreLog += " bestWall=" + bestWallScore;
+			slapScoreLog += " closeScore=" + closeScore;
+			slapScoreLog += " trenchScore=" + trenchScore;
+			slapScoreLog += " closeAccepted=" + BS5_DebugLog.BoolText(closeAccepted);
+			slapScoreLog += " trenchAccepted=" + BS5_DebugLog.BoolText(trenchAccepted);
+			slapScoreLog += " trenchDominatesClose=" + BS5_DebugLog.BoolText(trenchDominatesClose);
+			slapScoreLog += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.SLAPBACK, slapScoreLog);
+		}
+
+		if (settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.CLOSE))
+		{
+			string closeLog = "close reflection";
+			closeLog += " enabled=" + BS5_DebugLog.BoolText(closeSettings && closeSettings.IsEnabled());
+			closeLog += " accepted=" + BS5_DebugLog.BoolText(closeAccepted);
+			closeLog += " score=" + closeScore;
+			closeLog += " trenchScore=" + trenchScore;
+			closeLog += " wallCandidates=" + wallCandidates.Count();
+			if (closePlannerResult)
+			{
+				closeLog += " rescueRays=" + closePlannerResult.m_iRescueRayCount;
+				closeLog += " base=" + closePlannerResult.m_fBaseEvidence;
+				closeLog += " best=" + closePlannerResult.m_fBestSupport;
+				closeLog += " coverage=" + closePlannerResult.m_fCoverageScore;
+				closeLog += " rayDensity=" + closePlannerResult.m_fRayDensityScore;
+				closeLog += " contributors=" + closePlannerResult.m_iContributorCount;
+				closeLog += " rayCoverage=" + closePlannerResult.m_iRayCoverageCount;
+				closeLog += " sidePair=" + closePlannerResult.m_fSidePairScore;
+				closeLog += " frontBack=" + closePlannerResult.m_fFrontBackPairScore;
+				closeLog += " corner=" + closePlannerResult.m_fCornerPairScore;
+				closeLog += " reason=" + closePlannerResult.m_sReason;
+			}
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.CLOSE, closeLog);
+		}
 	}
 
-	protected static bool IsSlapbackWallTraceAccepted(IEntity traceEntity)
+	static bool IsSlapbackWallTraceAccepted(IEntity traceEntity)
 	{
 		if (!traceEntity)
 			return false;
@@ -894,9 +1390,16 @@ class BS5_EchoEnvironmentAnalyzer
 		bestScore = 0.0;
 		if (!world || !settings)
 			return;
+		EnsureSlapbackCaches();
+		if (s_SlapbackQueryActive)
+		{
+			BS5_DebugLog.Line(settings, "slapback query reentry drop");
+			return;
+		}
 
-		g_BS5SlapbackQueryEntities.Clear();
-		g_BS5SlapbackQueryExcludeRoot = traceExcludeRoot;
+		s_SlapbackQueryEntities.Clear();
+		s_SlapbackQueryExcludeRoot = traceExcludeRoot;
+		s_SlapbackQueryActive = true;
 
 		vector queryCenter = origin;
 		queryCenter[1] = origin[1] + 1.1;
@@ -906,7 +1409,7 @@ class BS5_EchoEnvironmentAnalyzer
 		vector bevelMaxs = "1.6 2.2 1.6";
 		for (int directionIndex = 0; directionIndex < directions.Count(); directionIndex++)
 		{
-			if (g_BS5SlapbackQueryEntities.Count() >= BS5_SLAPBACK_QUERY_ENTITY_LIMIT)
+			if (s_SlapbackQueryEntities.Count() >= SLAPBACK_QUERY_ENTITY_LIMIT)
 				break;
 
 			vector direction = directions[directionIndex];
@@ -917,9 +1420,9 @@ class BS5_EchoEnvironmentAnalyzer
 			world.QueryEntitiesByBeveledLine(probeOrigin, probeOrigin + (direction * maxDistance), bevelMins, bevelMaxs, CollectSlapbackEntityCallback);
 		}
 
-		for (int entityIndex = 0; entityIndex < g_BS5SlapbackQueryEntities.Count(); entityIndex++)
+		for (int entityIndex = 0; entityIndex < s_SlapbackQueryEntities.Count(); entityIndex++)
 		{
-			IEntity entity = g_BS5SlapbackQueryEntities[entityIndex];
+			IEntity entity = s_SlapbackQueryEntities[entityIndex];
 			BS5_EchoReflectorCandidate candidate = BuildSlapbackEntityCandidate(settings, entity, origin, flatForward, flatRight, maxDistance, minDistance);
 			if (!candidate)
 				continue;
@@ -930,10 +1433,15 @@ class BS5_EchoEnvironmentAnalyzer
 
 			InsertCandidate(wallCandidates, candidate, 4);
 		}
+
+		s_SlapbackQueryActive = false;
 	}
 
 	protected static bool CollectSlapbackEntityCallback(IEntity entity)
 	{
+		if (!s_SlapbackQueryActive)
+			return false;
+		EnsureSlapbackCaches();
 		if (!entity)
 			return true;
 
@@ -941,10 +1449,10 @@ class BS5_EchoEnvironmentAnalyzer
 		if (!normalizedEntity)
 			normalizedEntity = entity;
 
-		if (g_BS5SlapbackQueryExcludeRoot && IsSelfHierarchyHit(normalizedEntity, g_BS5SlapbackQueryExcludeRoot))
+		if (s_SlapbackQueryExcludeRoot && IsSelfHierarchyHit(normalizedEntity, s_SlapbackQueryExcludeRoot))
 			return true;
 
-		if (ContainsSlapbackEntityReference(g_BS5SlapbackQueryEntities, normalizedEntity))
+		if (ContainsSlapbackEntityReference(s_SlapbackQueryEntities, normalizedEntity))
 			return true;
 
 		float prefabScore = 0.0;
@@ -953,8 +1461,8 @@ class BS5_EchoEnvironmentAnalyzer
 		if (!IsSlapbackEntityShapeAccepted(normalizedEntity, prefabScore))
 			return true;
 
-		g_BS5SlapbackQueryEntities.Insert(normalizedEntity);
-		if (g_BS5SlapbackQueryEntities.Count() >= BS5_SLAPBACK_QUERY_ENTITY_LIMIT)
+		s_SlapbackQueryEntities.Insert(normalizedEntity);
+		if (s_SlapbackQueryEntities.Count() >= SLAPBACK_QUERY_ENTITY_LIMIT)
 			return false;
 
 		return true;
@@ -1067,23 +1575,24 @@ class BS5_EchoEnvironmentAnalyzer
 		prefabScore = 0.0;
 		if (!entity)
 			return false;
+		EnsureSlapbackCaches();
 
 		ResourceName prefabName = GetSlapbackEntityPrefabNameLower(entity);
 		if (prefabName == string.Empty)
 			return false;
-		if (HasSlapbackPrefabHint(prefabName, g_BS5SlapbackRejectPrefabHints))
+		if (HasSlapbackPrefabHint(prefabName, s_SlapbackRejectPrefabHints))
 			return false;
 		if (IsSlapbackSoftOrThinPrefab(prefabName))
 			return false;
 
 		bool structurePrefab = prefabName.IndexOf("structures") != -1;
-		if (!HasSlapbackPrefabHint(prefabName, g_BS5SlapbackHardPrefabHints) && !structurePrefab)
+		if (!HasSlapbackPrefabHint(prefabName, s_SlapbackHardPrefabHints) && !structurePrefab)
 			return false;
 
 		prefabScore = 0.72;
 		if (structurePrefab)
 			prefabScore = 0.86;
-		else if (HasSlapbackPrefabHint(prefabName, g_BS5BuildingPrefabHints))
+		else if (HasSlapbackPrefabHint(prefabName, s_SlapbackBuildingPrefabHints))
 			prefabScore = 1.0;
 		else if (prefabName.IndexOf("vehicle") != -1 || prefabName.IndexOf("car") != -1 || prefabName.IndexOf("truck") != -1 || prefabName.IndexOf("m998") != -1 || prefabName.IndexOf("apc") != -1)
 			prefabScore = 0.82;
@@ -1216,12 +1725,12 @@ class BS5_EchoEnvironmentAnalyzer
 		return false;
 	}
 
-	protected static bool TryBuildSlapbackAnchorFallback(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector flatRight, int maxCandidates)
+	protected static bool TryBuildSlapbackAnchorFallback(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector flatRight, int maxCandidates, float slapbackMaxDistance)
 	{
 		if (!result || !result.m_aCandidates || result.m_aCandidates.IsEmpty())
 			return false;
 
-		float maxDistance = BS5_EchoMath.MinFloat(settings.GetSlapbackAnchorFallbackMaxDistanceMeters(), settings.GetNearSlapbackRadius());
+		float maxDistance = BS5_EchoMath.MinFloat(settings.GetSlapbackAnchorFallbackMaxDistanceMeters(), slapbackMaxDistance);
 		if (maxDistance <= 0.0)
 			return false;
 
@@ -1608,6 +2117,7 @@ class BS5_EchoEmissionService
 	protected static ref array<ref Resource> s_aEmitterResources;
 	protected static ref array<ResourceName> s_aInvalidEmitterResourceNames;
 	protected static ref array<ref BS5_ActiveEchoVoice> s_aActiveVoices;
+	protected static ref array<ref BS5_PendingEmissionContext> s_aPendingEmissionContexts;
 	protected static ref array<ref BS5_PendingEmissionContext> s_aReservedPlaybackVoices;
 	protected static int s_iPendingTailVoices;
 	protected static int s_iPendingSlapbackVoices;
@@ -1615,63 +2125,323 @@ class BS5_EchoEmissionService
 	protected static int s_iTailStartsInGate;
 	protected static int s_iSlapbackStartsInGate;
 	protected static bool s_bStartGateResetQueued;
+	protected static BaseWorld s_pLimiterWorld;
 	protected static const int START_GATE_WINDOW_MS = 100;
 	protected static const int START_GATE_DEFER_MS = 50;
+	protected static const int INVALID_EMITTER_RESOURCE_CACHE_LIMIT = 32;
+
+	protected static void ScrubLimiterContext(BS5_PendingEmissionContext context, bool cancel = false)
+	{
+		if (!context)
+			return;
+
+		if (cancel)
+			context.m_bCancelled = true;
+		context.m_bLimiterPendingReserved = false;
+		context.m_bLimiterPlaybackReserved = false;
+		context.m_bLimiterActiveRegistered = false;
+		context.m_bDriverBudgetAcquired = false;
+	}
+
+	protected static void ResetLimiterState()
+	{
+		if (s_aPendingEmissionContexts)
+		{
+			for (int pendingIndex = 0; pendingIndex < s_aPendingEmissionContexts.Count(); pendingIndex++)
+				ScrubLimiterContext(s_aPendingEmissionContexts[pendingIndex], true);
+		}
+
+		if (s_aReservedPlaybackVoices)
+		{
+			for (int reservedIndex = 0; reservedIndex < s_aReservedPlaybackVoices.Count(); reservedIndex++)
+				ScrubLimiterContext(s_aReservedPlaybackVoices[reservedIndex], true);
+		}
+
+		if (s_aActiveVoices)
+		{
+			for (int activeIndex = 0; activeIndex < s_aActiveVoices.Count(); activeIndex++)
+			{
+				BS5_ActiveEchoVoice voice = s_aActiveVoices[activeIndex];
+				if (voice)
+					ScrubLimiterContext(voice.m_Context, true);
+			}
+		}
+
+		s_iPendingTailVoices = 0;
+		s_iPendingSlapbackVoices = 0;
+		s_iTailStartsInGate = 0;
+		s_iSlapbackStartsInGate = 0;
+		s_bStartGateResetQueued = false;
+		s_aPendingEmissionContexts = new array<ref BS5_PendingEmissionContext>();
+		s_aReservedPlaybackVoices = new array<ref BS5_PendingEmissionContext>();
+		s_aActiveVoices = new array<ref BS5_ActiveEchoVoice>();
+	}
+
+	protected static void EnsureLimiterWorldState()
+	{
+		Game game = GetGame();
+		BaseWorld currentWorld = null;
+		if (game)
+			currentWorld = game.GetWorld();
+
+		if (currentWorld == s_pLimiterWorld)
+			return;
+
+		ResetLimiterState();
+		s_pLimiterWorld = currentWorld;
+	}
+
+	protected static bool ContextMatchesOwner(BS5_PendingEmissionContext context, IEntity owner, EntityID ownerId)
+	{
+		if (!context || !owner)
+			return false;
+
+		if (context.m_pOwner == owner)
+			return true;
+
+		return context.m_bOwnerIdValid && context.m_OwnerId == ownerId;
+	}
+
+	static void CancelOwnerContexts(IEntity owner)
+	{
+		if (!owner)
+			return;
+
+		EnsureActiveVoicePool();
+		EntityID ownerId = owner.GetID();
+
+		for (int pendingIndex = s_aPendingEmissionContexts.Count() - 1; pendingIndex >= 0; pendingIndex--)
+		{
+			BS5_PendingEmissionContext pendingContext = s_aPendingEmissionContexts[pendingIndex];
+			if (!ContextMatchesOwner(pendingContext, owner, ownerId))
+				continue;
+
+			pendingContext.m_bCancelled = true;
+			ReleasePendingVoice(pendingContext);
+			ReleasePlaybackVoice(pendingContext);
+			ReleaseDriverEmitterBudget(pendingContext);
+		}
+
+		for (int reservedIndex = s_aReservedPlaybackVoices.Count() - 1; reservedIndex >= 0; reservedIndex--)
+		{
+			BS5_PendingEmissionContext reservedContext = s_aReservedPlaybackVoices[reservedIndex];
+			if (!ContextMatchesOwner(reservedContext, owner, ownerId))
+				continue;
+
+			reservedContext.m_bCancelled = true;
+			ReleasePendingVoice(reservedContext);
+			ReleasePlaybackVoice(reservedContext);
+			ReleaseDriverEmitterBudget(reservedContext);
+		}
+
+		for (int activeIndex = s_aActiveVoices.Count() - 1; activeIndex >= 0; activeIndex--)
+		{
+			BS5_ActiveEchoVoice activeVoice = s_aActiveVoices[activeIndex];
+			if (!activeVoice || !ContextMatchesOwner(activeVoice.m_Context, owner, ownerId))
+				continue;
+
+			activeVoice.m_Context.m_bCancelled = true;
+			ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+		}
+	}
+
+	protected static IEntity ResolveContextOwner(BS5_PendingEmissionContext context)
+	{
+		EnsureLimiterWorldState();
+		if (!context)
+			return null;
+		if (!context.m_bOwnerIdValid)
+			return context.m_pOwner;
+
+		Game game = GetGame();
+		if (!game)
+			return null;
+
+		BaseWorld world = game.GetWorld();
+		if (!world)
+			return null;
+
+		return world.FindEntityByID(context.m_OwnerId);
+	}
+
+	protected static IEntity ResolveContextOwnerInCurrentWorld(BS5_PendingEmissionContext context)
+	{
+		if (!context)
+			return null;
+		if (!context.m_bOwnerIdValid)
+			return context.m_pOwner;
+		if (!s_pLimiterWorld)
+			return null;
+
+		return s_pLimiterWorld.FindEntityByID(context.m_OwnerId);
+	}
+
+	protected static void PruneOrphanedLimiterContexts()
+	{
+		if (s_aPendingEmissionContexts)
+		{
+			for (int pendingIndex = s_aPendingEmissionContexts.Count() - 1; pendingIndex >= 0; pendingIndex--)
+			{
+				BS5_PendingEmissionContext pendingContext = s_aPendingEmissionContexts[pendingIndex];
+				if (!pendingContext)
+				{
+					s_aPendingEmissionContexts.Remove(pendingIndex);
+					continue;
+				}
+
+				if (pendingContext.m_bCancelled || pendingContext.m_bEmitterCleanupDone)
+				{
+					ReleasePendingVoice(pendingContext);
+					ReleasePlaybackVoice(pendingContext);
+					continue;
+				}
+
+				if (pendingContext.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(pendingContext))
+				{
+					pendingContext.m_bCancelled = true;
+					ReleasePendingVoice(pendingContext);
+					ReleasePlaybackVoice(pendingContext);
+					ReleaseDriverEmitterBudget(pendingContext);
+				}
+			}
+		}
+
+		if (s_aReservedPlaybackVoices)
+		{
+			for (int reservedIndex = s_aReservedPlaybackVoices.Count() - 1; reservedIndex >= 0; reservedIndex--)
+			{
+				BS5_PendingEmissionContext reservedContext = s_aReservedPlaybackVoices[reservedIndex];
+				if (!reservedContext)
+				{
+					s_aReservedPlaybackVoices.Remove(reservedIndex);
+					continue;
+				}
+
+				if (reservedContext.m_bCancelled || reservedContext.m_bEmitterCleanupDone)
+				{
+					ReleasePlaybackVoice(reservedContext);
+					continue;
+				}
+
+				if (reservedContext.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(reservedContext))
+				{
+					reservedContext.m_bCancelled = true;
+					ReleasePendingVoice(reservedContext);
+					ReleasePlaybackVoice(reservedContext);
+					ReleaseDriverEmitterBudget(reservedContext);
+				}
+			}
+		}
+
+		if (s_aActiveVoices)
+		{
+			for (int activeIndex = s_aActiveVoices.Count() - 1; activeIndex >= 0; activeIndex--)
+			{
+				BS5_ActiveEchoVoice activeVoice = s_aActiveVoices[activeIndex];
+				if (!activeVoice)
+				{
+					s_aActiveVoices.Remove(activeIndex);
+					continue;
+				}
+
+				if (!activeVoice.m_Context)
+				{
+					s_aActiveVoices.Remove(activeIndex);
+					continue;
+				}
+
+				if (activeVoice.m_Context.m_bCancelled || activeVoice.m_Context.m_bEmitterCleanupDone)
+				{
+					ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+					continue;
+				}
+
+				if (activeVoice.m_Context.m_bOwnerIdValid && !ResolveContextOwnerInCurrentWorld(activeVoice.m_Context))
+				{
+					activeVoice.m_Context.m_bCancelled = true;
+					ReleaseAndCleanupEmitter(activeVoice.m_Context, activeVoice.m_pEmitter);
+				}
+			}
+		}
+	}
 
 	static void Emit(BS5_EchoDriverComponent settings, IEntity owner, BS5_EchoAnalysisResult result, bool explosionLike, bool emitTails)
 	{
 		if (!settings || !owner || !result)
 			return;
 
+		bool debugEnabled = settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT);
+		bool analysisDebugEnabled = settings.IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS, BS5_DebugLevel.VERBOSE);
 		float userEchoVolume = BS5_PlayerAudioSettings.GetEchoVolume();
 		float userSlapbackVolume = BS5_PlayerAudioSettings.GetSlapbackVolume();
+		float userSlapbackCloseVolume = BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+		float userExplosionVolume = BS5_PlayerAudioSettings.GetExplosionVolume();
 		bool canOutputTail = userEchoVolume > 0.001;
-		bool canOutputSlapback = userSlapbackVolume > 0.001;
+		if (explosionLike)
+			canOutputTail = userExplosionVolume > 0.001;
+		bool canOutputSlapback = userSlapbackVolume > 0.001 || userSlapbackCloseVolume > 0.001;
 		if (!canOutputTail && !canOutputSlapback)
 		{
-			BS5_DebugLog.Line(settings, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume);
+			if (debugEnabled)
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume + " closeVol=" + userSlapbackCloseVolume + " expVol=" + userExplosionVolume);
 			return;
 		}
 
-		string emitEnterLog = "emit enter";
-		emitEnterLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
-		emitEnterLog += " tailCandidates=" + result.m_aCandidates.Count();
-		emitEnterLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
-		emitEnterLog += " slapMode=" + result.m_sSlapbackMode;
-		BS5_DebugLog.Line(settings, emitEnterLog);
+		if (debugEnabled)
+		{
+			string emitEnterLog = "emit enter";
+			emitEnterLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+			emitEnterLog += " launcherShot=" + BS5_DebugLog.BoolText(result.m_bLauncherShot && !explosionLike);
+			emitEnterLog += " tailCandidates=" + result.m_aCandidates.Count();
+			emitEnterLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
+			emitEnterLog += " slapMode=" + result.m_sSlapbackMode;
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, emitEnterLog);
+		}
 
 		int tailEmitCount = 0;
 		if (emitTails)
 			tailEmitCount = settings.GetEmissionCount(result, explosionLike);
 		int slapbackEmitCount = settings.GetMaxSlapbackEmittersPerShot();
+		if (explosionLike)
+			slapbackEmitCount = settings.GetMaxExplosionSlapbackEmittersPerShot();
 		if (slapbackEmitCount > result.m_aSlapbackCandidates.Count())
 			slapbackEmitCount = result.m_aSlapbackCandidates.Count();
 		bool emitMaster = emitTails && settings.IsTailsEnabled();
-		bool emitSlapback = settings.IsSlapbackEnabled() && !explosionLike;
+		bool emitSlapback = settings.IsSlapbackEnabled();
 		string masterEvent = settings.ResolveMasterEventName();
 		ResourceName masterProject = settings.ResolveMasterAcp(result.m_bSuppressedShot);
 		ResourceName masterEmitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
+		if (result.m_bLauncherShot && !explosionLike)
+		{
+			masterProject = settings.ResolveLauncherMasterAcp(result.m_bSuppressedShot);
+			masterEmitterPrefab = settings.ResolveLauncherMasterEmitterPrefab(result.m_bSuppressedShot);
+		}
 		if (explosionLike)
 		{
 			masterEvent = settings.ResolveExplosionEventName();
 			masterProject = settings.ResolveExplosionAcp();
-			masterEmitterPrefab = settings.ResolveMasterEmitterPrefab(false);
+			masterEmitterPrefab = settings.ResolveExplosionEmitterPrefab();
 		}
 		string slapbackEvent = settings.ResolveSlapbackEventName();
 		ResourceName slapbackEmitterPrefab = settings.ResolveSlapbackEmitterPrefab(BS5_EchoCandidateSourceType.UNKNOWN, result.m_bSuppressedShot);
 
 		bool canEmitMaster = emitMaster && masterEmitterPrefab != string.Empty && masterEvent != string.Empty;
 		bool canEmitSlapback = emitSlapback && slapbackEmitterPrefab != string.Empty && slapbackEvent != string.Empty;
-		string emitConfigLog = "emit config";
-		emitConfigLog += " canTail=" + BS5_DebugLog.BoolText(canEmitMaster);
-		emitConfigLog += " canSlap=" + BS5_DebugLog.BoolText(canEmitSlapback);
-		emitConfigLog += " outputTail=" + BS5_DebugLog.BoolText(canOutputTail);
-		emitConfigLog += " outputSlap=" + BS5_DebugLog.BoolText(canOutputSlapback);
-		BS5_DebugLog.Line(settings, emitConfigLog);
-		BS5_DebugLog.Line(settings, "emit events master=" + masterEvent + " slap=" + slapbackEvent);
+		if (debugEnabled)
+		{
+			string emitConfigLog = "emit config";
+			emitConfigLog += " canTail=" + BS5_DebugLog.BoolText(canEmitMaster);
+			emitConfigLog += " canSlap=" + BS5_DebugLog.BoolText(canEmitSlapback);
+			emitConfigLog += " outputTail=" + BS5_DebugLog.BoolText(canOutputTail);
+			emitConfigLog += " outputSlap=" + BS5_DebugLog.BoolText(canOutputSlapback);
+			emitConfigLog += " closeVol=" + userSlapbackCloseVolume;
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, emitConfigLog);
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "emit events master=" + masterEvent + " slap=" + slapbackEvent);
+		}
 		if (!canEmitMaster && !canEmitSlapback)
 		{
-			BS5_DebugLog.Line(settings, "emit skip no valid playback path");
+			if (debugEnabled)
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "emit skip no valid playback path");
 			return;
 		}
 
@@ -1681,7 +2451,7 @@ class BS5_EchoEmissionService
 			if (!candidate || !candidate.m_bValid)
 				continue;
 
-			if (settings.IsDebugEnabled())
+			if (analysisDebugEnabled)
 			{
 				string candidateLog = "BS5 candidate[" + i + "]:";
 				candidateLog += " source=" + BS5_EchoMath.CandidateSourceName(candidate.m_eSourceType);
@@ -1698,7 +2468,7 @@ class BS5_EchoEmissionService
 				candidateLog += " pathPlausibility=" + candidate.m_fPathPlausibility;
 				candidateLog += " pathOcclusion=" + candidate.m_fPathOcclusion;
 				candidateLog += " pathProfile=" + candidate.m_sPathProfile;
-				Print(candidateLog);
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.ANALYSIS, candidateLog, BS5_DebugLevel.VERBOSE);
 			}
 
 			if (canEmitMaster && canOutputTail)
@@ -1711,31 +2481,38 @@ class BS5_EchoEmissionService
 			if (!slapCandidate || !slapCandidate.m_bValid)
 				continue;
 
-			if (settings.IsDebugEnabled())
+			if (analysisDebugEnabled)
 			{
-				PrintFormat("BS5 slapback[%1]: source=%2 pos=%3 normal=%4 distance=%5 score=%6 delay=%7",
-					slapIndex,
-					BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType),
-					slapCandidate.m_vPosition,
-					slapCandidate.m_vNormal,
-					slapCandidate.m_fDistance,
-					slapCandidate.m_fScore,
-					slapCandidate.m_fDelaySeconds);
+				string slapCandidateLog = "slapback[" + slapIndex + "]";
+				slapCandidateLog += " source=" + BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType);
+				slapCandidateLog += " pos=" + slapCandidate.m_vPosition;
+				slapCandidateLog += " normal=" + slapCandidate.m_vNormal;
+				slapCandidateLog += " distance=" + slapCandidate.m_fDistance;
+				slapCandidateLog += " score=" + slapCandidate.m_fScore;
+				slapCandidateLog += " delay=" + slapCandidate.m_fDelaySeconds;
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.ANALYSIS, slapCandidateLog, BS5_DebugLevel.VERBOSE);
 			}
 
-			if (canEmitSlapback && canOutputSlapback)
+			float candidateUserVolume = ResolveUserSlapbackVolumeForSourceType(slapCandidate.m_eSourceType);
+			if (canEmitSlapback && candidateUserVolume > 0.001)
 			{
 				string candidateSlapbackEvent = settings.ResolveSlapbackEventName(slapCandidate.m_eSourceType);
 				ResourceName candidateSlapbackProject = settings.ResolveSlapbackAcp(slapCandidate.m_eSourceType, result.m_bSuppressedShot);
-				string slapQueueLog = "slapback queue";
-				slapQueueLog += " index=" + slapIndex;
-				slapQueueLog += " source=" + BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType);
-				slapQueueLog += " event=" + candidateSlapbackEvent;
-				slapQueueLog += " dist=" + slapCandidate.m_fDistance;
-				slapQueueLog += " score=" + slapCandidate.m_fScore;
-				slapQueueLog += " pan=" + slapCandidate.m_fPanBias;
-				BS5_DebugLog.Line(settings, slapQueueLog);
-				QueueEmission(owner, result, candidateSlapbackProject, candidateSlapbackEvent, slapCandidate, true, false, settings);
+				if (explosionLike)
+					candidateSlapbackProject = settings.ResolveExplosionSlapbackAcp();
+				if (debugEnabled)
+				{
+					string slapQueueLog = "slapback queue";
+					slapQueueLog += " index=" + slapIndex;
+					slapQueueLog += " source=" + BS5_EchoMath.CandidateSourceName(slapCandidate.m_eSourceType);
+					slapQueueLog += " event=" + candidateSlapbackEvent;
+					slapQueueLog += " dist=" + slapCandidate.m_fDistance;
+					slapQueueLog += " score=" + slapCandidate.m_fScore;
+					slapQueueLog += " pan=" + slapCandidate.m_fPanBias;
+					slapQueueLog += " userVol=" + candidateUserVolume;
+					BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, slapQueueLog);
+				}
+				QueueEmission(owner, result, candidateSlapbackProject, candidateSlapbackEvent, slapCandidate, true, explosionLike, settings);
 			}
 		}
 	}
@@ -1743,17 +2520,28 @@ class BS5_EchoEmissionService
 	static void QueueEmission(IEntity owner, BS5_EchoAnalysisResult result, ResourceName project, string eventName, BS5_EchoReflectorCandidate candidate, bool slapback, bool explosionLike, BS5_EchoDriverComponent settings)
 	{
 		ResourceName emitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
-		if (slapback)
+		if (!slapback && result.m_bLauncherShot && !explosionLike)
+			emitterPrefab = settings.ResolveLauncherMasterEmitterPrefab(result.m_bSuppressedShot);
+		if (slapback && explosionLike)
+			emitterPrefab = settings.ResolveExplosionSlapbackEmitterPrefab();
+		else if (slapback)
 			emitterPrefab = settings.ResolveSlapbackEmitterPrefab(candidate.m_eSourceType, result.m_bSuppressedShot);
+		else if (explosionLike)
+			emitterPrefab = settings.ResolveExplosionEmitterPrefab();
 
 		if (eventName == string.Empty || emitterPrefab == string.Empty)
 		{
-			BS5_DebugLog.Line(settings, "queue skip invalid prefab/event event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
+			BS5_DebugLog.OnceEnabled(settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT), BS5_DebugChannel.EMIT, "queue-invalid|" + eventName + "|" + emitterPrefab + "|" + slapback, "queue skip invalid prefab/event event=" + eventName + " prefab=" + emitterPrefab + " slapback=" + BS5_DebugLog.BoolText(slapback));
 			return;
 		}
 
 		BS5_PendingEmissionContext context = new BS5_PendingEmissionContext();
 		context.m_pOwner = owner;
+		if (owner)
+		{
+			context.m_OwnerId = owner.GetID();
+			context.m_bOwnerIdValid = true;
+		}
 		context.m_sProject = project;
 		context.m_sEventName = eventName;
 		context.m_sEmitterPrefab = emitterPrefab;
@@ -1765,6 +2553,8 @@ class BS5_EchoEmissionService
 			context.m_fDistanceGain = ComputeDistanceGain(settings, candidate.m_fDistance);
 		context.m_fUserEchoVolume = BS5_PlayerAudioSettings.GetEchoVolume();
 		context.m_fUserSlapbackVolume = BS5_PlayerAudioSettings.GetSlapbackVolume();
+		context.m_fUserSlapbackCloseVolume = BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+		context.m_fUserExplosionVolume = BS5_PlayerAudioSettings.GetExplosionVolume();
 		context.m_fIntensity = BS5_EchoMath.Clamp01(result.m_fIntensity * candidate.m_fScore * context.m_fDistanceGain);
 		context.m_fDelaySeconds = candidate.m_fDelaySeconds;
 		context.m_bSlapback = slapback;
@@ -1793,16 +2583,38 @@ class BS5_EchoEmissionService
 			context.m_fIntensity = BS5_EchoMath.Clamp01(context.m_fIntensity * settings.GetSlapbackIntensityScale());
 			context.m_fTailWidth *= 0.25;
 			context.m_fReverbSend *= 0.35;
+			if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+			{
+				BS5_CloseReflectionSettingsComponent closeSettings = settings.GetCloseReflectionSettingsComponent();
+				float tailWidthScale = 0.55;
+				float reverbBoost = 1.65;
+				float hardnessFloor = 0.68;
+				float intensityMultiplier = 1.12;
+				if (closeSettings && closeSettings.IsEnabled())
+				{
+					tailWidthScale = closeSettings.GetTailWidthScale();
+					reverbBoost = closeSettings.GetReverbSendBoost();
+					hardnessFloor = closeSettings.GetSurfaceHardnessFloor();
+					intensityMultiplier = closeSettings.GetIntensityMultiplier();
+				}
+
+				context.m_fIntensity = BS5_EchoMath.Clamp01(context.m_fIntensity * intensityMultiplier);
+				context.m_fTailWidth *= tailWidthScale;
+				context.m_fReverbSend = BS5_EchoMath.Clamp01((context.m_fReverbSend * reverbBoost) + 0.18);
+				context.m_fSurfaceHardness = BS5_EchoMath.Clamp01(BS5_EchoMath.MaxFloat(context.m_fSurfaceHardness, hardnessFloor));
+			}
 		}
 
 		float userOutputVolume = context.m_fUserEchoVolume;
 		if (slapback)
-			userOutputVolume = context.m_fUserSlapbackVolume;
+			userOutputVolume = ResolveUserSlapbackVolumeForSourceType(context.m_eSourceType);
+		else if (explosionLike)
+			userOutputVolume = context.m_fUserExplosionVolume;
 
 		context.m_fIntensity = BS5_EchoMath.Clamp01(context.m_fIntensity * userOutputVolume);
 		context.m_fEmitterLifetimeSeconds = ComputeManagedEmitterLifetime(settings, context);
 
-		if (settings && settings.IsDebugEnabled())
+		if (settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT))
 		{
 			string queueLog = "queue";
 			queueLog += " slapback=" + BS5_DebugLog.BoolText(slapback);
@@ -1813,25 +2625,16 @@ class BS5_EchoEmissionService
 			queueLog += " userVol=" + userOutputVolume;
 			queueLog += " weight=" + context.m_iEstimatedNativeSources;
 			queueLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-			BS5_DebugLog.Line(settings, queueLog);
-			PrintFormat("BS5 queue: project=%1 event=%2 pos=%3 delay=%4 intensity=%5 distanceGain=%6 userVolume=%7",
-				project,
-				eventName,
-				context.m_vEmitPosition,
-				context.m_fDelaySeconds,
-				context.m_fIntensity,
-				context.m_fDistanceGain,
-				userOutputVolume);
-			PrintFormat("BS5 queue flags: suppressed=%1 slapback=%2 explosion=%3 weight=%4",
-				context.m_bSuppressed,
-				slapback,
-				explosionLike,
-				context.m_iEstimatedNativeSources);
+			queueLog += " project=" + project;
+			queueLog += " pos=" + context.m_vEmitPosition;
+			queueLog += " suppressed=" + BS5_DebugLog.BoolText(context.m_bSuppressed);
+			queueLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, queueLog);
 		}
 
 		if (context.m_fIntensity <= 0.001)
 		{
-			BS5_DebugLog.Line(settings, "queue skip inaudible event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "queue skip inaudible event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
 			return;
 		}
 
@@ -1856,12 +2659,16 @@ class BS5_EchoEmissionService
 	static void EmitPending(BS5_PendingEmissionContext context)
 	{
 		ReleasePendingVoice(context);
-		if (!context || !context.m_pOwner || context.m_bEmitterCleanupDone)
+		if (!context || context.m_bEmitterCleanupDone || context.m_bCancelled)
 			return;
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+			return;
+		context.m_pOwner = owner;
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		bool debugEnabled = false;
 		if (driver)
-			debugEnabled = driver.IsDebugEnabled();
+			debugEnabled = driver.IsDebugChannelEnabled(BS5_DebugChannel.EMIT) || driver.IsDebugChannelEnabled(BS5_DebugChannel.LIMITER);
 
 		if (!TryEnterStartGate(context, driver, debugEnabled))
 			return;
@@ -1869,12 +2676,15 @@ class BS5_EchoEmissionService
 		if (!TryAdmitPlaybackVoice(context, driver, debugEnabled))
 			return;
 
-		string pendingLog = "emit pending";
-		pendingLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		pendingLog += " event=" + context.m_sEventName;
-		pendingLog += " weight=" + GetContextVoiceWeight(context);
-		pendingLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
-		BS5_DebugLog.LineEnabled(debugEnabled, pendingLog);
+		if (debugEnabled)
+		{
+			string pendingLog = "emit pending";
+			pendingLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			pendingLog += " event=" + context.m_sEventName;
+			pendingLog += " weight=" + GetContextVoiceWeight(context);
+			pendingLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, pendingLog);
+		}
 		if (!context.m_bSlapback && TryPlayManagedAudioSource(context, driver, debugEnabled))
 		{
 			RegisterActiveVoice(context, null, driver, debugEnabled);
@@ -1887,13 +2697,14 @@ class BS5_EchoEmissionService
 		}
 		else if (context.m_bSlapback)
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "emit pending slapback uses prefab emitter path");
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending slapback uses prefab emitter path");
 		}
 
 		if (driver && !driver.TryAcquireActiveEmitterBudget(context.m_bSlapback))
 		{
 			ReleasePlaybackVoice(context);
-			BS5_DebugLog.LineEnabled(debugEnabled, "emit pending skip active emitter budget slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending skip active emitter budget slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return;
 		}
 		if (driver)
@@ -1904,7 +2715,8 @@ class BS5_EchoEmissionService
 		{
 			ReleasePlaybackVoice(context);
 			ReleaseDriverEmitterBudget(context);
-			BS5_DebugLog.LineEnabled(debugEnabled, "emit pending abort fallback emitter spawn failed prefab=" + context.m_sEmitterPrefab);
+			if (debugEnabled)
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending abort fallback emitter spawn failed prefab=" + context.m_sEmitterPrefab);
 			return;
 		}
 
@@ -1921,19 +2733,26 @@ class BS5_EchoEmissionService
 
 	static void EmitOnEmitter(BS5_PendingEmissionContext context, IEntity emitterEntity)
 	{
-		if (!context || !context.m_pOwner || !emitterEntity || context.m_bEmitterCleanupDone)
+		if (!context || !emitterEntity || context.m_bEmitterCleanupDone || context.m_bCancelled)
 			return;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+		{
+			BS5_EchoEmissionService.ReleaseAndCleanupEmitter(context, emitterEntity);
+			return;
+		}
+		context.m_pOwner = owner;
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		bool debugEnabled = false;
 		if (driver)
-			debugEnabled = driver.IsDebugEnabled();
+			debugEnabled = driver.IsDebugChannelEnabled(BS5_DebugChannel.EMIT);
 
 		BS5_SpatialSoundEmitterComponent emitterComponent = BS5_SpatialSoundEmitterComponent.Cast(emitterEntity.FindComponent(BS5_SpatialSoundEmitterComponent));
 		if (!emitterComponent || !emitterComponent.IsReady())
 		{
 			if (debugEnabled)
-				PrintFormat("BS5 emit pending: emitter helper missing retry=%1 helper=%2 pos=%3", context.m_iEmitterRetryCount, emitterComponent != null, emitterEntity.GetOrigin());
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending helper missing retry=" + context.m_iEmitterRetryCount + " helper=" + BS5_DebugLog.BoolText(emitterComponent != null) + " pos=" + emitterEntity.GetOrigin());
 
 			if (context.m_iEmitterRetryCount < 2)
 			{
@@ -1947,28 +2766,29 @@ class BS5_EchoEmissionService
 			}
 
 			if (debugEnabled)
-				Print("BS5 emit pending aborted: emitter helper missing");
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending aborted helper missing");
 			BS5_EchoEmissionService.ReleaseAndCleanupEmitter(context, emitterEntity);
 			return;
 		}
 
 		if (debugEnabled)
 		{
-			PrintFormat("BS5 emit pending: owner=%1 emitter=%2 project=%3 event=%4 pos=%5 delay=%6 intensity=%7 signals=%8",
-				context.m_pOwner,
-				emitterEntity,
-				context.m_sProject,
-				context.m_sEventName,
-				context.m_vEmitPosition,
-				context.m_fDelaySeconds,
-				context.m_fIntensity,
-				true);
+			string emitterLog = "emit pending";
+			emitterLog += " owner=" + context.m_pOwner;
+			emitterLog += " emitter=" + emitterEntity;
+			emitterLog += " project=" + context.m_sProject;
+			emitterLog += " event=" + context.m_sEventName;
+			emitterLog += " pos=" + context.m_vEmitPosition;
+			emitterLog += " delay=" + context.m_fDelaySeconds;
+			emitterLog += " intensity=" + context.m_fIntensity;
+			emitterLog += " signals=1";
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, emitterLog);
 		}
 
 		AudioHandle handle = emitterComponent.Play(context, debugEnabled);
 		bool played = handle != -1;
 		if (!played && debugEnabled)
-			Print("BS5 emit pending: emitter helper failed to play");
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending helper failed to play");
 
 		if (played)
 			RegisterActiveVoice(context, emitterEntity, driver, debugEnabled);
@@ -2008,12 +2828,13 @@ class BS5_EchoEmissionService
 			int maxPendingSlapback = settings.GetGlobalMaxSlapbackVoices();
 			if (s_iPendingSlapbackVoices + voiceWeight > maxPendingSlapback)
 			{
-				BS5_DebugLog.Line(settings, "queue skip slapback pending cap pending=" + s_iPendingSlapbackVoices + " weight=" + voiceWeight + " max=" + maxPendingSlapback);
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.LIMITER, "queue skip slapback pending cap pending=" + s_iPendingSlapbackVoices + " weight=" + voiceWeight + " max=" + maxPendingSlapback);
 				return false;
 			}
 
 			s_iPendingSlapbackVoices += voiceWeight;
 			context.m_bLimiterPendingReserved = true;
+			s_aPendingEmissionContexts.Insert(context);
 			return true;
 		}
 
@@ -2025,13 +2846,14 @@ class BS5_EchoEmissionService
 			pendingCapLog += " weight=" + voiceWeight;
 			pendingCapLog += " max=" + maxPendingTail;
 			pendingCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-			BS5_DebugLog.Line(settings, pendingCapLog);
-			BS5_DebugLog.Line(settings, "queue skip tail detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.LIMITER, pendingCapLog);
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.LIMITER, "queue skip tail detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
 			return false;
 		}
 
 		s_iPendingTailVoices += voiceWeight;
 		context.m_bLimiterPendingReserved = true;
+		s_aPendingEmissionContexts.Insert(context);
 		return true;
 	}
 
@@ -2051,6 +2873,16 @@ class BS5_EchoEmissionService
 			s_iPendingTailVoices -= GetContextVoiceWeight(context);
 			if (s_iPendingTailVoices < 0)
 				s_iPendingTailVoices = 0;
+		}
+
+		if (s_aPendingEmissionContexts)
+		{
+			for (int i = s_aPendingEmissionContexts.Count() - 1; i >= 0; i--)
+			{
+				BS5_PendingEmissionContext pending = s_aPendingEmissionContexts[i];
+				if (!pending || pending == context)
+					s_aPendingEmissionContexts.Remove(i);
+			}
 		}
 
 		context.m_bLimiterPendingReserved = false;
@@ -2098,13 +2930,16 @@ class BS5_EchoEmissionService
 			{
 				if (!StealPlaybackVoice(context, driver, true, debugEnabled))
 				{
-					string ownerCapLog = "emit pending skip owner cap";
-					ownerCapLog += " active=" + ownerActive;
-					ownerCapLog += " weight=" + voiceWeight;
-					ownerCapLog += " max=" + ownerLimit;
-					ownerCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-					BS5_DebugLog.LineEnabled(debugEnabled, ownerCapLog);
-					BS5_DebugLog.LineEnabled(debugEnabled, "emit pending owner detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+					if (debugEnabled)
+					{
+						string ownerCapLog = "emit pending skip owner cap";
+						ownerCapLog += " active=" + ownerActive;
+						ownerCapLog += " weight=" + voiceWeight;
+						ownerCapLog += " max=" + ownerLimit;
+						ownerCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+						BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, ownerCapLog);
+						BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending owner detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+					}
 					return false;
 				}
 			}
@@ -2119,14 +2954,17 @@ class BS5_EchoEmissionService
 		{
 			if (!StealPlaybackVoice(context, driver, false, debugEnabled))
 			{
-				string globalCapLog = "emit pending skip global cap";
-				globalCapLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-				globalCapLog += " active=" + globalActive;
-				globalCapLog += " weight=" + voiceWeight;
-				globalCapLog += " max=" + globalMax;
-				globalCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-				BS5_DebugLog.LineEnabled(debugEnabled, globalCapLog);
-				BS5_DebugLog.LineEnabled(debugEnabled, "emit pending global detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+				if (debugEnabled)
+				{
+					string globalCapLog = "emit pending skip global cap";
+					globalCapLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+					globalCapLog += " active=" + globalActive;
+					globalCapLog += " weight=" + voiceWeight;
+					globalCapLog += " max=" + globalMax;
+					globalCapLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, globalCapLog);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "emit pending global detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+				}
 				return false;
 			}
 		}
@@ -2192,16 +3030,9 @@ class BS5_EchoEmissionService
 			stealLog += " incomingPriority=" + incomingPriority;
 			stealLog += " victimPriority=" + victim.m_fPriority;
 			stealLog += " victimAge=" + (s_iLimiterTicket - victim.m_iTicket);
-			BS5_DebugLog.LineEnabled(debugEnabled, stealLog);
-			BS5_DebugLog.LineEnabled(debugEnabled, "limiter steal victim dist=" + victim.m_Context.m_fCandidateDistance + " intensity=" + victim.m_Context.m_fIntensity);
-			PrintFormat("BS5 limiter steal: sameOwner=%1 critical=%2 incomingPriority=%3 victimPriority=%4 victimAge=%5 victimDistance=%6 victimIntensity=%7",
-				sameOwnerOnly,
-				critical,
-				incomingPriority,
-				victim.m_fPriority,
-				s_iLimiterTicket - victim.m_iTicket,
-				victim.m_Context.m_fCandidateDistance,
-				victim.m_Context.m_fIntensity);
+			stealLog += " victimDistance=" + victim.m_Context.m_fCandidateDistance;
+			stealLog += " victimIntensity=" + victim.m_Context.m_fIntensity;
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, stealLog);
 		}
 
 		BS5_EchoEmissionService.ReleaseAndCleanupEmitter(victim.m_Context, victim.m_pEmitter);
@@ -2249,21 +3080,24 @@ class BS5_EchoEmissionService
 		context.m_fLimiterPriority = voice.m_fPriority;
 		s_aActiveVoices.Insert(voice);
 
-		string registerLog = "limiter register";
-		registerLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		registerLog += " activeTail=" + CountActiveVoices(false);
-		registerLog += " activeSlap=" + CountActiveVoices(true);
-		registerLog += " pendingTail=" + s_iPendingTailVoices;
-		registerLog += " pendingSlap=" + s_iPendingSlapbackVoices;
-		registerLog += " weight=" + GetContextVoiceWeight(context);
-		BS5_DebugLog.LineEnabled(debugEnabled, registerLog);
-		string registerDetailLog = "limiter detail";
-		registerDetailLog += " priority=" + voice.m_fPriority;
-		registerDetailLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-		registerDetailLog += " dist=" + context.m_fCandidateDistance;
-		registerDetailLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
-		registerDetailLog += " soundManager=" + BS5_DebugLog.BoolText(context.m_bPlayedViaSoundManager);
-		BS5_DebugLog.LineEnabled(debugEnabled, registerDetailLog);
+		if (debugEnabled)
+		{
+			string registerLog = "limiter register";
+			registerLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			registerLog += " activeTail=" + CountActiveVoices(false);
+			registerLog += " activeSlap=" + CountActiveVoices(true);
+			registerLog += " pendingTail=" + s_iPendingTailVoices;
+			registerLog += " pendingSlap=" + s_iPendingSlapbackVoices;
+			registerLog += " weight=" + GetContextVoiceWeight(context);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerLog);
+			string registerDetailLog = "limiter detail";
+			registerDetailLog += " priority=" + voice.m_fPriority;
+			registerDetailLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+			registerDetailLog += " dist=" + context.m_fCandidateDistance;
+			registerDetailLog += " lifetime=" + context.m_fEmitterLifetimeSeconds;
+			registerDetailLog += " soundManager=" + BS5_DebugLog.BoolText(context.m_bPlayedViaSoundManager);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, registerDetailLog);
+		}
 	}
 
 	protected static void UnregisterActiveVoice(BS5_PendingEmissionContext context, IEntity emitterEntity)
@@ -2473,6 +3307,8 @@ class BS5_EchoEmissionService
 			return 1.0;
 
 		float lifetime = settings.GetEmitterLifetimeSeconds(context.m_bSlapback);
+		if (context.m_bExplosion && !context.m_bSlapback)
+			lifetime = settings.GetExplosionEmitterLifetimeSeconds();
 		if (context.m_bSlapback || context.m_bExplosion || !settings.IsPlaybackLimiterEnabled())
 			return lifetime;
 
@@ -2575,25 +3411,31 @@ class BS5_EchoEmissionService
 			if (callQueue)
 			{
 				callQueue.CallLater(BS5_EchoEmissionService.EmitPending, START_GATE_DEFER_MS, false, context);
-				string deferLog = "start gate defer";
-				deferLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-				deferLog += " active=" + activeStarts;
-				deferLog += " weight=" + weight;
-				deferLog += " max=" + maxStarts;
-				deferLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-				BS5_DebugLog.LineEnabled(debugEnabled, deferLog);
+				if (debugEnabled)
+				{
+					string deferLog = "start gate defer";
+					deferLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+					deferLog += " active=" + activeStarts;
+					deferLog += " weight=" + weight;
+					deferLog += " max=" + maxStarts;
+					deferLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+					BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, deferLog);
+				}
 				return false;
 			}
 		}
 
-		string dropLog = "start gate drop";
-		dropLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		dropLog += " active=" + activeStarts;
-		dropLog += " weight=" + weight;
-		dropLog += " max=" + maxStarts;
-		dropLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
-		BS5_DebugLog.LineEnabled(debugEnabled, dropLog);
-		BS5_DebugLog.LineEnabled(debugEnabled, "start gate drop detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+		if (debugEnabled)
+		{
+			string dropLog = "start gate drop";
+			dropLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			dropLog += " active=" + activeStarts;
+			dropLog += " weight=" + weight;
+			dropLog += " max=" + maxStarts;
+			dropLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, dropLog);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "start gate drop detail dist=" + context.m_fCandidateDistance + " intensity=" + context.m_fIntensity);
+		}
 		return false;
 	}
 
@@ -2621,21 +3463,21 @@ class BS5_EchoEmissionService
 	{
 		if (!context || context.m_sProject == string.Empty || context.m_sEventName == string.Empty)
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager skip invalid context/project/event");
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-invalid-context|" + context, "SoundManager skip invalid context/project/event");
 			return false;
 		}
 
 		Game game = GetGame();
 		if (!game)
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager skip no game");
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "SoundManager skip no game");
 			return false;
 		}
 
 		SCR_SoundManagerModule soundManager = SCR_SoundManagerModule.GetInstance(game.GetWorld());
 		if (!soundManager)
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager skip missing module");
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-missing-module", "SoundManager skip missing module");
 			return false;
 		}
 
@@ -2644,7 +3486,7 @@ class BS5_EchoEmissionService
 
 		if (context.m_bSlapback && context.m_sEventName != "SOUND_SHOT")
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-slapback-event-fallback|" + context.m_sEventName, "SoundManager slapback retry fallback SOUND_SHOT requested=" + context.m_sEventName);
 			return TryPlayManagedAudioSourceEvent(context, soundManager, "SOUND_SHOT", debugEnabled);
 		}
 
@@ -2661,14 +3503,14 @@ class BS5_EchoEmissionService
 		audioConfig.m_sSoundEventName = eventName;
 		if (!audioConfig.IsValid())
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager config invalid event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-config-invalid|" + context.m_sProject + "|" + eventName, "SoundManager config invalid project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
 		SCR_AudioSource audioSource = soundManager.CreateAudioSource(audioConfig, context.m_vEmitPosition);
 		if (!audioSource)
 		{
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager source null event=" + eventName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-source-null|" + context.m_sProject + "|" + eventName, "SoundManager source null project=" + context.m_sProject + " event=" + eventName);
 			return false;
 		}
 
@@ -2682,7 +3524,7 @@ class BS5_EchoEmissionService
 		if (audioSource.m_AudioHandle == -1)
 		{
 			audioSource.Terminate(false);
-			BS5_DebugLog.LineEnabled(debugEnabled, "SoundManager play failed event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-play-failed|" + context.m_sProject + "|" + eventName + "|" + context.m_bSlapback, "SoundManager play failed fallback=prefab project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
 
@@ -2690,18 +3532,21 @@ class BS5_EchoEmissionService
 		context.m_AudioSource = audioSource;
 		context.m_hPlayback = audioSource.m_AudioHandle;
 		context.m_bPlayedViaSoundManager = true;
-		string managedPlayLog = "SoundManager play";
-		managedPlayLog += " event=" + context.m_sEventName;
-		managedPlayLog += " handle=" + context.m_hPlayback;
-		managedPlayLog += " weight=" + GetContextVoiceWeight(context);
-		managedPlayLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
-		BS5_DebugLog.LineEnabled(debugEnabled, managedPlayLog);
+		if (debugEnabled)
+		{
+			string managedPlayLog = "SoundManager play";
+			managedPlayLog += " event=" + context.m_sEventName;
+			managedPlayLog += " handle=" + context.m_hPlayback;
+			managedPlayLog += " weight=" + GetContextVoiceWeight(context);
+			managedPlayLog += " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, managedPlayLog);
+		}
 		return true;
 	}
 
 	protected static bool IsActiveVoiceValid(BS5_ActiveEchoVoice voice)
 	{
-		if (!voice || !voice.m_Context || voice.m_Context.m_bEmitterCleanupDone || voice.m_Context.m_bPlaybackTerminated)
+		if (!voice || !voice.m_Context || voice.m_Context.m_bEmitterCleanupDone || voice.m_Context.m_bPlaybackTerminated || voice.m_Context.m_bCancelled)
 			return false;
 
 		if (voice.m_Context.m_hPlayback != -1 && !AudioSystem.IsSoundPlayed(voice.m_Context.m_hPlayback))
@@ -2719,9 +3564,11 @@ class BS5_EchoEmissionService
 			return;
 
 		float fadeSeconds = 0.08;
-		if (context.m_pOwner)
+		IEntity owner = ResolveContextOwner(context);
+		if (owner)
 		{
-			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+			context.m_pOwner = owner;
+			BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 			if (driver)
 				fadeSeconds = driver.GetLimiterStealFadeSeconds();
 		}
@@ -2761,10 +3608,18 @@ class BS5_EchoEmissionService
 
 	protected static void ReleaseDriverEmitterBudget(BS5_PendingEmissionContext context)
 	{
-		if (!context || !context.m_bDriverBudgetAcquired || !context.m_pOwner)
+		if (!context || !context.m_bDriverBudgetAcquired)
 			return;
 
-		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(context.m_pOwner.FindComponent(BS5_EchoDriverComponent));
+		IEntity owner = ResolveContextOwner(context);
+		if (!owner)
+		{
+			context.m_bDriverBudgetAcquired = false;
+			return;
+		}
+		context.m_pOwner = owner;
+
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(owner.FindComponent(BS5_EchoDriverComponent));
 		if (driver)
 			driver.ReleaseActiveEmitterBudget(context.m_bSlapback);
 
@@ -2773,10 +3628,14 @@ class BS5_EchoEmissionService
 
 	protected static void EnsureActiveVoicePool()
 	{
+		EnsureLimiterWorldState();
 		if (!s_aActiveVoices)
 			s_aActiveVoices = new array<ref BS5_ActiveEchoVoice>();
+		if (!s_aPendingEmissionContexts)
+			s_aPendingEmissionContexts = new array<ref BS5_PendingEmissionContext>();
 		if (!s_aReservedPlaybackVoices)
 			s_aReservedPlaybackVoices = new array<ref BS5_PendingEmissionContext>();
+		PruneOrphanedLimiterContexts();
 	}
 
 	protected static IEntity SpawnEmitterEntity(BS5_PendingEmissionContext context, bool debugEnabled)
@@ -2801,7 +3660,7 @@ class BS5_EchoEmissionService
 		}
 
 		if (debugEnabled)
-			PrintFormat("BS5 emitter spawn: prefab=%1 entity=%2", context.m_sEmitterPrefab, emitterEntity);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter spawn prefab=" + context.m_sEmitterPrefab + " entity=" + emitterEntity);
 		return emitterEntity;
 	}
 
@@ -2835,9 +3694,10 @@ class BS5_EchoEmissionService
 		Resource loadedResource = Resource.Load(emitterPrefabName);
 		if (!loadedResource || !loadedResource.IsValid())
 		{
+			if (s_aInvalidEmitterResourceNames.Count() >= INVALID_EMITTER_RESOURCE_CACHE_LIMIT)
+				s_aInvalidEmitterResourceNames.Remove(0);
 			s_aInvalidEmitterResourceNames.Insert(emitterPrefabName);
-			if (debugEnabled)
-				PrintFormat("BS5 emitter resource load failed and cached invalid: %1", emitterPrefabName);
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter-resource-invalid|" + emitterPrefabName, "emitter resource load failed cached invalid prefab=" + emitterPrefabName);
 			return null;
 		}
 
@@ -2913,6 +3773,14 @@ class BS5_EchoEmissionService
 
 		float farGain = settings.GetSlapbackDistanceFarGain();
 		return BS5_EchoMath.Clamp01(1.0 - ((1.0 - farGain) * alpha));
+	}
+
+	protected static float ResolveUserSlapbackVolumeForSourceType(BS5_EchoCandidateSourceType sourceType)
+	{
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+			return BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+
+		return BS5_PlayerAudioSettings.GetSlapbackVolume();
 	}
 
 }
