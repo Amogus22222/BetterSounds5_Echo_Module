@@ -2464,55 +2464,58 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return;
 
 		if (ResolveMasterEmitterPrefab(false) == string.Empty)
-			PrintFormat("BS5 sanity warning: missing tail emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing tail emitter prefab owner=" + owner);
 
 		if (ResolveMasterEmitterPrefab(true) == string.Empty)
-			PrintFormat("BS5 sanity warning: missing suppressed tail emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing suppressed tail emitter prefab owner=" + owner);
 
 		if (ResolveMasterEventName() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing tail event name on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing tail event name owner=" + owner);
 
 		if (m_bEnableSlapback && ResolveSlapbackEmitterPrefab() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing slapback emitter prefab on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing slapback emitter prefab owner=" + owner);
 
 		if (m_bEnableSlapback && ResolveSlapbackEventName() == string.Empty)
-			PrintFormat("BS5 sanity warning: missing slapback event name on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing slapback event name owner=" + owner);
 
 		BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
 		if (!closeSettings)
-			PrintFormat("BS5 sanity warning: missing close reflection settings component on %1", owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning missing close reflection settings component owner=" + owner);
 		else if (closeSettings.IsEnabled())
-			PrintFormat("BS5 close reflection config: acp=%1 prefab=%2 event=%3", closeSettings.ResolveCloseSlapbackAcp(), closeSettings.ResolveCloseSlapbackEmitterPrefab(), closeSettings.ResolveCloseSlapbackEventName());
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "close reflection config acp=" + closeSettings.ResolveCloseSlapbackAcp() + " prefab=" + closeSettings.ResolveCloseSlapbackEmitterPrefab() + " event=" + closeSettings.ResolveCloseSlapbackEventName());
 
 		if (GetMaxCandidateCount() < GetMaxTailEmittersPerShot())
-			PrintFormat("BS5 sanity warning: max candidates (%1) is lower than tail emitters per shot (%2) on %3", GetMaxCandidateCount(), GetMaxTailEmittersPerShot(), owner);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "sanity warning max candidates=" + GetMaxCandidateCount() + " lower than tail emitters=" + GetMaxTailEmittersPerShot() + " owner=" + owner);
 
-		PrintFormat("BS5 soundmap anchor config: enabled=%1 legacyFallback=%2 cone=%3 maxDistance=%4 rays=%5 samples=%6",
-			IsSoundMapAnchorPlannerEnabled(),
-			AllowLegacyAnchorFallback(),
-			GetSoundMapForwardConeDegrees(),
-			GetSoundMapForwardMaxDistanceMeters(),
-			GetSoundMapForwardRayCount(),
-			GetSoundMapForwardSampleCount());
+		string soundMapConfig = "soundmap anchor config";
+		soundMapConfig += " enabled=" + BS5_DebugLog.BoolText(IsSoundMapAnchorPlannerEnabled());
+		soundMapConfig += " legacyFallback=" + BS5_DebugLog.BoolText(AllowLegacyAnchorFallback());
+		soundMapConfig += " cone=" + GetSoundMapForwardConeDegrees();
+		soundMapConfig += " maxDistance=" + GetSoundMapForwardMaxDistanceMeters();
+		soundMapConfig += " rays=" + GetSoundMapForwardRayCount();
+		soundMapConfig += " samples=" + GetSoundMapForwardSampleCount();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapConfig);
 
-		PrintFormat("BS5 soundmap anchor thresholds: omniRadius=%1 omniDirs=%2 omniAnchors=%3 city=%4 forest=%5 meadow=%6 hill=%7",
-			GetSoundMapOmniRadiusMeters(),
-			GetSoundMapOmniDirectionCount(),
-			GetSoundMapOmniAnchorCount(),
-			GetSoundMapCityThreshold(),
-			GetSoundMapForestThreshold(),
-			GetSoundMapMeadowThreshold(),
-			GetSoundMapHillReliefThreshold());
+		string soundMapThresholds = "soundmap anchor thresholds";
+		soundMapThresholds += " omniRadius=" + GetSoundMapOmniRadiusMeters();
+		soundMapThresholds += " omniDirs=" + GetSoundMapOmniDirectionCount();
+		soundMapThresholds += " omniAnchors=" + GetSoundMapOmniAnchorCount();
+		soundMapThresholds += " city=" + GetSoundMapCityThreshold();
+		soundMapThresholds += " forest=" + GetSoundMapForestThreshold();
+		soundMapThresholds += " meadow=" + GetSoundMapMeadowThreshold();
+		soundMapThresholds += " hill=" + GetSoundMapHillReliefThreshold();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapThresholds);
 
-		PrintFormat("BS5 soundmap physical tuning: frontSlope=%1 profileSamples=%2 backsideDrop=%3 urbanMicro=%4 urbanRadius=%5 urbanEntities=%6 urbanBoost=%7 distJitter=%8",
-			IsSoundMapTerrainFrontSlopeValidationEnabled(),
-			GetSoundMapTerrainProfileSampleCount(),
-			GetSoundMapTerrainBacksideDropMeters(),
-			IsSoundMapUrbanMicroScanEnabled(),
-			GetSoundMapUrbanMicroScanRadiusMeters(),
-			GetSoundMapUrbanMicroMaxEntities(),
-			GetSoundMapUrbanScoreBoost(),
-			GetSoundMapDistanceJitter());
+		string soundMapPhysical = "soundmap physical tuning";
+		soundMapPhysical += " frontSlope=" + BS5_DebugLog.BoolText(IsSoundMapTerrainFrontSlopeValidationEnabled());
+		soundMapPhysical += " profileSamples=" + GetSoundMapTerrainProfileSampleCount();
+		soundMapPhysical += " backsideDrop=" + GetSoundMapTerrainBacksideDropMeters();
+		soundMapPhysical += " urbanMicro=" + BS5_DebugLog.BoolText(IsSoundMapUrbanMicroScanEnabled());
+		soundMapPhysical += " urbanRadius=" + GetSoundMapUrbanMicroScanRadiusMeters();
+		soundMapPhysical += " urbanEntities=" + GetSoundMapUrbanMicroMaxEntities();
+		soundMapPhysical += " urbanBoost=" + GetSoundMapUrbanScoreBoost();
+		soundMapPhysical += " distJitter=" + GetSoundMapDistanceJitter();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapPhysical);
 
 		string pathTuning = "BS5 soundmap path gate:";
 		pathTuning += " enabled=" + IsSoundMapPathPlausibilityValidationEnabled();
@@ -2522,42 +2525,46 @@ class BS5_EchoDriverComponent : ScriptComponent
 		pathTuning += " hardFar=" + GetSoundMapFarTailHardLimitMeters();
 		pathTuning += " nearUrban=" + GetSoundMapNearUrbanTailMaxDistanceMeters();
 		pathTuning += " raycastDistance=" + GetSoundMapPathRaycastDistanceMeters();
-		Print(pathTuning);
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, pathTuning);
 
-		PrintFormat("BS5 tail scan config: sectors=%1 heights=%2 low=%3 high=%4 cluster=%5 groundNormalMaxY=%6 forwardWeight=%7 sideWeight=%8",
-			GetTailSectorCount(),
-			GetTailHeightSampleCount(),
-			GetTailScanHeightLowMeters(),
-			GetTailScanHeightHighMeters(),
-			GetTailClusterDistanceMeters(),
-			GetTailGroundNormalMaxY(),
-			GetTailForwardSectorWeight(),
-			GetTailSideSectorWeight());
+		string tailScanConfig = "tail scan config";
+		tailScanConfig += " sectors=" + GetTailSectorCount();
+		tailScanConfig += " heights=" + GetTailHeightSampleCount();
+		tailScanConfig += " low=" + GetTailScanHeightLowMeters();
+		tailScanConfig += " high=" + GetTailScanHeightHighMeters();
+		tailScanConfig += " cluster=" + GetTailClusterDistanceMeters();
+		tailScanConfig += " groundNormalMaxY=" + GetTailGroundNormalMaxY();
+		tailScanConfig += " forwardWeight=" + GetTailForwardSectorWeight();
+		tailScanConfig += " sideWeight=" + GetTailSideSectorWeight();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, tailScanConfig);
 
-		PrintFormat("BS5 hybrid tail config: envRadius=%1 forwardSeeds=%2 lateralSeeds=%3 pitchClamp=%4 merge=%5 settlementMax=%6 terrainMax=%7 openMin=%8 openMax=%9",
-			GetEnvQueryRadiusMeters(),
-			GetForwardAnchorTraceCount(),
-			GetLateralAnchorTraceCount(),
-			GetAnchorPitchClampDegrees(),
-			GetAnchorMergeDistanceMeters(),
-			GetSettlementMaxDistanceMeters(),
-			GetTerrainMaxDistanceMeters(),
-			GetOpenTailMinDistanceMeters(),
-			GetOpenTailMaxDistanceMeters());
+		string hybridTailConfig = "hybrid tail config";
+		hybridTailConfig += " envRadius=" + GetEnvQueryRadiusMeters();
+		hybridTailConfig += " forwardSeeds=" + GetForwardAnchorTraceCount();
+		hybridTailConfig += " lateralSeeds=" + GetLateralAnchorTraceCount();
+		hybridTailConfig += " pitchClamp=" + GetAnchorPitchClampDegrees();
+		hybridTailConfig += " merge=" + GetAnchorMergeDistanceMeters();
+		hybridTailConfig += " settlementMax=" + GetSettlementMaxDistanceMeters();
+		hybridTailConfig += " terrainMax=" + GetTerrainMaxDistanceMeters();
+		hybridTailConfig += " openMin=" + GetOpenTailMinDistanceMeters();
+		hybridTailConfig += " openMax=" + GetOpenTailMaxDistanceMeters();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, hybridTailConfig);
 
-		PrintFormat("BS5 production tail config: suppressedEmitters=%1 suppressedDistance=%2 suppressedIntensity=%3 indoorCount=%4 indoorMax=%5 indoorLateral=%6",
-			GetMaxSuppressedTailEmittersPerShot(),
-			GetSuppressedDistanceMultiplier(),
-			GetSuppressedIntensityMultiplier(),
-			GetIndoorTailTargetCount(),
-			GetIndoorMaxDistanceMeters(),
-			GetIndoorLateralSpreadScale());
+		string productionTailConfig = "production tail config";
+		productionTailConfig += " suppressedEmitters=" + GetMaxSuppressedTailEmittersPerShot();
+		productionTailConfig += " suppressedDistance=" + GetSuppressedDistanceMultiplier();
+		productionTailConfig += " suppressedIntensity=" + GetSuppressedIntensityMultiplier();
+		productionTailConfig += " indoorCount=" + GetIndoorTailTargetCount();
+		productionTailConfig += " indoorMax=" + GetIndoorMaxDistanceMeters();
+		productionTailConfig += " indoorLateral=" + GetIndoorLateralSpreadScale();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, productionTailConfig);
 
-		PrintFormat("BS5 distance gain config: near=%1 far=%2 farVolume=%3 curve=%4",
-			GetDistanceGainNearMeters(),
-			GetDistanceGainFarMeters(),
-			GetDistanceGainFarVolume(),
-			GetDistanceGainCurvePower());
+		string distanceGainConfig = "distance gain config";
+		distanceGainConfig += " near=" + GetDistanceGainNearMeters();
+		distanceGainConfig += " far=" + GetDistanceGainFarMeters();
+		distanceGainConfig += " farVolume=" + GetDistanceGainFarVolume();
+		distanceGainConfig += " curve=" + GetDistanceGainCurvePower();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, distanceGainConfig);
 	}
 }
 

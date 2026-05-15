@@ -1,10 +1,28 @@
+class BS5_ExplosionDispatchMarker
+{
+	int m_iFrame;
+	vector m_vOrigin;
+	IEntity m_pOwnerRoot;
+	IEntity m_pDamageRoot;
+	IEntity m_pHitRoot;
+	IEntity m_pInstigatorRoot;
+	string m_sSourceTag;
+
+	bool HasStrongSource()
+	{
+		return m_pOwnerRoot != null || m_pDamageRoot != null;
+	}
+}
+
 class BS5_EchoRuntime
 {
 	protected static const ResourceName DEFAULT_EXPLOSION_DRIVER_PREFAB = "{0FEFE02500672DD0}Prefabs/Props/BS5_ExplosionDriver.et";
 	protected static const bool EXPLOSION_DIAGNOSTIC_LOG = false;
 	protected static IEntity s_pExplosionDriverEntity;
-	protected static int s_iLastExplosionDispatchFrame;
-	protected static vector s_vLastExplosionDispatchOrigin;
+	protected static const int EXPLOSION_DISPATCH_DEDUPE_FRAMES = 2;
+	protected static const float EXPLOSION_DISPATCH_DEDUPE_DISTANCE_SQ = 4.0;
+	protected static const int EXPLOSION_DISPATCH_MARKER_LIMIT = 12;
+	protected static ref array<ref BS5_ExplosionDispatchMarker> s_aExplosionDispatchMarkers;
 
 	static BS5_EchoDriverComponent FindDriver(IEntity effectEntity, BaseMuzzleComponent muzzle)
 	{
@@ -42,7 +60,7 @@ class BS5_EchoRuntime
 
 		ExplosionDiag("hook source=" + sourceTag + " origin=" + origin);
 
-		if (ShouldSuppressExplosionDispatch(origin))
+		if (ShouldSuppressExplosionDispatch(origin, owner, pHitEntity, damageSource, instigator, sourceTag))
 		{
 			ExplosionDiag("suppressed duplicate source=" + sourceTag);
 			return;
@@ -117,7 +135,7 @@ class BS5_EchoRuntime
 		return BS5_EchoDriverComponent.Cast(rootEntity.FindComponent(BS5_EchoDriverComponent));
 	}
 
-	protected static bool ShouldSuppressExplosionDispatch(vector origin)
+	protected static bool ShouldSuppressExplosionDispatch(vector origin, IEntity owner, IEntity pHitEntity, IEntity damageSource, Instigator instigator, string sourceTag)
 	{
 		Game game = GetGame();
 		if (!game)
@@ -128,15 +146,92 @@ class BS5_EchoRuntime
 			return false;
 
 		int frame = world.GetFrameNumber();
-		if (s_iLastExplosionDispatchFrame > 0 && frame - s_iLastExplosionDispatchFrame <= 2)
+		BS5_ExplosionDispatchMarker marker = BuildExplosionDispatchMarker(frame, origin, owner, pHitEntity, damageSource, instigator, sourceTag);
+		EnsureExplosionDispatchMarkers();
+
+		for (int markerIndex = s_aExplosionDispatchMarkers.Count() - 1; markerIndex >= 0; markerIndex--)
 		{
-			if (vector.DistanceSq(origin, s_vLastExplosionDispatchOrigin) < 4.0)
+			BS5_ExplosionDispatchMarker existingMarker = s_aExplosionDispatchMarkers[markerIndex];
+			if (!existingMarker || frame - existingMarker.m_iFrame > EXPLOSION_DISPATCH_DEDUPE_FRAMES)
+			{
+				s_aExplosionDispatchMarkers.Remove(markerIndex);
+				continue;
+			}
+
+			if (vector.DistanceSq(origin, existingMarker.m_vOrigin) >= EXPLOSION_DISPATCH_DEDUPE_DISTANCE_SQ)
+				continue;
+
+			if (ExplosionDispatchMarkersShareSource(marker, existingMarker))
 				return true;
 		}
 
-		s_iLastExplosionDispatchFrame = frame;
-		s_vLastExplosionDispatchOrigin = origin;
+		s_aExplosionDispatchMarkers.Insert(marker);
+		while (s_aExplosionDispatchMarkers.Count() > EXPLOSION_DISPATCH_MARKER_LIMIT)
+			s_aExplosionDispatchMarkers.Remove(0);
+
 		return false;
+	}
+
+	protected static void EnsureExplosionDispatchMarkers()
+	{
+		if (!s_aExplosionDispatchMarkers)
+			s_aExplosionDispatchMarkers = new array<ref BS5_ExplosionDispatchMarker>();
+	}
+
+	protected static BS5_ExplosionDispatchMarker BuildExplosionDispatchMarker(int frame, vector origin, IEntity owner, IEntity pHitEntity, IEntity damageSource, Instigator instigator, string sourceTag)
+	{
+		BS5_ExplosionDispatchMarker marker = new BS5_ExplosionDispatchMarker();
+		marker.m_iFrame = frame;
+		marker.m_vOrigin = origin;
+		marker.m_pOwnerRoot = NormalizeDispatchEntity(owner);
+		marker.m_pDamageRoot = NormalizeDispatchEntity(damageSource);
+		marker.m_pHitRoot = NormalizeDispatchEntity(pHitEntity);
+		if (instigator)
+			marker.m_pInstigatorRoot = NormalizeDispatchEntity(instigator.GetInstigatorEntity());
+		marker.m_sSourceTag = sourceTag;
+		return marker;
+	}
+
+	protected static IEntity NormalizeDispatchEntity(IEntity entity)
+	{
+		if (!entity)
+			return null;
+
+		IEntity root = entity.GetRootParent();
+		if (root)
+			return root;
+
+		return entity;
+	}
+
+	protected static bool ExplosionDispatchMarkersShareSource(BS5_ExplosionDispatchMarker marker, BS5_ExplosionDispatchMarker existingMarker)
+	{
+		if (!marker || !existingMarker)
+			return false;
+
+		if (ExplosionDispatchEntityMatches(marker.m_pOwnerRoot, existingMarker.m_pOwnerRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pOwnerRoot, existingMarker.m_pDamageRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pDamageRoot, existingMarker.m_pOwnerRoot))
+			return true;
+		if (ExplosionDispatchEntityMatches(marker.m_pDamageRoot, existingMarker.m_pDamageRoot))
+			return true;
+
+		if (marker.HasStrongSource() || existingMarker.HasStrongSource())
+			return false;
+
+		if (ExplosionDispatchEntityMatches(marker.m_pInstigatorRoot, existingMarker.m_pInstigatorRoot))
+			return true;
+		if (marker.m_sSourceTag == existingMarker.m_sSourceTag && ExplosionDispatchEntityMatches(marker.m_pHitRoot, existingMarker.m_pHitRoot))
+			return true;
+
+		return false;
+	}
+
+	protected static bool ExplosionDispatchEntityMatches(IEntity firstEntity, IEntity secondEntity)
+	{
+		return firstEntity != null && secondEntity != null && firstEntity == secondEntity;
 	}
 
 	protected static BS5_EchoDriverComponent ResolveGlobalExplosionDriver(vector origin)
@@ -2494,20 +2589,11 @@ class BS5_EchoEmissionService
 			queueLog += " userVol=" + userOutputVolume;
 			queueLog += " weight=" + context.m_iEstimatedNativeSources;
 			queueLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+			queueLog += " project=" + project;
+			queueLog += " pos=" + context.m_vEmitPosition;
+			queueLog += " suppressed=" + BS5_DebugLog.BoolText(context.m_bSuppressed);
+			queueLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
 			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, queueLog);
-			PrintFormat("BS5 queue: project=%1 event=%2 pos=%3 delay=%4 intensity=%5 distanceGain=%6 userVolume=%7",
-				project,
-				eventName,
-				context.m_vEmitPosition,
-				context.m_fDelaySeconds,
-				context.m_fIntensity,
-				context.m_fDistanceGain,
-				userOutputVolume);
-			PrintFormat("BS5 queue flags: suppressed=%1 slapback=%2 explosion=%3 weight=%4",
-				context.m_bSuppressed,
-				slapback,
-				explosionLike,
-				context.m_iEstimatedNativeSources);
 		}
 
 		if (context.m_fIntensity <= 0.001)
@@ -2630,7 +2716,7 @@ class BS5_EchoEmissionService
 		if (!emitterComponent || !emitterComponent.IsReady())
 		{
 			if (debugEnabled)
-				PrintFormat("BS5 emit pending: emitter helper missing retry=%1 helper=%2 pos=%3", context.m_iEmitterRetryCount, emitterComponent != null, emitterEntity.GetOrigin());
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending helper missing retry=" + context.m_iEmitterRetryCount + " helper=" + BS5_DebugLog.BoolText(emitterComponent != null) + " pos=" + emitterEntity.GetOrigin());
 
 			if (context.m_iEmitterRetryCount < 2)
 			{
@@ -2644,28 +2730,29 @@ class BS5_EchoEmissionService
 			}
 
 			if (debugEnabled)
-				Print("BS5 emit pending aborted: emitter helper missing");
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending aborted helper missing");
 			BS5_EchoEmissionService.ReleaseAndCleanupEmitter(context, emitterEntity);
 			return;
 		}
 
 		if (debugEnabled)
 		{
-			PrintFormat("BS5 emit pending: owner=%1 emitter=%2 project=%3 event=%4 pos=%5 delay=%6 intensity=%7 signals=%8",
-				context.m_pOwner,
-				emitterEntity,
-				context.m_sProject,
-				context.m_sEventName,
-				context.m_vEmitPosition,
-				context.m_fDelaySeconds,
-				context.m_fIntensity,
-				true);
+			string emitterLog = "emit pending";
+			emitterLog += " owner=" + context.m_pOwner;
+			emitterLog += " emitter=" + emitterEntity;
+			emitterLog += " project=" + context.m_sProject;
+			emitterLog += " event=" + context.m_sEventName;
+			emitterLog += " pos=" + context.m_vEmitPosition;
+			emitterLog += " delay=" + context.m_fDelaySeconds;
+			emitterLog += " intensity=" + context.m_fIntensity;
+			emitterLog += " signals=1";
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, emitterLog);
 		}
 
 		AudioHandle handle = emitterComponent.Play(context, debugEnabled);
 		bool played = handle != -1;
 		if (!played && debugEnabled)
-			Print("BS5 emit pending: emitter helper failed to play");
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emit pending helper failed to play");
 
 		if (played)
 			RegisterActiveVoice(context, emitterEntity, driver, debugEnabled);
@@ -2907,16 +2994,9 @@ class BS5_EchoEmissionService
 			stealLog += " incomingPriority=" + incomingPriority;
 			stealLog += " victimPriority=" + victim.m_fPriority;
 			stealLog += " victimAge=" + (s_iLimiterTicket - victim.m_iTicket);
+			stealLog += " victimDistance=" + victim.m_Context.m_fCandidateDistance;
+			stealLog += " victimIntensity=" + victim.m_Context.m_fIntensity;
 			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, stealLog);
-			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.LIMITER, "limiter steal victim dist=" + victim.m_Context.m_fCandidateDistance + " intensity=" + victim.m_Context.m_fIntensity);
-			PrintFormat("BS5 limiter steal: sameOwner=%1 critical=%2 incomingPriority=%3 victimPriority=%4 victimAge=%5 victimDistance=%6 victimIntensity=%7",
-				sameOwnerOnly,
-				critical,
-				incomingPriority,
-				victim.m_fPriority,
-				s_iLimiterTicket - victim.m_iTicket,
-				victim.m_Context.m_fCandidateDistance,
-				victim.m_Context.m_fIntensity);
 		}
 
 		BS5_EchoEmissionService.ReleaseAndCleanupEmitter(victim.m_Context, victim.m_pEmitter);
@@ -3547,7 +3627,7 @@ class BS5_EchoEmissionService
 		}
 
 		if (debugEnabled)
-			PrintFormat("BS5 emitter spawn: prefab=%1 entity=%2", context.m_sEmitterPrefab, emitterEntity);
+			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter spawn prefab=" + context.m_sEmitterPrefab + " entity=" + emitterEntity);
 		return emitterEntity;
 	}
 
@@ -3585,7 +3665,7 @@ class BS5_EchoEmissionService
 				s_aInvalidEmitterResourceNames.Remove(0);
 			s_aInvalidEmitterResourceNames.Insert(emitterPrefabName);
 			if (debugEnabled)
-				PrintFormat("BS5 emitter resource load failed and cached invalid: %1", emitterPrefabName);
+				BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, "emitter resource load failed cached invalid prefab=" + emitterPrefabName);
 			return null;
 		}
 

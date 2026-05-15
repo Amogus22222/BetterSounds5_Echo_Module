@@ -463,11 +463,13 @@ class BS5_PresetRegistry
 		if (!preset)
 			return;
 
+		BS5_PlayerAudioSettings.BeginSettingsBatch();
 		BS5_PlayerAudioSettings.SetSoundPresetId(preset.m_sId, false);
 		BS5_PlayerAudioSettings.SetEchoVolume(preset.m_fEchoVolume, false, false);
 		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, false, false);
 		BS5_PlayerAudioSettings.SetSlapbackCloseVolume(preset.m_fSlapbackCloseVolume, false, false);
-		BS5_PlayerAudioSettings.SetExplosionVolume(preset.m_fExplosionVolume, saveImmediately, false);
+		BS5_PlayerAudioSettings.SetExplosionVolume(preset.m_fExplosionVolume, false, false);
+		BS5_PlayerAudioSettings.EndSettingsBatch(saveImmediately);
 	}
 
 	static void ApplyTechnicalPreset(string id, bool saveImmediately = true)
@@ -476,9 +478,9 @@ class BS5_PresetRegistry
 		if (!preset)
 			return;
 
+		BS5_PlayerAudioSettings.BeginSettingsBatch();
 		BS5_PlayerAudioSettings.SetTechnicalPresetId(preset.m_sId, false);
-		if (saveImmediately)
-			BS5_PlayerAudioSettings.Save();
+		BS5_PlayerAudioSettings.EndSettingsBatch(saveImmediately);
 	}
 
 	protected static void EnsureInitialized()

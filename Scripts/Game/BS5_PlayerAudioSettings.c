@@ -44,6 +44,9 @@ class BS5_PlayerAudioSettings
 	protected static bool s_bSlapbackEnabled = true;
 	protected static string s_sTechnicalPresetId = "default";
 	protected static string s_sSoundPresetId = "vanilla";
+	protected static int s_iSettingsBatchDepth;
+	protected static bool s_bSettingsBatchChanged;
+	protected static bool s_bSettingsBatchSaveRequested;
 
 	static float GetEchoVolume()
 	{
@@ -56,9 +59,17 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 
 		float clampedValue = BS5_EchoMath.Clamp01(value);
+		bool valueChanged = Math.AbsFloat(clampedValue - s_fEchoVolume) > 0.0001;
 		s_fEchoVolume = clampedValue;
+		bool presetChanged = false;
 		if (markSoundPresetCustom)
-			s_sSoundPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+		{
+			string customPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+			presetChanged = s_sSoundPresetId != customPresetId;
+			s_sSoundPresetId = customPresetId;
+		}
+		if (!valueChanged && !presetChanged)
+			return;
 
 		Game game = GetGame();
 		if (!game)
@@ -75,9 +86,7 @@ class BS5_PlayerAudioSettings
 		module.Set(FIELD_ECHO_VOLUME, clampedValue);
 		if (markSoundPresetCustom)
 			module.Set(FIELD_SOUND_PRESET_ID, s_sSoundPresetId);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static float GetSlapbackVolume()
@@ -91,9 +100,17 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 
 		float clampedValue = BS5_EchoMath.Clamp01(value);
+		bool valueChanged = Math.AbsFloat(clampedValue - s_fSlapbackVolume) > 0.0001;
 		s_fSlapbackVolume = clampedValue;
+		bool presetChanged = false;
 		if (markSoundPresetCustom)
-			s_sSoundPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+		{
+			string customPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+			presetChanged = s_sSoundPresetId != customPresetId;
+			s_sSoundPresetId = customPresetId;
+		}
+		if (!valueChanged && !presetChanged)
+			return;
 
 		Game game = GetGame();
 		if (!game)
@@ -110,9 +127,7 @@ class BS5_PlayerAudioSettings
 		module.Set(FIELD_SLAPBACK_VOLUME, clampedValue);
 		if (markSoundPresetCustom)
 			module.Set(FIELD_SOUND_PRESET_ID, s_sSoundPresetId);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static float GetSlapbackCloseVolume()
@@ -126,9 +141,17 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 
 		float clampedValue = BS5_EchoMath.Clamp01(value);
+		bool valueChanged = Math.AbsFloat(clampedValue - s_fSlapbackCloseVolume) > 0.0001;
 		s_fSlapbackCloseVolume = clampedValue;
+		bool presetChanged = false;
 		if (markSoundPresetCustom)
-			s_sSoundPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+		{
+			string customPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+			presetChanged = s_sSoundPresetId != customPresetId;
+			s_sSoundPresetId = customPresetId;
+		}
+		if (!valueChanged && !presetChanged)
+			return;
 
 		Game game = GetGame();
 		if (!game)
@@ -145,9 +168,7 @@ class BS5_PlayerAudioSettings
 		module.Set(FIELD_SLAPBACK_CLOSE_VOLUME, clampedValue);
 		if (markSoundPresetCustom)
 			module.Set(FIELD_SOUND_PRESET_ID, s_sSoundPresetId);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static bool IsSlapbackEnabled()
@@ -167,9 +188,17 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 
 		float clampedValue = BS5_EchoMath.Clamp01(value);
+		bool valueChanged = Math.AbsFloat(clampedValue - s_fExplosionVolume) > 0.0001;
 		s_fExplosionVolume = clampedValue;
+		bool presetChanged = false;
 		if (markSoundPresetCustom)
-			s_sSoundPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+		{
+			string customPresetId = BS5_PresetRegistry.GetCustomSoundPresetId();
+			presetChanged = s_sSoundPresetId != customPresetId;
+			s_sSoundPresetId = customPresetId;
+		}
+		if (!valueChanged && !presetChanged)
+			return;
 
 		Game game = GetGame();
 		if (!game)
@@ -186,14 +215,15 @@ class BS5_PlayerAudioSettings
 		module.Set(FIELD_EXPLOSION_VOLUME, clampedValue);
 		if (markSoundPresetCustom)
 			module.Set(FIELD_SOUND_PRESET_ID, s_sSoundPresetId);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static void SetSlapbackEnabled(bool value, bool saveImmediately = false)
 	{
 		EnsureInitialized();
+		if (s_bSlapbackEnabled == value)
+			return;
+
 		s_bSlapbackEnabled = value;
 
 		Game game = GetGame();
@@ -209,9 +239,7 @@ class BS5_PlayerAudioSettings
 			return;
 
 		module.Set(FIELD_SLAPBACK_ENABLED, value);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static string GetTechnicalPresetId()
@@ -227,6 +255,8 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 		if (value == string.Empty)
 			value = BS5_PresetRegistry.GetDefaultTechnicalPresetId();
+		if (s_sTechnicalPresetId == value)
+			return;
 		s_sTechnicalPresetId = value;
 
 		Game game = GetGame();
@@ -242,9 +272,7 @@ class BS5_PlayerAudioSettings
 			return;
 
 		module.Set(FIELD_TECHNICAL_PRESET_ID, value);
-		game.UserSettingsChanged();
-		if (saveImmediately)
-			game.SaveUserSettings();
+		CommitUserSettingsChanged(game, saveImmediately);
 	}
 
 	static string GetSoundPresetId()
@@ -260,6 +288,8 @@ class BS5_PlayerAudioSettings
 		EnsureInitialized();
 		if (value == string.Empty)
 			value = BS5_PresetRegistry.GetDefaultSoundPresetId();
+		if (s_sSoundPresetId == value)
+			return;
 		s_sSoundPresetId = value;
 
 		Game game = GetGame();
@@ -275,8 +305,44 @@ class BS5_PlayerAudioSettings
 			return;
 
 		module.Set(FIELD_SOUND_PRESET_ID, value);
-		game.UserSettingsChanged();
+		CommitUserSettingsChanged(game, saveImmediately);
+	}
+
+	static void BeginSettingsBatch()
+	{
+		EnsureInitialized();
+		s_iSettingsBatchDepth++;
+	}
+
+	static void EndSettingsBatch(bool saveImmediately = false)
+	{
+		if (s_iSettingsBatchDepth > 0)
+			s_iSettingsBatchDepth--;
+
 		if (saveImmediately)
+			s_bSettingsBatchSaveRequested = true;
+
+		if (s_iSettingsBatchDepth > 0)
+			return;
+
+		if (!s_bSettingsBatchChanged)
+		{
+			if (s_bSettingsBatchSaveRequested)
+				Save();
+			s_bSettingsBatchSaveRequested = false;
+			return;
+		}
+
+		s_bSettingsBatchChanged = false;
+		bool shouldSave = s_bSettingsBatchSaveRequested;
+		s_bSettingsBatchSaveRequested = false;
+
+		Game game = GetGame();
+		if (!game)
+			return;
+
+		game.UserSettingsChanged();
+		if (shouldSave)
 			game.SaveUserSettings();
 	}
 
@@ -305,8 +371,27 @@ class BS5_PlayerAudioSettings
 
 	protected static void OnUserSettingsChanged()
 	{
-		BS5_SpatialSoundEmitterComponent.ClearAudioProjectCaches();
+		string previousTechnicalPresetId = s_sTechnicalPresetId;
+		string previousSoundPresetId = s_sSoundPresetId;
 		LoadFromUserSettings();
+
+		if (previousTechnicalPresetId != s_sTechnicalPresetId || previousSoundPresetId != s_sSoundPresetId)
+			BS5_SpatialSoundEmitterComponent.ClearAudioProjectCaches();
+	}
+
+	protected static void CommitUserSettingsChanged(Game game, bool saveImmediately)
+	{
+		if (s_iSettingsBatchDepth > 0)
+		{
+			s_bSettingsBatchChanged = true;
+			if (saveImmediately)
+				s_bSettingsBatchSaveRequested = true;
+			return;
+		}
+
+		game.UserSettingsChanged();
+		if (saveImmediately)
+			game.SaveUserSettings();
 	}
 
 	protected static void LoadFromUserSettings()
