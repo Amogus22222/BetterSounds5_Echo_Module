@@ -350,9 +350,7 @@ class BS5_EchoEnvironmentAnalyzer
 		vector left = flatRight * -1.0;
 		vector probeOrigin = origin + (flatForward * settings.GetNearProbeForwardOffsetMeters()) + (worldUp * settings.GetNearProbeVerticalOffsetMeters());
 
-		float nearRadius = settings.GetNearSlapbackRadius();
-		if (explosionLike)
-			nearRadius = settings.GetExplosionNearRadius();
+		float nearRadius = settings.GetSlapbackRadius(suppressed, explosionLike);
 
 		float nearTraceLength = nearRadius;
 		if (nearTraceLength <= 0.0)
@@ -480,7 +478,7 @@ class BS5_EchoEnvironmentAnalyzer
 		if (probeCount > 0.0)
 			obstruction = totalHitRatio / probeCount;
 
-		float closeConfinement = BS5_EchoMath.Clamp01((settings.GetNearSlapbackRadius() - shortestHit) / settings.GetNearSlapbackRadius());
+		float closeConfinement = BS5_EchoMath.Clamp01((nearTraceLength - shortestHit) / nearTraceLength);
 		float sideConfinement = BS5_EchoMath.Clamp01(sideHits / 4.0);
 		float verticalConfinement = BS5_EchoMath.Clamp01(ceilingHits / 2.0);
 		float lowCeiling = BS5_EchoMath.Clamp01(1.0 - (terrainClearance / 5.0));
@@ -555,7 +553,7 @@ class BS5_EchoEnvironmentAnalyzer
 		result.m_fSlapbackDelaySeconds = 0.0;
 
 		if (settings.IsSlapbackEnabled())
-			CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray);
+			CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray, explosionLike);
 		else if (!settings.IsPlayerSlapbackEnabled())
 			result.m_sSlapbackMode = "disabled_global";
 		else
@@ -873,7 +871,7 @@ class BS5_EchoEnvironmentAnalyzer
 		}
 	}
 
-	protected static void CollectSlapbackCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector probeOrigin, vector forwardDir, vector right, array<IEntity> traceExcludeArray)
+	protected static void CollectSlapbackCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector probeOrigin, vector forwardDir, vector right, array<IEntity> traceExcludeArray, bool explosionLike)
 	{
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
@@ -916,10 +914,16 @@ class BS5_EchoEnvironmentAnalyzer
 		array<int> directionSectors = {0, 0, 0, 1, 2, 1, 2, 0, 1, 2};
 		array<int> directionRanks = {10, 11, 12, 20, 21, 30, 31, 35, 40, 41};
 
-		float maxDistance = settings.GetNearSlapbackRadius();
+		bool suppressed = false;
+		if (result)
+			suppressed = result.m_bSuppressedShot;
+		float maxDistance = settings.GetSlapbackRadius(suppressed, explosionLike);
 		float minDistance = settings.GetSlapbackMinDistanceMeters();
 		int maxCandidates = settings.GetMaxSlapbackEmittersPerShot();
-		maxCandidates = Math.Clamp(maxCandidates, 1, 2);
+		if (explosionLike)
+			maxCandidates = settings.GetMaxExplosionSlapbackEmittersPerShot();
+		if (maxCandidates < 1)
+			maxCandidates = 1;
 		float trenchMaxSideDistance = settings.GetTrenchSlapbackMaxSideDistanceMeters();
 
 		array<ref BS5_EchoReflectorCandidate> wallCandidates = {};
@@ -1030,6 +1034,7 @@ class BS5_EchoEnvironmentAnalyzer
 		float closeScore = 0.0;
 		bool closeAccepted = false;
 		bool trenchDominatesClose = false;
+		int candidateLimit = maxCandidates;
 		if (closePlannerResult && closePlannerResult.m_bAccepted && closePlannerResult.m_Candidate)
 		{
 			closeScore = closePlannerResult.m_fScore;
@@ -1043,17 +1048,19 @@ class BS5_EchoEnvironmentAnalyzer
 			{
 				InsertCandidate(candidates, closePlannerResult.m_Candidate, 1);
 				closeAccepted = !candidates.IsEmpty();
+				if (closeAccepted && closeSettings)
+					candidateLimit = closeSettings.GetMaxCloseSlapbackEmittersPerShot(maxCandidates);
 			}
 		}
 
 		bool trenchAccepted = false;
 		if (!closeAccepted && trenchCandidate && trenchScore >= settings.GetTrenchSlapbackMinConfidence())
 		{
-			InsertCandidate(candidates, trenchCandidate, maxCandidates);
+			InsertCandidate(candidates, trenchCandidate, candidateLimit);
 			trenchAccepted = true;
 		}
 
-		for (int winnerIndex = 0; !closeAccepted && winnerIndex < wallCandidates.Count() && candidates.Count() < maxCandidates; winnerIndex++)
+		for (int winnerIndex = 0; winnerIndex < wallCandidates.Count() && candidates.Count() < candidateLimit; winnerIndex++)
 		{
 			BS5_EchoReflectorCandidate winner = wallCandidates[winnerIndex];
 			if (!winner)
@@ -1078,6 +1085,12 @@ class BS5_EchoEnvironmentAnalyzer
 					break;
 				}
 
+				if (existing.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+				{
+					merged = true;
+					break;
+				}
+
 				if (winner.m_fScore > existing.m_fScore)
 					candidates[existingIndex] = winner;
 				merged = true;
@@ -1085,12 +1098,12 @@ class BS5_EchoEnvironmentAnalyzer
 			}
 
 			if (!merged)
-				InsertCandidate(candidates, winner, maxCandidates);
+				InsertCandidate(candidates, winner, candidateLimit);
 		}
 
 		bool anchorFallback = false;
 		if (!closeAccepted && candidates.IsEmpty() && settings.AllowSlapbackAnchorFallback())
-			anchorFallback = TryBuildSlapbackAnchorFallback(candidates, settings, result, origin, flatRight, maxCandidates);
+			anchorFallback = TryBuildSlapbackAnchorFallback(candidates, settings, result, origin, flatRight, candidateLimit, maxDistance);
 
 		if (result)
 		{
@@ -1581,12 +1594,12 @@ class BS5_EchoEnvironmentAnalyzer
 		return false;
 	}
 
-	protected static bool TryBuildSlapbackAnchorFallback(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector flatRight, int maxCandidates)
+	protected static bool TryBuildSlapbackAnchorFallback(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector flatRight, int maxCandidates, float slapbackMaxDistance)
 	{
 		if (!result || !result.m_aCandidates || result.m_aCandidates.IsEmpty())
 			return false;
 
-		float maxDistance = BS5_EchoMath.MinFloat(settings.GetSlapbackAnchorFallbackMaxDistanceMeters(), settings.GetNearSlapbackRadius());
+		float maxDistance = BS5_EchoMath.MinFloat(settings.GetSlapbackAnchorFallbackMaxDistanceMeters(), slapbackMaxDistance);
 		if (maxDistance <= 0.0)
 			return false;
 
@@ -2247,6 +2260,7 @@ class BS5_EchoEmissionService
 		{
 			string emitEnterLog = "emit enter";
 			emitEnterLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+			emitEnterLog += " launcherShot=" + BS5_DebugLog.BoolText(result.m_bLauncherShot && !explosionLike);
 			emitEnterLog += " tailCandidates=" + result.m_aCandidates.Count();
 			emitEnterLog += " slapCandidates=" + result.m_aSlapbackCandidates.Count();
 			emitEnterLog += " slapMode=" + result.m_sSlapbackMode;
@@ -2257,6 +2271,8 @@ class BS5_EchoEmissionService
 		if (emitTails)
 			tailEmitCount = settings.GetEmissionCount(result, explosionLike);
 		int slapbackEmitCount = settings.GetMaxSlapbackEmittersPerShot();
+		if (explosionLike)
+			slapbackEmitCount = settings.GetMaxExplosionSlapbackEmittersPerShot();
 		if (slapbackEmitCount > result.m_aSlapbackCandidates.Count())
 			slapbackEmitCount = result.m_aSlapbackCandidates.Count();
 		bool emitMaster = emitTails && settings.IsTailsEnabled();
@@ -2264,6 +2280,11 @@ class BS5_EchoEmissionService
 		string masterEvent = settings.ResolveMasterEventName();
 		ResourceName masterProject = settings.ResolveMasterAcp(result.m_bSuppressedShot);
 		ResourceName masterEmitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
+		if (result.m_bLauncherShot && !explosionLike)
+		{
+			masterProject = settings.ResolveLauncherMasterAcp(result.m_bSuppressedShot);
+			masterEmitterPrefab = settings.ResolveLauncherMasterEmitterPrefab(result.m_bSuppressedShot);
+		}
 		if (explosionLike)
 		{
 			masterEvent = settings.ResolveExplosionEventName();
@@ -2368,6 +2389,8 @@ class BS5_EchoEmissionService
 	static void QueueEmission(IEntity owner, BS5_EchoAnalysisResult result, ResourceName project, string eventName, BS5_EchoReflectorCandidate candidate, bool slapback, bool explosionLike, BS5_EchoDriverComponent settings)
 	{
 		ResourceName emitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
+		if (!slapback && result.m_bLauncherShot && !explosionLike)
+			emitterPrefab = settings.ResolveLauncherMasterEmitterPrefab(result.m_bSuppressedShot);
 		if (slapback && explosionLike)
 			emitterPrefab = settings.ResolveExplosionSlapbackEmitterPrefab();
 		else if (slapback)

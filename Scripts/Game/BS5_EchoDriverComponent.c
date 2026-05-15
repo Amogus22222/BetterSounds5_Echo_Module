@@ -91,6 +91,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "25", desc: "Maximum wall distance in meters that is eligible for close slapback anchors.")]
 	protected float m_fNearSlapbackRadius;
 
+	[Attribute(defvalue: "16", desc: "Maximum wall distance in meters for suppressed slapback anchors.")]
+	protected float m_fSuppressedNearSlapbackRadius;
+
+	[Attribute(defvalue: "25", desc: "Maximum wall distance in meters for explosion-like slapback anchors.")]
+	protected float m_fExplosionNearSlapbackRadius;
+
 	[Attribute(defvalue: "0.9", desc: "Forward offset in meters applied to the slapback probe origin so the traces start closer to the muzzle and avoid self-hits.")]
 	protected float m_fNearProbeForwardOffsetMeters;
 
@@ -204,6 +210,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	[Attribute(defvalue: "2", desc: "Maximum number of slapback emitters spawned for a single weapon shot.")]
 	protected int m_iMaxSlapbackEmittersPerShot;
+
+	[Attribute(defvalue: "3", desc: "Maximum number of slapback emitters spawned for a single explosion-like event.")]
+	protected int m_iMaxExplosionSlapbackEmittersPerShot;
 
 	[Attribute(defvalue: "16", desc: "Hard cap of simultaneously alive tail emitter entities for this weapon. Extra tails are skipped to protect performance.")]
 	protected int m_iMaxActiveTailEmitters;
@@ -583,6 +592,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
 		bool suppressed = IsSuppressedMuzzle(muzzle);
+		bool launcherShot = IsLauncherShot(owner, projectileEntity);
 
 		if (ShouldSuppressDuplicateDispatch(origin, planarForward))
 		{
@@ -600,6 +610,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 			dispatchLog += " driverTail=" + BS5_DebugLog.BoolText(m_bEnableTails);
 			dispatchLog += " driverSlap=" + BS5_DebugLog.BoolText(m_bEnableSlapback);
 			dispatchLog += " globalSlap=" + BS5_DebugLog.BoolText(IsPlayerSlapbackEnabled());
+			dispatchLog += " launcherShot=" + BS5_DebugLog.BoolText(launcherShot);
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, dispatchLog);
 			string volumeLog = "dispatch volumes";
 			volumeLog += " echoVol=" + BS5_PlayerAudioSettings.GetEchoVolume();
@@ -618,12 +629,15 @@ class BS5_EchoDriverComponent : ScriptComponent
 		}
 
 		BS5_EchoAnalysisResult result = ResolveCachedResult(owner, origin, planarForward, false, suppressed);
+		if (result && result.m_bLauncherShot != launcherShot)
+			result = null;
 		if (!result)
 			result = BS5_EchoRuntime.AnalyzeShot(this, owner, origin, planarForward, suppressed);
 
 		if (!result)
 			return;
 
+		result.m_bLauncherShot = launcherShot;
 		StoreCachedResult(result, suppressed, false);
 
 		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
@@ -733,6 +747,14 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return "";
 	}
 
+	ResourceName ResolveLauncherMasterAcp(bool suppressed = false)
+	{
+		if (suppressed)
+			return ResolveMasterAcp(true);
+
+		return MACHINEGUN_MASTER_ACP;
+	}
+
 	ResourceName ResolveSlapbackAcp(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN, bool suppressed = false)
 	{
 		if (suppressed && m_sSuppressedSlapbackAcp != "")
@@ -821,6 +843,14 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return m_sMasterEmitterPrefab;
 
 		return DEFAULT_MASTER_EMITTER_PREFAB;
+	}
+
+	ResourceName ResolveLauncherMasterEmitterPrefab(bool suppressed = false)
+	{
+		if (suppressed)
+			return ResolveMasterEmitterPrefab(true);
+
+		return DEFAULT_MACHINEGUN_MASTER_EMITTER_PREFAB;
 	}
 
 	ResourceName ResolveSlapbackEmitterPrefab(BS5_EchoCandidateSourceType sourceType = BS5_EchoCandidateSourceType.UNKNOWN, bool suppressed = false)
@@ -929,6 +959,26 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return 1.0;
 	}
 
+	float GetSuppressedNearSlapbackRadius()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fSuppressedNearSlapbackRadius;
+		if (preset && preset.m_fSuppressedNearSlapbackRadius > 0.0)
+			value = preset.m_fSuppressedNearSlapbackRadius;
+		if (value > 0.0)
+			return value;
+		return GetNearSlapbackRadius();
+	}
+
+	float GetSlapbackRadius(bool suppressed = false, bool explosionLike = false)
+	{
+		if (explosionLike)
+			return GetExplosionNearRadius();
+		if (suppressed)
+			return GetSuppressedNearSlapbackRadius();
+		return GetNearSlapbackRadius();
+	}
+
 	float GetNearProbeForwardOffsetMeters()
 	{
 		return BS5_EchoMath.MaxFloat(0.0, m_fNearProbeForwardOffsetMeters);
@@ -946,7 +996,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	float GetExplosionNearRadius()
 	{
-		return GetNearSlapbackRadius() * 0.75;
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fExplosionNearSlapbackRadius;
+		if (preset && preset.m_fExplosionNearSlapbackRadius > 0.0)
+			value = preset.m_fExplosionNearSlapbackRadius;
+		if (value > 0.0)
+			return value;
+		return GetNearSlapbackRadius();
 	}
 
 	float GetExplosionIntensityMultiplier()
@@ -985,7 +1041,20 @@ class BS5_EchoDriverComponent : ScriptComponent
 		int value = m_iMaxSlapbackEmittersPerShot;
 		if (preset)
 			value = preset.m_iMaxSlapbackEmittersPerShot;
-		return Math.Clamp(value, 1, 2);
+		if (value < 1)
+			return 1;
+		return value;
+	}
+
+	int GetMaxExplosionSlapbackEmittersPerShot()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iMaxExplosionSlapbackEmittersPerShot;
+		if (preset && preset.m_iMaxExplosionSlapbackEmittersPerShot > 0)
+			value = preset.m_iMaxExplosionSlapbackEmittersPerShot;
+		if (value > 0)
+			return value;
+		return GetMaxSlapbackEmittersPerShot();
 	}
 
 	int GetMaxActiveTailEmitters()
@@ -2220,6 +2289,49 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return effectEntity;
 
 		return GetOwner();
+	}
+
+	protected bool IsLauncherShot(IEntity owner, IEntity projectileEntity)
+	{
+		ResourceName projectilePrefab = GetEntityPrefabNameLower(projectileEntity);
+		if (IsLauncherShotPrefab(projectilePrefab))
+			return true;
+
+		ResourceName ownerPrefab = GetEntityPrefabNameLower(owner);
+		return IsLauncherShotPrefab(ownerPrefab);
+	}
+
+	protected bool IsLauncherShotPrefab(ResourceName prefabName)
+	{
+		if (prefabName == string.Empty)
+			return false;
+
+		if (prefabName.IndexOf("prefabs/weapons/ammo/ammo_rocket") != -1)
+			return true;
+		if (prefabName.IndexOf("prefabs/weapons/launchers") != -1)
+			return true;
+
+		return false;
+	}
+
+	protected ResourceName GetEntityPrefabNameLower(IEntity entity)
+	{
+		if (!entity)
+			return string.Empty;
+
+		IEntity normalizedEntity = entity.GetRootParent();
+		if (!normalizedEntity)
+			normalizedEntity = entity;
+
+		EntityPrefabData prefabData = normalizedEntity.GetPrefabData();
+		if (!prefabData)
+			return string.Empty;
+
+		ResourceName prefabName = prefabData.GetPrefabName();
+		if (prefabName != string.Empty)
+			prefabName.ToLower();
+
+		return prefabName;
 	}
 
 	protected bool IsEmitterPrefabPath(ResourceName resourceName)

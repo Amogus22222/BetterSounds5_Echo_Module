@@ -4,9 +4,9 @@ modded class SCR_WeaponBlastComponent
 	{
 		super.OnWeaponFired(effectEntity, muzzle, projectileEntity);
 
-		BS5_EchoDriverComponent driver = BS5_EchoRuntime.FindExplosionDriver(effectEntity, muzzle, projectileEntity);
-		if (driver)
-			driver.HandleExplosionFire(effectEntity, muzzle, projectileEntity);
+		BS5_EchoDriverComponent shotDriver = BS5_EchoRuntime.FindDriver(effectEntity, muzzle);
+		if (shotDriver && shotDriver.IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+			BS5_DebugLog.Channel(shotDriver, BS5_DebugChannel.DRIVER, "explosion blast skip weapon fire-time projectile=" + projectileEntity);
 	}
 }
 

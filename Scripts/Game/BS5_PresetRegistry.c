@@ -55,6 +55,12 @@ class BS5_TechnicalPresetConfigEntry
 	[Attribute(defvalue: "25")]
 	float m_fNearSlapbackRadius;
 
+	[Attribute(defvalue: "16")]
+	float m_fSuppressedNearSlapbackRadius;
+
+	[Attribute(defvalue: "25")]
+	float m_fExplosionNearSlapbackRadius;
+
 	[Attribute(defvalue: "9")]
 	int m_iMaxCandidateCount;
 
@@ -69,6 +75,9 @@ class BS5_TechnicalPresetConfigEntry
 
 	[Attribute(defvalue: "2")]
 	int m_iMaxSlapbackEmittersPerShot;
+
+	[Attribute(defvalue: "3")]
+	int m_iMaxExplosionSlapbackEmittersPerShot;
 
 	[Attribute(defvalue: "24")]
 	int m_iMaxActiveTailEmitters;
@@ -245,11 +254,14 @@ class BS5_TechnicalPreset
 	bool m_bAllowLegacyAnchorFallback;
 	float m_fScanRadius;
 	float m_fNearSlapbackRadius;
+	float m_fSuppressedNearSlapbackRadius;
+	float m_fExplosionNearSlapbackRadius;
 	int m_iMaxCandidateCount;
 	int m_iMaxTraceCount;
 	int m_iMaxTailEmittersPerShot;
 	int m_iMaxSuppressedTailEmittersPerShot;
 	int m_iMaxSlapbackEmittersPerShot;
+	int m_iMaxExplosionSlapbackEmittersPerShot;
 	int m_iMaxActiveTailEmitters;
 	int m_iMaxActiveSlapbackEmitters;
 	int m_iLimiterGlobalMaxTailVoices;
@@ -576,11 +588,14 @@ class BS5_PresetRegistry
 		preset.m_bAllowLegacyAnchorFallback = entry.m_bAllowLegacyAnchorFallback;
 		preset.m_fScanRadius = entry.m_fScanRadius;
 		preset.m_fNearSlapbackRadius = entry.m_fNearSlapbackRadius;
+		preset.m_fSuppressedNearSlapbackRadius = entry.m_fSuppressedNearSlapbackRadius;
+		preset.m_fExplosionNearSlapbackRadius = entry.m_fExplosionNearSlapbackRadius;
 		preset.m_iMaxCandidateCount = entry.m_iMaxCandidateCount;
 		preset.m_iMaxTraceCount = entry.m_iMaxTraceCount;
 		preset.m_iMaxTailEmittersPerShot = entry.m_iMaxTailEmittersPerShot;
 		preset.m_iMaxSuppressedTailEmittersPerShot = entry.m_iMaxSuppressedTailEmittersPerShot;
 		preset.m_iMaxSlapbackEmittersPerShot = entry.m_iMaxSlapbackEmittersPerShot;
+		preset.m_iMaxExplosionSlapbackEmittersPerShot = entry.m_iMaxExplosionSlapbackEmittersPerShot;
 		preset.m_iMaxActiveTailEmitters = entry.m_iMaxActiveTailEmitters;
 		preset.m_iMaxActiveSlapbackEmitters = entry.m_iMaxActiveSlapbackEmitters;
 		preset.m_iLimiterGlobalMaxTailVoices = entry.m_iLimiterGlobalMaxTailVoices;
@@ -643,14 +658,17 @@ class BS5_PresetRegistry
 		entry.m_bUseSoundMapAnchorPlanner = true;
 		entry.m_bAllowLegacyAnchorFallback = false;
 		entry.m_fScanRadius = 875.0;
-		entry.m_fNearSlapbackRadius = 44.0;
+		entry.m_fNearSlapbackRadius = 34.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 44.0;
 		entry.m_iMaxCandidateCount = 13;
 		entry.m_iMaxTraceCount = 13;
 		entry.m_iMaxTailEmittersPerShot = 2;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 3;
+		entry.m_iMaxSlapbackEmittersPerShot = 5;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 8;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 6;
+		entry.m_iMaxActiveSlapbackEmitters = 8;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
 		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
 		entry.m_iLimiterMaxPendingTailVoices = 8;
@@ -709,16 +727,19 @@ class BS5_PresetRegistry
 		entry.m_sId = "light";
 		entry.m_sDisplayName = "Light";
 		entry.m_fScanRadius = 525.0;
-		entry.m_fNearSlapbackRadius = 23.0;
+		entry.m_fNearSlapbackRadius = 13.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 23.0;
 		entry.m_iMaxCandidateCount = 5;
 		entry.m_iMaxTraceCount = 5;
 		entry.m_iMaxTailEmittersPerShot = 1;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 1;
+		entry.m_iMaxSlapbackEmittersPerShot = 2;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 3;
 		entry.m_iMaxActiveTailEmitters = 6;
-		entry.m_iMaxActiveSlapbackEmitters = 2;
+		entry.m_iMaxActiveSlapbackEmitters = 3;
 		entry.m_iLimiterGlobalMaxTailVoices = 6;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 2;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 3;
 		entry.m_iLimiterMaxPendingTailVoices = 3;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 2;
 		entry.m_iLimiterBurstCadenceNormal = 7;
@@ -728,7 +749,7 @@ class BS5_PresetRegistry
 		entry.m_fLimiterHighPressureThreshold = 0.70;
 		entry.m_fLimiterCriticalPressureThreshold = 0.88;
 		entry.m_iLimiterMaxTailStartsPer100Ms = 2;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 1;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 3;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -773,14 +794,17 @@ class BS5_PresetRegistry
 		entry.m_sId = "dynamic";
 		entry.m_sDisplayName = "Dynamic";
 		entry.m_fScanRadius = 875.0;
-		entry.m_fNearSlapbackRadius = 50.0;
+		entry.m_fNearSlapbackRadius = 40.0;
+		entry.m_fSuppressedNearSlapbackRadius = 16.0;
+		entry.m_fExplosionNearSlapbackRadius = 50.0;
 		entry.m_iMaxCandidateCount = 15;
 		entry.m_iMaxTraceCount = 15;
 		entry.m_iMaxTailEmittersPerShot = 2;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
-		entry.m_iMaxSlapbackEmittersPerShot = 3;
+		entry.m_iMaxSlapbackEmittersPerShot = 6;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 9;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 6;
+		entry.m_iMaxActiveSlapbackEmitters = 10;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
 		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
 		entry.m_iLimiterMaxPendingTailVoices = 8;

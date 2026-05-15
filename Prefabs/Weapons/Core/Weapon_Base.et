@@ -2,23 +2,25 @@ GenericEntity {
  ID "CFBAA4B725411E45"
  components {
   BS5_AudioDebugSettingsComponent "{692681A02B441188}" {
-   Enabled 0
-   m_bEnableDebug 0
-   m_iDebugLevel 0
-   m_bDebugDriver 0
-   m_bDebugGeneral 0
-   m_bDebugAnalysis 0
-   m_bDebugSlapback 0
-   m_bDebugClose 0
-   m_bDebugEmit 0
-   m_bDebugLimiter 0
+   Enabled 1
+   m_bEnableDebug 1
+   m_iDebugLevel 2
+   m_bDebugDriver 1
+   m_bDebugGeneral 1
+   m_bDebugAnalysis 1
+   m_bDebugSlapback 1
+   m_bDebugClose 1
+   m_bDebugEmit 1
+   m_bDebugLimiter 1
+   m_bDebugSoundMap 1
   }
   BS5_CloseReflectionSettingsComponent "{692681A02B441177}" {
    m_bEnableCloseReflection 1
    m_sCloseSlapbackAcp "{1A9C4D83B5E24761}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Master.acp"
    m_sCloseSlapbackEmitterPrefab "{64E4F2017A4A2C5B}Prefabs/Props/BS5_SlapbackEmitter_Close.et"
    m_sCloseSlapbackEventName "SOUND_SHOT"
-   m_fMaxCloseDistanceMeters 15
+   m_fMaxCloseDistanceMeters 6
+   m_iMaxCloseSlapbackEmittersPerShot 2
    m_fBaseEvidenceMin 0.1
    m_fAcceptScoreMin 0.44
    m_fSidePairAcceptScore 0.25
@@ -51,7 +53,9 @@ GenericEntity {
    m_bUseSoundMapAnchorPlanner 1
    m_bAllowLegacyAnchorFallback 0
    m_fScanRadius 700
-   m_fNearSlapbackRadius 25
+   m_fNearSlapbackRadius 15
+   m_fSuppressedNearSlapbackRadius 16
+   m_fExplosionNearSlapbackRadius 25
    m_fNearProbeForwardOffsetMeters 0.3
    m_fNearProbeVerticalOffsetMeters 0.1
    m_fSlapbackForwardProbeAngleDegrees 48
@@ -87,7 +91,8 @@ GenericEntity {
    m_fSoundSpeedMetersPerSecond 400
    m_iMaxTailEmittersPerShot 2
    m_iMaxExplosionEmittersPerShot 2
-   m_iMaxSlapbackEmittersPerShot 3
+   m_iMaxSlapbackEmittersPerShot 4
+   m_iMaxExplosionSlapbackEmittersPerShot 6
    m_iMaxActiveTailEmitters 28
    m_iMaxActiveSlapbackEmitters 6
    m_fCachePositionToleranceMeters 2

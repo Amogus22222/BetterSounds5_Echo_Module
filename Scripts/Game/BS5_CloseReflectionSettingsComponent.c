@@ -23,6 +23,9 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 	[Attribute(defvalue: "3.8", desc: "Maximum wall distance in meters that still counts as a close reflection pocket.")]
 	protected float m_fMaxCloseDistanceMeters;
 
+	[Attribute(defvalue: "1", desc: "Maximum slapback candidates emitted when close reflection mode is accepted.")]
+	protected int m_iMaxCloseSlapbackEmittersPerShot;
+
 	[Attribute(defvalue: "0.20", desc: "Minimum close-space evidence required before the planner attempts a close result.")]
 	protected float m_fBaseEvidenceMin;
 
@@ -98,6 +101,17 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 			maxDistance = fallbackDistance;
 
 		return BS5_EchoMath.Clamp(maxDistance, 1.2, 7.0);
+	}
+
+	int GetMaxCloseSlapbackEmittersPerShot(int fallbackCount)
+	{
+		int maxCount = m_iMaxCloseSlapbackEmittersPerShot;
+		if (maxCount <= 0)
+			maxCount = fallbackCount;
+
+		if (maxCount < 1)
+			return 1;
+		return maxCount;
 	}
 
 	float GetBaseEvidenceMin()

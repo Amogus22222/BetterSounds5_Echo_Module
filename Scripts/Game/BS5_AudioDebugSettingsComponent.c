@@ -45,6 +45,9 @@ class BS5_AudioDebugSettingsComponent : ScriptComponent
 		if (!m_bEnableDebug)
 			return BS5_DebugLevel.OFF;
 
+		if (m_iDebugLevel <= 0)
+			return BS5_DebugLevel.OFF;
+
 		if (m_iDebugLevel >= 2)
 			return BS5_DebugLevel.VERBOSE;
 

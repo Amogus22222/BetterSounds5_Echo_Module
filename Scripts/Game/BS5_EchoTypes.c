@@ -118,6 +118,7 @@ class BS5_EchoAnalysisResult
 	BS5_EchoEnvironmentType m_eEnvironment;
 	BS5_TailProfileType m_eTailProfile;
 	bool m_bSuppressedShot;
+	bool m_bLauncherShot;
 	float m_fOpenScore;
 	float m_fUrbanScore;
 	float m_fForestScore;
@@ -197,6 +198,7 @@ class BS5_EchoAnalysisResult
 		m_eEnvironment = BS5_EchoEnvironmentType.OPEN_FIELD;
 		m_eTailProfile = BS5_TailProfileType.OPEN_MEADOW;
 		m_bSuppressedShot = false;
+		m_bLauncherShot = false;
 		m_fOpenScore = 0.0;
 		m_fUrbanScore = 0.0;
 		m_fForestScore = 0.0;
