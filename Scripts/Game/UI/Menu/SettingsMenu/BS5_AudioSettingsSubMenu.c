@@ -69,11 +69,6 @@ modded class SCR_AudioSettingsSubMenu
 	protected bool m_bBs5MouseActionConsumed;
 	protected string m_sBs5MouseDownAction;
 
-	override void HandlerAttached(Widget w)
-	{
-		super.HandlerAttached(w);
-	}
-
 	override void OnTabShow()
 	{
 		super.OnTabShow();
@@ -109,28 +104,19 @@ modded class SCR_AudioSettingsSubMenu
 
 	override void OnTabHide()
 	{
-		FlushBs5EchoVolumeSetting();
-		FlushBs5SlapbackVolumeSetting();
-		FlushBs5SlapbackCloseVolumeSetting();
-		FlushBs5PresetSettings();
+		FlushBs5PendingSettings();
 		super.OnTabHide();
 	}
 
 	override void OnMenuHide()
 	{
-		FlushBs5EchoVolumeSetting();
-		FlushBs5SlapbackVolumeSetting();
-		FlushBs5SlapbackCloseVolumeSetting();
-		FlushBs5PresetSettings();
+		FlushBs5PendingSettings();
 		super.OnMenuHide();
 	}
 
 	override void OnTabRemove()
 	{
-		FlushBs5EchoVolumeSetting();
-		FlushBs5SlapbackVolumeSetting();
-		FlushBs5SlapbackCloseVolumeSetting();
-		FlushBs5PresetSettings();
+		FlushBs5PendingSettings();
 		super.OnTabRemove();
 	}
 
@@ -1105,6 +1091,14 @@ modded class SCR_AudioSettingsSubMenu
 		m_bBs5PresetSettingsDirty = false;
 	}
 
+	protected void FlushBs5PendingSettings()
+	{
+		FlushBs5EchoVolumeSetting();
+		FlushBs5SlapbackVolumeSetting();
+		FlushBs5SlapbackCloseVolumeSetting();
+		FlushBs5PresetSettings();
+	}
+
 	protected void RefreshBs5SlapbackEnabledRow()
 	{
 		bool enabled = BS5_PlayerAudioSettings.IsSlapbackEnabled();
@@ -1293,11 +1287,6 @@ modded class SCR_AudioSettingsSubMenu
 		target.SetSharpness(sourceText.GetSharpness());
 	}
 
-	protected bool TryCloneBs5EchoVolumeRow(VerticalLayoutWidget content)
-	{
-		return false;
-	}
-
 	protected Widget FindBs5ReferenceAudioRow(VerticalLayoutWidget content)
 	{
 		Widget child = content.GetChildren();
@@ -1390,18 +1379,5 @@ modded class SCR_AudioSettingsSubMenu
 			return textWidgets[textWidgets.Count() - 1];
 
 		return null;
-	}
-
-	protected void ClearBs5ScriptHandlers(Widget widget)
-	{
-		if (!widget)
-			return;
-
-		for (int handlerIndex = widget.GetNumHandlers() - 1; handlerIndex >= 0; handlerIndex--)
-		{
-			ScriptedWidgetEventHandler handler = widget.GetHandler(handlerIndex);
-			if (handler)
-				widget.RemoveHandler(handler);
-		}
 	}
 }

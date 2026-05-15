@@ -464,6 +464,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	protected int m_iCacheGeneration;
 	protected bool m_bCacheValid;
 	protected bool m_bLastSuppressed;
+	protected bool m_bLastExplosionLike;
 	protected vector m_vTailSectorCacheOrigin;
 	protected vector m_vTailSectorCacheForward;
 	protected BS5_TailProfileType m_eTailSectorCacheProfile;
@@ -494,6 +495,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_iCacheGeneration = 0;
 		m_bCacheValid = false;
 		m_bLastSuppressed = false;
+		m_bLastExplosionLike = false;
 		m_vTailSectorCacheOrigin = vector.Zero;
 		m_vTailSectorCacheForward = "0 0 1";
 		m_eTailSectorCacheProfile = BS5_TailProfileType.OPEN_MEADOW;
@@ -544,6 +546,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_iLimiterBurstGeneration++;
 		m_bCacheValid = false;
 		m_LastResult = null;
+		m_bLastExplosionLike = false;
 		m_bDispatchGuardActive = false;
 		m_iLimiterBurstShotCount = 0;
 
@@ -605,7 +608,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (!result)
 			return;
 
-		StoreCachedResult(result, suppressed);
+		StoreCachedResult(result, suppressed, false);
 
 		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "shot analysis " + result.m_sDebugSummary);
@@ -654,7 +657,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (!result)
 			return;
 
-		StoreCachedResult(result, false);
+		StoreCachedResult(result, false, true);
 
 		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "explosion analysis " + result.m_sDebugSummary);
@@ -2070,6 +2073,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (explosionLike && !m_bEnableExplosionReuse)
 			return null;
 
+		if (explosionLike != m_bLastExplosionLike)
+			return null;
+
 		float positionTolerance = GetCachePositionToleranceMeters();
 		if (vector.DistanceSq(origin, m_vLastOrigin) > positionTolerance * positionTolerance)
 			return null;
@@ -2096,12 +2102,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return planarForward;
 	}
 
-	protected void StoreCachedResult(BS5_EchoAnalysisResult result, bool suppressed)
+	protected void StoreCachedResult(BS5_EchoAnalysisResult result, bool suppressed, bool explosionLike)
 	{
 		m_iCacheGeneration++;
 		m_LastResult = result;
 		m_bCacheValid = true;
 		m_bLastSuppressed = suppressed;
+		m_bLastExplosionLike = explosionLike;
 
 		float cacheLifetime = m_fCacheTtlSeconds;
 		if (m_fBurstReuseWindowSeconds > cacheLifetime)

@@ -14,13 +14,13 @@ class BS5_SoundPresetConfigEntry
 	[Attribute(defvalue: "Vanilla")]
 	string m_sDisplayName;
 
-	[Attribute(defvalue: "0.65")]
+	[Attribute(defvalue: "0.75")]
 	float m_fEchoVolume;
 
-	[Attribute(defvalue: "0.40")]
+	[Attribute(defvalue: "0.60")]
 	float m_fSlapbackVolume;
 
-	[Attribute(defvalue: "0.40")]
+	[Attribute(defvalue: "0.80")]
 	float m_fSlapbackCloseVolume;
 }
 
@@ -521,10 +521,10 @@ class BS5_PresetRegistry
 
 	protected static void AddFallbackSoundPresets()
 	{
-		AddSoundPreset("vanilla", "Vanilla", 0.65, 0.40, 0.40);
-		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 0.90, 0.70, 0.70);
-		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.50, 0.50);
-		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.45, 0.45);
+		AddSoundPreset("vanilla", "Vanilla", 0.75, 0.60, 0.80);
+		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 1.00, 1.00, 1.00);
+		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.60, 0.60);
+		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.85, 0.95);
 	}
 
 	protected static void AddFallbackTechnicalPresets()

@@ -1,12 +1,12 @@
 class BS5_GameAudioSettings : ModuleGameSettings
 {
-	[Attribute(defvalue: "0.65", desc: "Client-local BS5 echo volume scalar.")]
+	[Attribute(defvalue: "0.75", desc: "Client-local BS5 echo volume scalar.")]
 	float echoVolume;
 
-	[Attribute(defvalue: "0.4", desc: "Client-local BS5 slapback volume scalar.")]
+	[Attribute(defvalue: "0.6", desc: "Client-local BS5 slapback volume scalar.")]
 	float slapbackVolume;
 
-	[Attribute(defvalue: "0.4", desc: "Client-local BS5 close slapback volume scalar.")]
+	[Attribute(defvalue: "0.8", desc: "Client-local BS5 close slapback volume scalar.")]
 	float slapbackCloseVolume;
 
 	[Attribute(defvalue: "1", desc: "Client-local BS5 slapback master switch.")]
@@ -28,10 +28,13 @@ class BS5_PlayerAudioSettings
 	protected static const string FIELD_SLAPBACK_ENABLED = "slapbackEnabled";
 	protected static const string FIELD_TECHNICAL_PRESET_ID = "technicalPresetId";
 	protected static const string FIELD_SOUND_PRESET_ID = "soundPresetId";
+	protected static const float DEFAULT_ECHO_VOLUME = 0.75;
+	protected static const float DEFAULT_SLAPBACK_VOLUME = 0.6;
+	protected static const float DEFAULT_SLAPBACK_CLOSE_VOLUME = 0.8;
 	protected static bool s_bInitialized;
-	protected static float s_fEchoVolume = 0.65;
-	protected static float s_fSlapbackVolume = 0.4;
-	protected static float s_fSlapbackCloseVolume = 0.4;
+	protected static float s_fEchoVolume = DEFAULT_ECHO_VOLUME;
+	protected static float s_fSlapbackVolume = DEFAULT_SLAPBACK_VOLUME;
+	protected static float s_fSlapbackCloseVolume = DEFAULT_SLAPBACK_CLOSE_VOLUME;
 	protected static bool s_bSlapbackEnabled = true;
 	protected static string s_sTechnicalPresetId = "default";
 	protected static string s_sSoundPresetId = "vanilla";
@@ -261,14 +264,15 @@ class BS5_PlayerAudioSettings
 
 	protected static void OnUserSettingsChanged()
 	{
+		BS5_SpatialSoundEmitterComponent.ClearAudioProjectCaches();
 		LoadFromUserSettings();
 	}
 
 	protected static void LoadFromUserSettings()
 	{
-		float echoValue = 0.65;
-		float slapbackValue = 0.4;
-		float slapbackCloseValue = 0.4;
+		float echoValue = DEFAULT_ECHO_VOLUME;
+		float slapbackValue = DEFAULT_SLAPBACK_VOLUME;
+		float slapbackCloseValue = DEFAULT_SLAPBACK_CLOSE_VOLUME;
 		bool slapbackEnabled = true;
 		string technicalPresetId = BS5_PresetRegistry.GetDefaultTechnicalPresetId();
 		string soundPresetId = BS5_PresetRegistry.GetDefaultSoundPresetId();
