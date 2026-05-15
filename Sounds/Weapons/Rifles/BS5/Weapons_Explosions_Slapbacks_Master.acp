@@ -1313,7 +1313,7 @@ AudioClass {
    id 435204
    name "EL Houses Far"
    version 7
-   tl -144 656
+   tl -144 657.512
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -1337,6 +1337,8 @@ AudioClass {
    pi {
     35 0
    }
+   Volume -4
+   Pitch 1
    "Termination Fade Out" 100
    Resampler FIR_4
    Offset 30

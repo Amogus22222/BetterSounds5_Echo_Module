@@ -2,14 +2,15 @@ GenericEntity {
  ID "CFBAA4B725411E45"
  components {
   BS5_AudioDebugSettingsComponent "{692681A02B441188}" {
-   Enabled 0
+   Enabled 1
+   m_bEnableDebug 1
    m_iDebugLevel 2
-   m_bDebugDriver 0
-   m_bDebugGeneral 0
+   m_bDebugDriver 1
+   m_bDebugGeneral 1
    m_bDebugAnalysis 1
    m_bDebugSlapback 1
    m_bDebugClose 1
-   m_bDebugEmit 0
+   m_bDebugEmit 1
    m_bDebugLimiter 0
   }
   BS5_CloseReflectionSettingsComponent "{692681A02B441177}" {
@@ -69,7 +70,7 @@ GenericEntity {
    m_fBurstReuseWindowSeconds 0.16
    m_bEnablePlaybackLimiter 1
    m_iLimiterGlobalMaxTailVoices 28
-   m_iLimiterGlobalMaxSlapbackVoices 8
+   m_iLimiterGlobalMaxSlapbackVoices 12
    m_iLimiterMaxPendingTailVoices 8
    m_iLimiterMaxTailVoicesPerOwner 6
    m_iLimiterBurstCadenceNormal 4
@@ -78,8 +79,8 @@ GenericEntity {
    m_iLimiterHighPressureTailEmittersPerShot 1
    m_fLimiterHighPressureThreshold 0.8
    m_fLimiterCriticalPressureThreshold 0.94
-   m_iLimiterMaxTailStartsPer100Ms 4
-   m_iLimiterMaxSlapbackStartsPer100Ms 4
+   m_iLimiterMaxTailStartsPer100Ms 12
+   m_iLimiterMaxSlapbackStartsPer100Ms 12
    m_fLimiterStealFadeSeconds 0.08
    m_iLimiterEstimatedSourcesPerTail 2
    m_iLimiterEstimatedSourcesPerSlapback 1
@@ -124,6 +125,7 @@ GenericEntity {
    m_fSlapbackMergeDistanceMeters 1.5
    m_fSlapbackWallOffsetMeters 0.1
    m_fSlapbackPathLengthScale 1.3
+   m_fExplosionEmitterLifetimeScale 1.7
    m_fFacadeDelayScale 1
    m_fSoundMapForwardConeDegrees 120
    m_fSoundMapForwardMaxDistanceMeters 700

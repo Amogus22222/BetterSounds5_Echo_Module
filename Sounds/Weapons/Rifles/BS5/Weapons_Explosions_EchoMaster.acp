@@ -918,7 +918,7 @@ AudioClass {
   SoundClass "5129" : "{13C278F132A459F4}Sounds/_SharedData/Configs/Sound/Weapons/Sound_Weapons_Shot_556.conf" {
    id 5129
    version 5
-   tl 1552 928
+   tl 1552 944
    ctl 0 -21
    parent "{13C278F132A459F4}Sounds/_SharedData/Configs/Sound/Weapons/Sound_Weapons_Shot_556.conf"
    ins {
@@ -961,7 +961,7 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 8
+   volume_dB 15
    priority 40
    eventNoRepeatTimeMSec 200
   }
@@ -1881,20 +1881,20 @@ AudioClass {
     35 0
    }
    Volume 3
-   Pitch 5
+   Pitch 2
    "Pitch variance" 2
    "Termination Fade Out" 100
    Resampler FIR_4
    Preload 1
    Samples {
-    AudioBankSampleClass "Tail_2.wav" {
-     Filename "{0023057A24536FA7}Assets/explosions/Tail_2.wav"
+    AudioBankSampleClass "Mortar.wav" {
+     Filename "{78DEFBB5A04EB2C7}Assets/explosions/Mortar.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "Tail_1.wav" {
-     Filename "{993DBCE339B45E37}Assets/explosions/Tail_1.wav"
+    AudioBankSampleClass "Rocket.wav" {
+     Filename "{234351F79263B506}Assets/explosions/Rocket.wav"
      Probability 100
      Index 1
      SampleMetadata ""

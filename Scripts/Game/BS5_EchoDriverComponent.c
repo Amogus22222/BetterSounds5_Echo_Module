@@ -148,7 +148,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "16", desc: "Global weighted cap of simultaneously playing BS5 tail native source voices across all weapons. Older far/quiet voices may be stolen above this cap.")]
 	protected int m_iLimiterGlobalMaxTailVoices;
 
-	[Attribute(defvalue: "6", desc: "Global weighted cap of simultaneously playing BS5 slapback native source voices across all weapons.")]
+	[Attribute(defvalue: "12", desc: "Global weighted cap of simultaneously playing BS5 slapback native source voices across all weapons.")]
 	protected int m_iLimiterGlobalMaxSlapbackVoices;
 
 	[Attribute(defvalue: "8", desc: "Maximum delayed weighted tail source starts waiting for playback. Extra low-priority delayed tails are dropped before spawning emitters.")]
@@ -175,10 +175,10 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "0.94", desc: "Global tail voice pressure where the limiter may steal old far/quiet voices aggressively.")]
 	protected float m_fLimiterCriticalPressureThreshold;
 
-	[Attribute(defvalue: "4", desc: "Maximum weighted tail source starts allowed per rolling 100 ms gate before defer/drop.")]
+	[Attribute(defvalue: "12", desc: "Maximum weighted tail source starts allowed per rolling 100 ms gate before defer/drop.")]
 	protected int m_iLimiterMaxTailStartsPer100Ms;
 
-	[Attribute(defvalue: "4", desc: "Maximum weighted slapback source starts allowed per rolling 100 ms gate before defer/drop.")]
+	[Attribute(defvalue: "12", desc: "Maximum weighted slapback source starts allowed per rolling 100 ms gate before defer/drop.")]
 	protected int m_iLimiterMaxSlapbackStartsPer100Ms;
 
 	[Attribute(defvalue: "0.08", desc: "Fade-out time in seconds used when the limiter steals or prunes BS5 playback.")]
@@ -363,6 +363,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	[Attribute(defvalue: "1.0", desc: "Global intensity multiplier applied to explosion-like events before candidate scoring.")]
 	protected float m_fExplosionIntensityMultiplier;
+
+	[Attribute(defvalue: "1.7", desc: "Lifetime multiplier applied only to explosion-like echo emitters.")]
+	protected float m_fExplosionEmitterLifetimeScale;
 
 	[Attribute(defvalue: "1.0", desc: "Multiplier exposed to ACP as BS5_ReverbSend.")]
 	protected float m_fReverbSendScale;
@@ -949,6 +952,13 @@ class BS5_EchoDriverComponent : ScriptComponent
 	float GetExplosionIntensityMultiplier()
 	{
 		return m_fExplosionIntensityMultiplier;
+	}
+
+	float GetExplosionEmitterLifetimeSeconds()
+	{
+		float baseLifetime = GetEmitterLifetimeSeconds(false);
+		float scale = BS5_EchoMath.Clamp(m_fExplosionEmitterLifetimeScale, 1.0, 4.0);
+		return baseLifetime * scale;
 	}
 
 	int GetMaxTailEmittersPerShot()

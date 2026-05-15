@@ -1,6 +1,17 @@
 GenericEntity {
  ID "8C9772B3FA71A2CF"
  components {
+  BS5_AudioDebugSettingsComponent "{6D531A9D2D8B4931}" {
+   m_bEnableDebug 1
+   m_iDebugLevel 2
+   m_bDebugDriver 1
+   m_bDebugGeneral 1
+   m_bDebugAnalysis 1
+   m_bDebugSlapback 1
+   m_bDebugClose 1
+   m_bDebugEmit 1
+   m_bDebugLimiter 0
+  }
   BS5_CloseReflectionSettingsComponent "{4F65F22E88A840E4}" {
    m_bEnableCloseReflection 1
    m_sCloseSlapbackAcp "{1A9C4D83B5E24761}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Master.acp"
@@ -55,6 +66,7 @@ GenericEntity {
    m_fSlapbackWallOffsetMeters 0.1
    m_fSlapbackPathLengthScale 1.3
    m_fExplosionIntensityMultiplier 1.0
+   m_fExplosionEmitterLifetimeScale 1.7
   }
  }
 }

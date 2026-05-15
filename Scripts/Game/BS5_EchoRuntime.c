@@ -1,6 +1,7 @@
 class BS5_EchoRuntime
 {
 	protected static const ResourceName DEFAULT_EXPLOSION_DRIVER_PREFAB = "{0FEFE02500672DD0}Prefabs/Props/BS5_ExplosionDriver.et";
+	protected static const bool EXPLOSION_DIAGNOSTIC_LOG = true;
 	protected static IEntity s_pExplosionDriverEntity;
 	protected static int s_iLastExplosionDispatchFrame;
 	protected static vector s_vLastExplosionDispatchOrigin;
@@ -39,8 +40,13 @@ class BS5_EchoRuntime
 				origin = pHitEntity.GetOrigin();
 		}
 
+		ExplosionDiag("hook source=" + sourceTag + " origin=" + origin);
+
 		if (ShouldSuppressExplosionDispatch(origin))
+		{
+			ExplosionDiag("suppressed duplicate source=" + sourceTag);
 			return;
+		}
 
 		vector forward = outMat[1];
 		forward[1] = 0.0;
@@ -57,14 +63,21 @@ class BS5_EchoRuntime
 
 		if (driver && driver.IsExplosionReuseEnabled())
 		{
+			if (driver.IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+				BS5_DebugLog.Channel(driver, BS5_DebugChannel.DRIVER, "explosion dispatch source=" + sourceTag + " localDriver=1 origin=" + origin);
 			driver.HandleExplosionAt(driver.GetOwner(), origin, forward, true);
 			return;
 		}
 
 		BS5_EchoDriverComponent globalDriver = ResolveGlobalExplosionDriver(origin);
 		if (!globalDriver)
+		{
+			ExplosionDiag("no global driver source=" + sourceTag);
 			return;
+		}
 
+		if (globalDriver.IsDebugChannelEnabled(BS5_DebugChannel.DRIVER))
+			BS5_DebugLog.Channel(globalDriver, BS5_DebugChannel.DRIVER, "explosion dispatch source=" + sourceTag + " localDriver=0 origin=" + origin);
 		globalDriver.HandleExplosionAt(globalDriver.GetOwner(), origin, forward, false);
 	}
 
@@ -140,11 +153,17 @@ class BS5_EchoRuntime
 
 		Game game = GetGame();
 		if (!game)
+		{
+			ExplosionDiag("no game while resolving global driver");
 			return null;
+		}
 
 		Resource driverPrefab = Resource.Load(DEFAULT_EXPLOSION_DRIVER_PREFAB);
 		if (!driverPrefab || !driverPrefab.IsValid())
+		{
+			ExplosionDiag("driver prefab load failed " + DEFAULT_EXPLOSION_DRIVER_PREFAB);
 			return null;
+		}
 
 		IEntity driverEntity = game.SpawnEntityPrefab(driverPrefab, game.GetWorld(), null);
 		if (!driverEntity)
@@ -154,11 +173,26 @@ class BS5_EchoRuntime
 				driverEntity = chimeraGame.SpawnEntityPrefabLocal(driverPrefab, game.GetWorld(), null);
 		}
 		if (!driverEntity)
+		{
+			ExplosionDiag("driver prefab spawn failed");
 			return null;
+		}
 
 		driverEntity.SetOrigin(origin);
 		s_pExplosionDriverEntity = driverEntity;
-		return BS5_EchoDriverComponent.Cast(driverEntity.FindComponent(BS5_EchoDriverComponent));
+		BS5_EchoDriverComponent driver = BS5_EchoDriverComponent.Cast(driverEntity.FindComponent(BS5_EchoDriverComponent));
+		if (!driver)
+			ExplosionDiag("driver prefab has no BS5_EchoDriverComponent");
+
+		return driver;
+	}
+
+	protected static void ExplosionDiag(string message)
+	{
+		if (!EXPLOSION_DIAGNOSTIC_LOG)
+			return;
+
+		Print("[BS5][explosion_hook] " + message);
 	}
 }
 
@@ -3134,6 +3168,8 @@ class BS5_EchoEmissionService
 			return 1.0;
 
 		float lifetime = settings.GetEmitterLifetimeSeconds(context.m_bSlapback);
+		if (context.m_bExplosion && !context.m_bSlapback)
+			lifetime = settings.GetExplosionEmitterLifetimeSeconds();
 		if (context.m_bSlapback || context.m_bExplosion || !settings.IsPlaybackLimiterEnabled())
 			return lifetime;
 
