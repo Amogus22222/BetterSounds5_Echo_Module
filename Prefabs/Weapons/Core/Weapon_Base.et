@@ -2,15 +2,15 @@ GenericEntity {
  ID "CFBAA4B725411E45"
  components {
   BS5_AudioDebugSettingsComponent "{692681A02B441188}" {
-   Enabled 1
-   m_bEnableDebug 1
-   m_iDebugLevel 2
-   m_bDebugDriver 1
-   m_bDebugGeneral 1
-   m_bDebugAnalysis 1
-   m_bDebugSlapback 1
-   m_bDebugClose 1
-   m_bDebugEmit 1
+   Enabled 0
+   m_bEnableDebug 0
+   m_iDebugLevel 0
+   m_bDebugDriver 0
+   m_bDebugGeneral 0
+   m_bDebugAnalysis 0
+   m_bDebugSlapback 0
+   m_bDebugClose 0
+   m_bDebugEmit 0
    m_bDebugLimiter 0
   }
   BS5_CloseReflectionSettingsComponent "{692681A02B441177}" {

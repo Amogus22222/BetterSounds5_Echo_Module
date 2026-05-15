@@ -47,14 +47,6 @@ class EMCP_WB_Ping : NetApiHandler
 			return resp;
 		}
 
-		if (!SCR_WorldEditorToolHelper.IsWorldLoaded())
-		{
-			resp.status = "ok";
-			resp.mode = "loading";
-			resp.message = "EnfusionMCP Workbench bridge active (world loading)";
-			return resp;
-		}
-
 		WorldEditorAPI api = worldEditor.GetApi();
 		if (api)
 		{

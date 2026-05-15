@@ -75,14 +75,6 @@ class EMCP_WB_GetState : NetApiHandler
 			return resp;
 		}
 
-		if (!SCR_WorldEditorToolHelper.IsWorldLoaded())
-		{
-			resp.status = "ok";
-			resp.mode = "loading";
-			resp.message = "World is not loaded yet";
-			return resp;
-		}
-
 		WorldEditorAPI api = worldEditor.GetApi();
 		if (!api)
 		{

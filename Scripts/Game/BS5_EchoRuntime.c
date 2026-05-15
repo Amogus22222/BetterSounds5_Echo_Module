@@ -1,7 +1,7 @@
 class BS5_EchoRuntime
 {
 	protected static const ResourceName DEFAULT_EXPLOSION_DRIVER_PREFAB = "{0FEFE02500672DD0}Prefabs/Props/BS5_ExplosionDriver.et";
-	protected static const bool EXPLOSION_DIAGNOSTIC_LOG = true;
+	protected static const bool EXPLOSION_DIAGNOSTIC_LOG = false;
 	protected static IEntity s_pExplosionDriverEntity;
 	protected static int s_iLastExplosionDispatchFrame;
 	protected static vector s_vLastExplosionDispatchOrigin;
