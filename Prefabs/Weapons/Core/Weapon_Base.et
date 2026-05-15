@@ -154,7 +154,7 @@ GenericEntity {
   }
   BS5_WeaponEchoSettingsComponent "{692681A029041226}" {
    m_EchoProject "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
-   m_SuppressedEchoProject "{5B784125E2E54AA0}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp"
+   m_SuppressedEchoProject "{064282CFD84AFC4E}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp.acp"
    m_SlapbackProject "{A5088F4119AED643}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Master.acp"
    m_SuppressedSlapbackProject "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"
   }

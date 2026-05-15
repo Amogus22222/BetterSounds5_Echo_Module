@@ -10,7 +10,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	protected static const ResourceName DEFAULT_SUPPRESSED_MASTER_EMITTER_PREFAB = "{A59D3E1092B44A6C}Prefabs/Props/BS5_TailEmitter_Silenced.et";
 	protected static const ResourceName DEFAULT_SLAPBACK_EMITTER_PREFAB = "{29D823F0744A8637}Prefabs/Props/BS5_SlapbackEmitter.et";
 	protected static const ResourceName DEFAULT_SUPPRESSED_SLAPBACK_EMITTER_PREFAB = "{D07C4B82E65C4F31}Prefabs/Props/BS5_SlapbackEmitter_Silenced.et";
-	protected static const ResourceName MACHINEGUN_MASTER_ACP = "{13CBB6A34DC9700D}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp";
+	protected static const ResourceName MACHINEGUN_MASTER_ACP = "{1C6E4055FD8532F6}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp.acp";
 
 	[Attribute(defvalue: "", desc: "Optional ACP override for long tail playback. Direct ACP playback is tried first; if the engine rejects it, playback falls back to the emitter prefab SoundComponent.")]
 	protected ResourceName m_sMasterAcp;
