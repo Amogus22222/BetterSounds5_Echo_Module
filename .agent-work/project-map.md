@@ -1,47 +1,24 @@
-# Project map - BetterSounds5 Echo Module
+# Project map - BetterSounds5
 
-Generated: 2026-05-15
-Mod root: `G:\BettersMods\BettersMods\BetterSounds5_Echo_Module`
-Active `.gproj`: `addon.gproj`
+Generated: 2026-05-15 19:11 +03:00
+Mod root: G:\BettersMods\BettersMods\BetterSounds5_Echo_Module
+.gproj: G:\BettersMods\BettersMods\BetterSounds5_Echo_Module\addon.gproj
 
 ## Executive summary
 
-`BetterSounds5_Echo_Module` is an Arma Reforger audio-extension mod. It adds runtime weapon tails, close slapbacks, explosion echoes, explosion slapbacks, configurable user audio settings, and technical presets for scan/trace/limiter behavior.
+BetterSounds5 is an Arma Reforger audio extension that adds scripted weapon-tail, slapback, close-reflection, and explosion echo routing. The main runtime path attaches `BS5_EchoDriverComponent` to weapon/explosion-driver prefabs, intercepts muzzle fire via a `modded SCR_MuzzleEffectComponent`, and intercepts detonation/impact cases through `BS5_ExplosionBridge.c` plus `BS5_ExplosionEchoEffect : BaseProjectileEffect`.
 
-The runtime design is component/prefab driven:
+The system is script-heavy. The main risk surface is not asset volume; it is runtime analysis, SoundMap/terrain/entity probing, delayed emitter scheduling, limiter state, and prefab coverage for projectile/effect containers.
 
-- Weapon prefabs receive `BS5_EchoDriverComponent` plus debug/settings components.
-- Muzzle-fire hooks enter through a modded `SCR_MuzzleEffectComponent.OnFired`.
-- Explosion hooks enter through modded explosive/trigger classes and `BS5_ExplosionEchoEffect : BaseProjectileEffect`.
-- Runtime analysis builds echo/slapback candidates from terrain, SoundWorld signals, entity queries, and traces.
-- Playback is either managed through `SCR_SoundManagerModule` / `AudioSystem.PlayEvent` or through spawned emitter prefabs with `SoundComponent` and `BS5_SpatialSoundEmitterComponent`.
+## Current repo state
 
-The highest-risk code is the runtime hot path:
+Checked with `git status --short` before writing this map.
 
-- `Scripts/Game/BS5_EchoRuntime.c`
-- `Scripts/Game/BS5_EchoDriverComponent.c`
-- `Scripts/Game/BS5_EnvironmentAudioClassifier.c`
-- `Scripts/Game/BS5_CloseReflectionPlanner.c`
-
-The main audit theme should be duplicated analysis/dispatch, trace and entity-query cost, limiter correctness, resource fallback behavior, and UI/settings coupling.
-
-## Current git/worktree state
-
-Pre-map state:
-
-- `git status --short --untracked-files=all`: clean.
-- `git diff --stat`: clean.
-- Recent history includes:
-  - `997e135 Load EnfusionMCP handlers into BetterSounds5_Echo_Module`
-  - `ecbd5c4 Expand explosion echo hooks and raise limiter caps`
-  - `254bbba Add dedicated explosion echo and slapback ACPs`
-  - `39b4b0b Fix BS5 cache and settings defaults`
-  - `1cd5d76 Add BetterSounds5 echo module audit`
-  - `e3894b6 Add project map for BetterSounds5 Echo Module`
-
-This map intentionally adds `.agent-work/project-map.md`. `.agent-work/` did not exist before this mapping pass.
-
-Note: `Scripts/WorkbenchGame/EnfusionMCP/` handler scripts are present in the mod tree from a previous Workbench/MCP setup commit. Treat them as tooling support, not gameplay runtime. Before publish/release, check whether `wb_cleanup` should remove them.
+- Gameplay files: no non-`.agent-work` git diff was present at bootstrap.
+- `.agent-work`: existing tracked audit/goal/map files were already deleted before this run; this map recreates `.agent-work/project-map.md`.
+- Final hygiene status also shows unrelated untracked weapon prefab files under `Prefabs/Weapons/Cannons/` and `Prefabs/Weapons/HeavyWeapons/`. They were not part of this mapping pass and were left untouched.
+- Workbench helper scripts are present under `Scripts/WorkbenchGame/EnfusionMCP/`. They are useful locally but are not publishable mod content and should be cleaned with `wb_cleanup` before Workshop publication.
+- MCP merged-prefab inspection currently shows `BS5_AudioDebugSettingsComponent` enabled with debug level 2 on both `Prefabs/Weapons/Core/Weapon_Base.et` and `Prefabs/Props/BS5_ExplosionDriver.et`. This is live current state, not an old memory claim.
 
 ## Addon identity and dependencies
 
@@ -50,793 +27,360 @@ From `addon.gproj` and MCP `workshop_info`:
 - ID: `BetterSounds5`
 - GUID: `6717325A0F4513E2`
 - Title: `BetterSounds5`
-- Dependency: `58D0FB3206B6F859` (`Arma Reforger`, resolved by MCP `workshop_info`)
-
-Important root files:
-
-- `addon.gproj`: addon identity.
-- `resourceDatabase.rdb`: Workbench resource database, about 24 KB at mapping time.
-- `UserMaps.desc`: effectively empty, `UserMapDescClass {}`.
-- `LICENSE`: MIT-style license file.
-
-No current root `README.md`, `PROJECT_MAP.md`, or tracked markdown file was visible in the live working tree. Older git history mentions deleted/previous docs, but this artifact is the active map for future agents.
+- Dependency: `58D0FB3206B6F859` (Arma Reforger)
+- Project file: `G:\BettersMods\BettersMods\BetterSounds5_Echo_Module\addon.gproj`
 
 ## Functional overview
 
-The mod provides a BetterSounds-style echo/reflection system for weapons and explosions:
+Core behavior:
 
-- Per-shot tails: long environmental tails for rifle, machine gun, and suppressed shots.
-- Slapbacks: short reflection events from nearby walls/urban/trench/close-pocket geometry.
-- Close reflection: separate close slapback planner and close slapback ACP/prefab.
-- Explosion echo reuse: explosion and projectile-effect hooks route into the same analysis/emission stack with explosion-specific ACPs and emitter prefabs.
-- Player settings: user-facing echo/slapback/close/explosion volume and preset controls injected into the vanilla audio settings menu.
-- Technical presets: performance/quality tuning for scan radius, trace counts, SoundMap planner, limiter caps, and path validation.
+- Adds echo-tail and slapback emitters to weapon fire.
+- Supports ordinary, suppressed, MG/launcher-style, trench, close-reflection, and explosion-like routing.
+- Uses environment and SoundMap analysis to choose reflector anchors and emitted tail profiles.
+- Persists user audio settings and presets through settings menu integration.
+- Uses prefab-side components for configuration and emitter ACP routing.
+
+Important lifecycle split:
+
+- Ordinary shot path: `SCR_MuzzleEffectComponent.OnFired` -> `BS5_EchoDriverComponent.HandleWeaponFire`.
+- Fire-time blast callback: `SCR_WeaponBlastComponent.OnWeaponFired` -> `HandleExplosionFire`; must not be mistaken for impact detonation coverage.
+- Projectile impact/detonation path: `BS5_ExplosionEchoEffect.OnEffect` and trigger-component hooks -> `BS5_EchoRuntime.DispatchExplosionEffect`.
 
 ## Entry points and runtime flow
 
-### Weapon shot flow
+Primary shot flow:
 
-1. `modded class SCR_MuzzleEffectComponent` in `Scripts/Game/BS5_EchoDriverComponent.c` overrides `OnFired`.
-2. It calls `BS5_EchoRuntime.FindDriver(effectEntity, muzzle)`.
-3. The resolved `BS5_EchoDriverComponent` runs `HandleWeaponFire`.
-4. Driver resolves owner, suppression state, duplicate guard, cached result, and active budget.
-5. `BS5_EchoRuntime.AnalyzeShot` builds `BS5_EchoAnalysisResult`.
-6. `BS5_EchoRuntime.EmitShot` queues tails and slapbacks through `BS5_EchoEmissionService`.
-7. Emission either plays managed audio directly or spawns an emitter prefab with `BS5_SpatialSoundEmitterComponent`.
+1. `Scripts/Game/BS5_EchoDriverComponent.c`
+   - `modded class SCR_MuzzleEffectComponent`
+   - `override OnFired(...)`
+   - Finds `BS5_EchoDriverComponent` and calls `HandleWeaponFire(...)`.
+2. `BS5_EchoDriverComponent.HandleWeaponFire(...)`
+   - Detects suppressed state and launcher/ammo path.
+   - Applies playback limiter admission.
+   - Calls `BS5_EchoRuntime.AnalyzeShot(...)`.
+   - Calls `BS5_EchoRuntime.EmitShot(...)`.
+3. `Scripts/Game/BS5_EchoRuntime.c`
+   - `BS5_EchoEnvironmentAnalyzer.Analyze(...)` builds near confinement, slapback, tail, SoundMap, and environment signals.
+   - `BS5_EchoEmissionService.Emit(...)` queues tail/slapback emission contexts.
+   - `QueueEmission(...)`, `EmitPending(...)`, and `EmitOnEmitter(...)` schedule playback and cleanup.
+4. `Scripts/Game/BS5_SpatialSoundEmitterComponent.c`
+   - Plays via `SoundComponent`/audio project routing and writes runtime signals to `SignalsManagerComponent`.
 
-### Explosion flow
+Explosion flow:
 
-1. `Scripts/Game/BS5_ExplosionBridge.c` hooks:
-   - `SCR_WeaponBlastComponent.OnWeaponFired`
-   - `SCR_ExplosiveTriggerComponent.TriggeredInSafetyDistance`
-   - `SCR_PressureTriggerComponent.TriggeredInSafetyDistance`
-   - `BS5_ExplosionEchoEffect.OnEffect`
-2. All paths call `BS5_EchoRuntime.DispatchExplosionEffect(...)`.
-3. Runtime suppresses near-duplicate explosion dispatches by origin.
-4. Runtime resolves a local explosion driver entity from `Prefabs/Props/BS5_ExplosionDriver.et` when needed.
-5. It analyzes and emits explosion-specific echo/slapback candidates through the same emission service.
+1. `Scripts/Game/BS5_ExplosionBridge.c`
+   - `modded SCR_WeaponBlastComponent.OnWeaponFired(...)`
+   - `modded SCR_ExplosiveTriggerComponent.TriggeredInSafetyDistance(...)`
+   - `modded SCR_PressureTriggerComponent.TriggeredInSafetyDistance(...)`
+   - `BS5_ExplosionEchoEffect.OnEffect(...)`
+2. `BS5_EchoRuntime.DispatchExplosionEffect(...)`
+   - Resolves the explosion driver, owner/origin/forward, and calls explosion analysis/emission.
+3. `Prefabs/Props/BS5_ExplosionDriver.et`
+   - Provides standalone `BS5_EchoDriverComponent`, close-reflection settings, debug settings, explosion ACPs, and explosion emitter prefab refs.
 
-### Settings flow
+Settings/UI flow:
 
-1. `modded class SCR_AudioSettingsSubMenu` procedurally adds BS5 rows into the vanilla audio settings tab.
-2. UI writes values into `BS5_PlayerAudioSettings`.
-3. `BS5_PlayerAudioSettings` persists through `BS5_GameAudioSettings : ModuleGameSettings`.
-4. Preset changes use `BS5_PresetRegistry`, which loads config files and falls back to hardcoded defaults when config load fails.
-5. Settings changes clear audio project caches through `BS5_SpatialSoundEmitterComponent.ClearAudioProjectCaches()`.
+1. `Scripts/Game/UI/Menu/SettingsMenu/BS5_AudioSettingsSubMenu.c`
+   - `modded SCR_AudioSettingsSubMenu`
+   - Adds/updates BS5 echo/slapback/close/explosion controls and preset widgets.
+2. `Scripts/Game/BS5_PlayerAudioSettings.c`
+   - `BS5_GameAudioSettings : ModuleGameSettings`
+   - Static `BS5_PlayerAudioSettings` getters/setters/save/load.
+3. `Scripts/Game/BS5_PresetRegistry.c`
+   - Loads sound and technical presets from `Configs/BS5/Presets/*.conf`.
 
 ## Script map
 
-| File | Responsibility | Key classes/functions | Dependencies | Risk notes |
-| --- | --- | --- | --- | --- |
-| `Scripts/Game/BS5_EchoTypes.c` | Shared data contracts, enums, result/context structs, math helpers. | `BS5_EchoAnalysisResult`, `BS5_PendingEmissionContext`, `BS5_EchoMath`. | All runtime, driver, UI/debug code. | Field drift breaks many consumers; treat as ABI-like. |
-| `Scripts/Game/BS5_DebugLog.c` | Channel-aware logging facade. | `IsEnabled`, `Channel`, `ChannelEnabled`. | `BS5_EchoDriverComponent`, `BS5_AudioDebugSettingsComponent`. | Debug spam if prefab flags are enabled. |
-| `Scripts/Game/BS5_AudioDebugSettingsComponent.c` | Debug component with channel/level flags. | `IsAnyDebugEnabled`, `GetDebugLevel`, `Allows`. | Prefabs with component defaults. | Prefab debug defaults can heavily affect runtime cost/log volume. |
-| `Scripts/Game/BS5_CloseReflectionSettingsComponent.c` | Close slapback tuning and resource resolution. | `ResolveCloseSlapbackAcp`, `GetAcceptScoreMin`, `AllowRoofRescue`. | `BS5_CloseReflectionPlanner`, driver, close emitter/ACP resources. | Threshold tuning directly changes close echo presence. |
-| `Scripts/Game/BS5_PlayerAudioSettings.c` | Persistent user audio settings. | `BS5_GameAudioSettings`, `Get/Set*`, `Save`, `LoadFromUserSettings`. | `ModuleGameSettings`, `BS5_PresetRegistry`, cache clear. | String-coupled module name and global cache invalidation. |
-| `Scripts/Game/BS5_PresetRegistry.c` | Loads sound/technical presets from configs with hardcoded fallback. | `LoadSoundPresetsFromConfig`, `LoadTechnicalPresetsFromConfig`, `Apply*Preset`. | `Configs/BS5/Presets/*.conf`, `BaseContainerTools`, settings. | Silent fallback can hide broken configs. |
-| `Scripts/Game/BS5_SpatialSoundEmitterComponent.c` | Playback helper on spawned emitter prefabs. | `Play`, `TryPlayAudioSystemProject`, `BuildAudioSystemSignals`, `SetSignalValue`. | `SoundComponent`, `SignalsManagerComponent`, `AudioSystem`, context. | Invalid project/event caching can suppress future playback; signal push cost. |
-| `Scripts/Game/BS5_EnvironmentAudioClassifier.c` | SoundWorld/environment analysis and SoundMap/terrain candidate planner. | `BuildSnapshot`, `BS5_HybridTailPlanner.BuildCandidates`, `BS5_SoundMapAnchorPlanner.TryBuildCandidates`. | `SoundWorld`, terrain helper, game/entity signals, traces. | Highest analysis cost: terrain samples, signal reads, queries, traces. |
-| `Scripts/Game/BS5_CloseReflectionPlanner.c` | Close-pocket slapback planner and scoring. | `Evaluate`, `TryAcceptDirect`, `TryAcceptRoofRescue`, `TryAcceptWallRescue`, `TraceProbeHit`. | Driver/settings, `BS5_EchoAnalysisResult`, traces. | Multiple acceptance paths and score blending should be audited carefully. |
-| `Scripts/Game/BS5_EchoRuntime.c` | Runtime core: driver lookup, analysis, explosion dispatch, emission service, limiter. | `FindDriver`, `DispatchExplosionEffect`, `BS5_EchoEnvironmentAnalyzer`, `BS5_EchoEmissionService`. | All BS5 data/settings classes, engine audio/spawn/query/trace APIs. | Main hot path; duplicate suppression, caching, sorting, limiter, playback coexist. |
-| `Scripts/Game/BS5_EchoDriverComponent.c` | Main weapon/explosion driver component and config surface. | `EOnInit`, `OnDelete`, `HandleWeaponFire`, `HandleExplosionFire`, `HandleExplosionAt`, nested settings/RPL components, modded `SCR_MuzzleEffectComponent.OnFired`. | Runtime, preset registry, debug settings, resource prefabs/ACPs. | Very large mixed config/lifecycle/routing/cache/limiter surface. |
-| `Scripts/Game/BS5_ExplosionBridge.c` | Explosion hook bridge into BS5 runtime. | Modded explosive/trigger hooks, `BS5_ExplosionEchoEffect.OnEffect`. | `BS5_EchoRuntime.DispatchExplosionEffect`, base projectile effects. | Duplicate explosion fan-in depends on runtime suppression. |
-| `Scripts/Game/UI/Menu/SettingsMenu/BS5_AudioSettingsSubMenu.c` | Procedural BS5 UI rows in vanilla audio settings. | `OnTabShow`, `OnChange`, row builders, refresh/flush/step helpers. | `SCR_AudioSettingsSubMenu`, `BS5_PlayerAudioSettings`, `BS5_PresetRegistry`. | Fragile against base menu/layout widget changes. |
+`Scripts/Game/BS5_EchoTypes.c`
+
+- Data model and math utilities.
+- Defines `BS5_EchoEnvironmentType`, `BS5_TailProfileType`, `BS5_VegetationClass`, `BS5_EchoCandidateSourceType`, `BS5_DebugChannel`, and `BS5_DebugLevel`.
+- Owns `BS5_EchoReflectorCandidate`, `BS5_EchoAnalysisResult`, `BS5_EnvironmentSnapshot`, `BS5_PendingEmissionContext`, `BS5_ActiveEchoVoice`, and `BS5_EchoMath`.
+
+`Scripts/Game/BS5_EchoDriverComponent.c`
+
+- Main per-weapon/per-driver config component.
+- Classes: `BS5_EchoDriverComponentClass`, `BS5_EchoDriverComponent`, `BS5_WeaponEchoSettingsComponent`, `BS5_WeaponEchoRplCharacterComponent`, `modded SCR_MuzzleEffectComponent`.
+- Responsibilities: attribute defaults, resource resolution, shot dispatch, explosion dispatch, playback limiter config, analysis cache, tail-sector cache, forward-facade negative cache, active emitter budget, debug channel bridge.
+- Key symbols from code scout: `BS5_EchoDriverComponent : ScriptComponent` at line 6, `EOnInit` line 514, `OnDelete` line 556, `HandleWeaponFire` line 581, `HandleExplosionAt` line 686, launcher/ammo detection around lines 2294-2315, duplicate-shot guard around lines 2345-2354, limiter cadence around lines 2356-2383, `modded SCR_MuzzleEffectComponent.OnFired` around lines 2636-2645.
+
+`Scripts/Game/BS5_EchoRuntime.c`
+
+- Main analysis and emission runtime.
+- Classes: `BS5_EchoRuntime`, `BS5_EchoEnvironmentAnalyzer`, `BS5_EchoEmissionService`.
+- Responsibilities: driver lookup, explosion dispatch, near tracing, slapback collection, tail candidate generation, emitter queueing, SoundManager fallback, limiter active voice bookkeeping, delayed cleanup.
+- Key symbols from code scout: `FindDriver` lines 9-19, `FindExplosionDriver` lines 21-28, `DispatchExplosionEffect` lines 30-82, frame/origin dedupe around lines 120-139, global driver spawn fallback around lines 142-187, `BS5_EchoEmissionService` starts line 1983, emission queue starts line 2237, start gate around lines 3256-3344, SoundManager fallback around lines 3346-3432.
+
+`Scripts/Game/BS5_EnvironmentAudioClassifier.c`
+
+- Environment snapshot and long-tail anchor planning.
+- Classes: `BS5_EnvironmentAudioClassifier`, `BS5_HybridTailPlanner`, `BS5_SoundMapAnchorSample`, `BS5_SoundMapAnchorPlanner`.
+- Responsibilities: global/entity audio signal reads, terrain height/normal sampling, SoundMap forward/omni samples, urban micro-scan, facade/entity candidates, path plausibility, terrain front-slope validation.
+- Key symbols from code scout: `BuildSnapshot` lines 26-83, terrain helpers around lines 144-220, `BS5_HybridTailPlanner.BuildCandidates` around lines 330-436, forward facade entity scan around lines 617-760, `BS5_SoundMapAnchorPlanner.TryBuildCandidates` starts around line 2464, SoundMap path validation around lines 3176-3372, terrain-profile validation around lines 3393-3491.
+
+`Scripts/Game/BS5_CloseReflectionPlanner.c`
+
+- Dedicated close slapback/reflection planner.
+- Classes: `BS5_CloseReflectionProbeHit`, `BS5_CloseReflectionPlannerResult`, `BS5_CloseReflectionSupportPoint`, `BS5_CloseReflectionEvidence`, `BS5_CloseReflectionPlanner`.
+- Responsibilities: close pocket evidence, side/front-back/corner pair scoring, roof/wall rescue traces, candidate synthesis.
+- Key symbols from code scout: planner entry `Evaluate` line 97, direct acceptance around line 372, roof rescue around line 414, wall rescue around line 466, rescue trace `TraceProbeHit` around line 540.
+
+`Scripts/Game/BS5_CloseReflectionSettingsComponent.c`
+
+- Component for close-reflection tuning and resource overrides.
+- Resolves close slapback ACP, emitter prefab, event name, thresholds, rescue permissions, intensity/reverb/tail-width/surface-hardness shaping.
+
+`Scripts/Game/BS5_SpatialSoundEmitterComponent.c`
+
+- Component placed on emitter prefabs.
+- Uses `EOnInit`, resolves `SoundComponent` and `SignalsManagerComponent`, applies BS5 signals, plays requested event, and maintains audio-project invalid/initialized caches.
+- Key symbols from code scout: `EOnInit` lines 14-18, `Play` lines 25-85, `TryPlayAudioSystemProject` lines 87-104, signal builder lines 173-254, component binding lines 279-292, signal writes lines 294-320.
+
+`Scripts/Game/BS5_ExplosionBridge.c`
+
+- Explosion coverage bridge.
+- Modded classes: `SCR_WeaponBlastComponent`, `SCR_ExplosiveTriggerComponent`, `SCR_PressureTriggerComponent`.
+- Projectile effect class: `BS5_ExplosionEchoEffect : BaseProjectileEffect`.
+- Dispatches fire-time blast and actual projectile/trigger detonation paths into `BS5_EchoRuntime`.
+- Code scout confirmed the lifecycle split: `SCR_WeaponBlastComponent.OnWeaponFired` lines 1-11 is the fire-time blast path, trigger hooks at lines 13-29 call the detonation/impact dispatch, and `BS5_ExplosionEchoEffect.OnEffect` lines 31-38 is the projectile-effect path.
+
+`Scripts/Game/BS5_AudioDebugSettingsComponent.c`
+
+- Channelized prefab debug component.
+- Current script defaults have master debug off, but live merged `Weapon_Base.et` and `BS5_ExplosionDriver.et` override it on.
+
+`Scripts/Game/BS5_DebugLog.c`
+
+- Small logging facade for channel/level checks and bool text.
+
+`Scripts/Game/BS5_PlayerAudioSettings.c`
+
+- User-facing setting persistence.
+- `BS5_GameAudioSettings : ModuleGameSettings` stores echo/slapback/close/explosion volume, slapback enabled, technical preset id, and sound preset id.
+- Key symbols from code scout: settings module lines 1-23, getters/setters lines 48-281, initialization/hook/load path lines 292-371.
+
+`Scripts/Game/BS5_PresetRegistry.c`
+
+- Config-backed preset registry with fallback preset generation.
+- Important because technical limits exist both in code/fallbacks and `Configs/BS5/Presets/BS5_TechnicalPresets.conf`.
+- Key symbols from code scout: config refs around lines 321-322, lookup/apply methods lines 331-482, load/fallback path starts around line 484.
+
+`Scripts/Game/UI/Menu/SettingsMenu/BS5_AudioSettingsSubMenu.c`
+
+- Large UI mod of `SCR_AudioSettingsSubMenu`.
+- Adds BS5 widgets, handles slider/click/change events, syncs menu controls to `BS5_PlayerAudioSettings`, and applies presets through `BS5_PresetRegistry`.
+- Key symbols from code scout: `OnTabShow` lines 82-86, `OnTabHide` lines 117-121, `OnMenuHide` lines 123-127, `OnTabRemove` lines 129-133, input handlers lines 135-211, row builders around lines 283-940, refresh/writeback lines 1031-1227, preset steppers lines 1256-1307.
 
 ## Script details
 
-### `Scripts/Game/BS5_EchoTypes.c`
+Resource resolution order is layered:
 
-**Does:** Defines shared runtime contracts for candidates, analysis results, environment snapshots, pending emissions, active voices, debug enums, and math helpers.
+- `BS5_EchoDriverComponent.ResolveMasterAcp`, `ResolveSlapbackAcp`, `ResolveExplosionAcp`, and emitter-prefab counterparts first read driver fields.
+- Weapon-level `BS5_WeaponEchoSettingsComponent` and character `BS5_WeaponEchoRplCharacterComponent` provide legacy/compat hooks.
+- Emitter prefabs provide final `SoundComponent` ACP fallback when direct audio project playback fails.
 
-**Classes/enums:**
+Limiter and queue state lives in:
 
-- `BS5_EchoTypesClass : ScriptComponentClass`
-- `BS5_EchoEnvironmentType`
-- `BS5_TailProfileType`
-- `BS5_VegetationClass`
-- `BS5_EchoCandidateSourceType`
-- `BS5_DebugChannel`
-- `BS5_DebugLevel`
-- `BS5_EchoReflectorCandidate`
-- `BS5_EchoAnalysisResult`
-- `BS5_EnvironmentSnapshot`
-- `BS5_PendingEmissionContext`
-- `BS5_ActiveEchoVoice`
-- `BS5_EchoMath`
+- Driver getters and per-owner active budget in `BS5_EchoDriverComponent.c`.
+- Global voice/start-gate bookkeeping in `BS5_EchoEmissionService` inside `BS5_EchoRuntime.c`.
+- Important controls: `m_iLimiterMaxTailStartsPer100Ms`, `m_iLimiterMaxSlapbackStartsPer100Ms`, `m_iLimiterGlobalMaxTailVoices`, `m_iLimiterGlobalMaxSlapbackVoices`, pending tail cap, owner cap, burst cadence.
 
-**Functions:**
+Environment planning has two generations:
 
-- `BS5_EchoAnalysisResult.Reset()`: clears analysis fields.
-- `BS5_EnvironmentSnapshot.Reset()`: clears environmental weights.
-- `BS5_EchoMath.Clamp01`, `Clamp`, `MaxFloat`, `MinFloat`: local math helpers.
-- `EnvironmentName`, `TailProfileName`, `CandidateSourceName`: debug/display conversion.
-- `CloneCandidate`: deep-ish clone used when copying cached candidates.
+- Current preferred path: `BS5_SoundMapAnchorPlanner` when `m_bUseSoundMapAnchorPlanner` is enabled.
+- Legacy/fallback path: `BS5_HybridTailPlanner` and obstacle/terrain trace sectors. `m_bAllowLegacyAnchorFallback` controls fallback.
 
-**Depends on:** Enforce object/value types and all BS5 runtime consumers.
+Debug path:
 
-**Used by:** All runtime planning, emission, driver, debug, close reflection, and settings code.
-
-**API/BIKI context checked:** No special engine API; this is local data code.
-
-**Risks / audit targets:** Do not rename fields or enum values casually. These classes function as shared contracts across multiple large files.
-
-### `Scripts/Game/BS5_DebugLog.c`
-
-**Does:** Provides channel-aware logging wrappers so runtime systems can gate debug output through `BS5_AudioDebugSettingsComponent`.
-
-**Classes:** `BS5_DebugLog`
-
-**Functions:**
-
-- `IsEnabled(driver, channel, level)`: resolves debug permission from driver settings.
-- `Channel(driver, channel, message, level)`: prints channel-prefixed debug line.
-- `Line`, `LineEnabled`, `ChannelEnabled`: low-level print helpers.
-- `BoolText`: stable bool string.
-- `ChannelName`: enum-to-text mapping.
-
-**Depends on:** `BS5_EchoDriverComponent`, `BS5_AudioDebugSettingsComponent`, `BS5_DebugChannel`, `BS5_DebugLevel`.
-
-**Used by:** Driver/runtime/emission logging.
-
-**API/BIKI context checked:** Not needed beyond `Print` being normal Enforce logging.
-
-**Risks / audit targets:** Runtime logs can be expensive in hot paths. Keep prefab debug defaults off for normal play.
-
-### `Scripts/Game/BS5_AudioDebugSettingsComponent.c`
-
-**Does:** Script component attached to BS5-enabled prefabs to control debug channel visibility.
-
-**Classes:**
-
-- `BS5_AudioDebugSettingsComponentClass : ScriptComponentClass`
-- `BS5_AudioDebugSettingsComponent : ScriptComponent`
-
-**Functions:**
-
-- `IsAnyDebugEnabled()`: master debug status.
-- `GetDebugLevel()`: maps int setting to `OFF`, `BASIC`, or `VERBOSE`.
-- `Allows(channel, level)`: channel/level filter.
-
-**Depends on:** `ScriptComponent`, `BS5_DebugChannel`, `BS5_DebugLevel`.
-
-**Used by:** `BS5_DebugLog`, `BS5_EchoDriverComponent`.
-
-**API/BIKI context checked:** MCP confirmed `ScriptComponent` is the Enfusion parent for script-created components and exposes owner/event-mask/component APIs.
-
-**Risks / audit targets:** Check prefab defaults before performance tests. `Prefabs/Weapons/Core/Weapon_Base.et` and `Prefabs/Props/BS5_ExplosionDriver.et` currently set debug flags to 0 in inspected merged prefabs.
-
-### `Scripts/Game/BS5_CloseReflectionSettingsComponent.c`
-
-**Does:** Holds close reflection/slapback resource paths and scoring thresholds.
-
-**Classes:**
-
-- `BS5_CloseReflectionSettingsComponentClass : ScriptComponentClass`
-- `BS5_CloseReflectionSettingsComponent : ScriptComponent`
-
-**Functions:**
-
-- `IsEnabled()`: close reflection master enable.
-- `ResolveCloseSlapbackAcp()`: ACP override or default.
-- `ResolveCloseSlapbackEmitterPrefab()`: emitter prefab override or default.
-- `ResolveCloseSlapbackEventName()`: event name, normally `SOUND_SHOT`.
-- `GetMaxCloseDistanceMeters()`: clamped close radius.
-- `GetBaseEvidenceMin`, `GetAcceptScoreMin`, `GetSidePairAcceptScore`, `GetFrontBackPairAcceptScore`, `GetRescuePairAcceptScore`, `GetRoofSingleAcceptScore`, `GetTrenchOverrideMargin`: planner thresholds.
-- `AllowRoofRescue`, `AllowWallRescue`: rescue path toggles.
-- `GetIntensityMultiplier`, `GetReverbSendBoost`, `GetTailWidthScale`, `GetSurfaceHardnessFloor`: playback/signal tuning.
-
-**Depends on:** `ScriptComponent`, `BS5_EchoMath`, close slapback ACP/prefab resources.
-
-**Used by:** `BS5_EchoDriverComponent`, `BS5_CloseReflectionPlanner`, weapon and explosion driver prefabs.
-
-**API/BIKI context checked:** `ScriptComponent` checked through MCP.
-
-**Risks / audit targets:** The component clamps several authoring values. When tuning visuals/audio, verify effective values, not just prefab attributes.
-
-### `Scripts/Game/BS5_PlayerAudioSettings.c`
-
-**Does:** Defines persistent user settings and a static access layer for BS5 audio options.
-
-**Classes:**
-
-- `BS5_GameAudioSettings : ModuleGameSettings`
-- `BS5_PlayerAudioSettings`
-
-**Functions:**
-
-- `GetEchoVolume` / `SetEchoVolume`
-- `GetSlapbackVolume` / `SetSlapbackVolume`
-- `GetSlapbackCloseVolume` / `SetSlapbackCloseVolume`
-- `GetExplosionVolume` / `SetExplosionVolume`
-- `IsSlapbackEnabled` / `SetSlapbackEnabled`
-- `GetTechnicalPresetId` / `SetTechnicalPresetId`
-- `GetSoundPresetId` / `SetSoundPresetId`
-- `Save`
-- `EnsureInitialized`
-- `OnUserSettingsChanged`
-- `LoadFromUserSettings`
-
-**Depends on:** `ModuleGameSettings`, game user settings module name `BS5_GameAudioSettings`, `BS5_PresetRegistry`, `BS5_SpatialSoundEmitterComponent.ClearAudioProjectCaches()`.
-
-**Used by:** UI settings menu, driver/preset runtime, spatial emitter signal generation.
-
-**API/BIKI context checked:** MCP confirmed `ModuleGameSettings` is an Enfusion settings module base and documented `GetGame().GetGameUserSettings().GetModule(...)`, `UserSettingsChanged`, and `SaveUserSettings` workflow.
-
-**Risks / audit targets:** Changing module or field names can break saved settings. Any settings change clears audio-project caches globally.
-
-### `Scripts/Game/BS5_PresetRegistry.c`
-
-**Does:** Loads sound and technical presets from config files and exposes lookup/apply APIs.
-
-**Classes:**
-
-- `BS5_SoundPresetRegistryConfig`
-- `BS5_SoundPresetConfigEntry`
-- `BS5_TechnicalPresetRegistryConfig`
-- `BS5_TechnicalPresetConfigEntry`
-- `BS5_SoundPreset`
-- `BS5_TechnicalPreset`
-- `BS5_PresetRegistry`
-
-**Functions:**
-
-- `GetDefaultSoundPresetId`, `GetDefaultTechnicalPresetId`, `GetCustomSoundPresetId`
-- `GetSoundPresetCount`, `GetTechnicalPresetCount`
-- `GetSoundPresetByIndex`, `GetTechnicalPresetByIndex`
-- `GetSoundPreset`, `GetTechnicalPreset`, `GetActiveTechnicalPreset`
-- `GetSoundPresetIndex`, `GetTechnicalPresetIndex`
-- `GetSoundPresetDisplayName`, `GetTechnicalPresetDisplayName`
-- `ApplySoundPreset`, `ApplyTechnicalPreset`
-- `EnsureInitialized`
-- `LoadSoundPresetsFromConfig`, `LoadTechnicalPresetsFromConfig`
-- `AddFallbackSoundPresets`, `AddFallbackTechnicalPresets`
-- `AddSoundPreset`, `AddTechnicalPresetFromEntry`
-- `FillDefaultTechnicalPreset`, `FillLightTechnicalPreset`, `FillDynamicTechnicalPreset`
-- `FindSoundPreset`, `FindTechnicalPreset`, `WrapIndex`
-
-**Depends on:** `Configs/BS5/Presets/BS5_SoundPresets.conf`, `Configs/BS5/Presets/BS5_TechnicalPresets.conf`, `BaseContainerTools`, `BS5_PlayerAudioSettings`, `BS5_EchoMath`.
-
-**Used by:** UI settings menu and driver accessors.
-
-**API/BIKI context checked:** `mod validate` warns the custom config classes are not in the engine API index. That is expected for local script-defined config classes, not proof of invalid config.
-
-**Risks / audit targets:** Silent fallback is useful for resilience but can hide broken `.conf` references. Any audit should verify whether config loading succeeds in-game or via Workbench reload.
-
-### `Scripts/Game/BS5_SpatialSoundEmitterComponent.c`
-
-**Does:** Attached to spawned emitter prefabs; plays requested ACP/event and pushes BS5 audio signals.
-
-**Classes:**
-
-- `BS5_SpatialSoundEmitterComponentClass : ScriptComponentClass`
-- `BS5_SpatialSoundEmitterComponent : ScriptComponent`
-
-**Functions:**
-
-- `EOnInit(owner)`: resolve components on init.
-- `IsReady()`: checks component availability.
-- `Play(context, debugEnabled)`: main emitter playback path.
-- `TryPlayAudioSystemProject(context, transform, signalNames, signalValues)`: direct `AudioSystem.PlayEvent` attempt.
-- `EnsureAudioProjectReady(project)`: initializes ACP project and caches known invalid projects.
-- `BuildAudioProjectEventKey`, `IsAudioProjectEventKnownInvalid`, `MarkAudioProjectEventInvalid`, `ClearAudioProjectCaches`, `EnsureAudioProjectCaches`: audio project/event caches.
-- `BuildAudioSystemSignals(context, signalNames, signalValues)`: converts BS5 context into signal names/values.
-- `AppendAudioSignal`, `GetSlapbackModeSignal`: signal helpers.
-- `ResolveComponents`: finds `SoundComponent` and `SignalsManagerComponent`.
-- `ApplyAudioSignals`, `SetSignalValue`: pushes signals through both signals manager and sound component where possible.
-
-**Depends on:** `SoundComponent`, `SignalsManagerComponent`, `AudioSystem`, `BS5_PendingEmissionContext`, `BS5_PlayerAudioSettings`.
-
-**Used by:** Emitter prefabs under `Prefabs/Props/BS5_*.et`, `BS5_EchoEmissionService`.
-
-**API/BIKI context checked:** MCP confirmed:
-
-- `AudioSystem.PlayEventInitialize(project)` and `AudioSystem.PlayEvent(project, eventName, transform, names, values)`.
-- `BaseSoundComponent` / sound component APIs including `GetEventIndex`, `SetSignalValueStr`, `PlayStr`, `UpdateTrigger`.
-
-**Risks / audit targets:** Invalid ACP/event caching can suppress future playback after transient failures. Signal lists are rebuilt per emission.
-
-### `Scripts/Game/BS5_EnvironmentAudioClassifier.c`
-
-**Does:** Reads environment and sound-map data, then builds tail/reflection candidates with terrain, facade, SoundWorld, entity query, and trace logic.
-
-**Classes:**
-
-- `BS5_EnvironmentAudioClassifier`
-- `BS5_HybridTailPlanner`
-- `BS5_SoundMapAnchorSample`
-- `BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner`
-
-**Functions:**
-
-- `BuildSnapshot(settings, owner, origin, flatForward, flatRight, result)`: creates environment snapshot from game/audio/terrain signals.
-- `ReadSignalArray`, `ReadGlobalSignal`, `ReadEntitySignal`, `ReadEntitySignalComponent`: signal reads.
-- `SampleTerrainBias`, `ResolveDominantVegetation`, `ResolveTerrainHeight`, `ResolveTerrainNormal`: terrain/environment helpers.
-- `BS5_HybridTailPlanner.BuildCandidates`: main hybrid planner.
-- `CollectSectorFieldCandidates`, `CollectForwardFacadeMicroCandidates`, `CollectForwardFacadeEntityCandidates`: candidate searches.
-- `ResolveTailProfile`, `ResolveTargetCount`, `ResolveProfileMaxDistance`: profile selection.
-- `BuildAnchorCandidate`, `CollectSettlementFacadeCandidates`, `AddProfileFallbackCandidates`: anchor generation.
-- `ResolveEntityGeometryHit`, `ResolveGeometryHit`, `PathTraceRejectsCandidate`: trace validation.
-- `BS5_SoundMapAnchorPlanner.TryBuildCandidates`: SoundMap-specific candidate path.
-- `CollectForwardSamples`, `AddForwardFallbacks`, `AddOmniContextAnchors`, `EvaluateSoundMapPathPlausibility`, `ValidateTerrainProfileCandidate`: SoundMap/terrain filtering.
-
-**Depends on:** `BS5_EchoDriverComponent`, `BS5_EchoAnalysisResult`, `BS5_EchoReflectorCandidate`, `BS5_EchoMath`, `SCR_TerrainHelper`, `SoundWorld`, `GameSignalsManager`, `SignalsManagerComponent`, entity prefab data, trace APIs.
-
-**Used by:** `BS5_EchoRuntime` analysis.
-
-**API/BIKI context checked:** MCP confirmed:
-
-- `BaseWorld.QueryEntitiesBySphere(center, radius, addEntity, filterEntity, flags)`.
-- `ChimeraCharacter.TraceMoveWithoutCharacters(BaseWorld world, inout TraceParam param)`, documented as an optimized TraceMove variant that filters character entities.
-
-**Risks / audit targets:** Highest likely analysis cost. Watch repeated terrain sampling, entity queries, trace counts, path plausibility validation, urban micro-scan, and duplicated scoring between hybrid and SoundMap paths.
-
-### `Scripts/Game/BS5_CloseReflectionPlanner.c`
-
-**Does:** Decides whether a close-pocket slapback should be created from wall candidates and optional roof/wall rescue traces.
-
-**Classes:**
-
-- `BS5_CloseReflectionProbeHit`
-- `BS5_CloseReflectionPlannerResult`
-- `BS5_CloseReflectionSupportPoint`
-- `BS5_CloseReflectionEvidence`
-- `BS5_CloseReflectionPlanner`
-
-**Functions:**
-
-- `Evaluate(...)`: main close reflection decision.
-- `CollectEvidence`, `AssignDirectionalContributor`, `ResolveBestSupport`, `ResolveCoverageScore`, `ResolveRayDensityScore`, `ResolveBaseEvidence`.
-- `TryAcceptDirect`: accepts from direct side/front/back/corner evidence.
-- `TryAcceptRoofRescue`, `TryAcceptWallRescue`: extra traces for close-pocket rescue.
-- `TraceProbeHit`: uses trace API and wall/roof normal checks.
-- `BuildCloseCandidate`, `CreateCloseCandidate`: converts support points into a candidate.
-- `GetPlanarDirection`, `BuildFlatRight`: direction helpers.
-
-**Depends on:** `BS5_EchoDriverComponent`, `BS5_CloseReflectionSettingsComponent`, `BS5_EchoAnalysisResult`, `BS5_EchoReflectorCandidate`, `BS5_EchoMath`, `BS5_EchoEnvironmentAnalyzer`, trace APIs.
-
-**Used by:** `BS5_EchoRuntime` / environment analysis flow when close reflection is enabled.
-
-**API/BIKI context checked:** MCP confirmed `ChimeraCharacter.TraceMoveWithoutCharacters`.
-
-**Risks / audit targets:** Multiple acceptance branches can produce surprising behavior. Check whether direct, roof rescue, wall rescue, and trench override interact as intended.
-
-### `Scripts/Game/BS5_EchoRuntime.c`
-
-**Does:** Central runtime dispatcher and emission service. Hosts several classes/subsystems in one file.
-
-**Classes:**
-
-- `BS5_EchoRuntime`
-- `BS5_EchoEnvironmentAnalyzer`
-- `BS5_EchoEmissionService`
-
-The file also contains local planner helpers and references `BS5_SoundMapAnchorPlanner`/candidate-building flows.
-
-**Key functions:**
-
-- `FindDriver(effectEntity, muzzle)`: weapon-shot driver lookup.
-- `FindExplosionDriver(effectEntity, muzzle, projectileEntity)`: explosion driver lookup.
-- `DispatchExplosionEffect(owner, pHitEntity, outMat, damageSource, instigator, sourceTag)`: bridge entry for explosion echo.
-- `AnalyzeShot`, `AnalyzeExplosion`: analysis wrappers.
-- `EmitShot`, `EmitExplosion`: emission wrappers.
-- `TryFindDriverOnEntity`: component lookup.
-- `ShouldSuppressExplosionDispatch`: near-duplicate explosion suppression.
-- `ResolveGlobalExplosionDriver`: spawns/uses `BS5_ExplosionDriver.et`.
-- `BS5_EchoEnvironmentAnalyzer.Analyze`: primary analysis.
-- `CollectTailReflectorCandidates`, `CollectSlapbackCandidates`, `CollectSlapbackEntityCandidates`: geometry-based candidate collection.
-- `BS5_EchoEmissionService.Emit`: queues all selected emissions.
-- `QueueEmission`, `EmitPending`, `EmitOnEmitter`: emission lifecycle.
-- `TryPlayManagedAudioSource`, `TryPlayManagedAudioSourceEvent`: `SCR_SoundManagerModule` path.
-- `SpawnEmitterEntity`, `ResolveEmitterPrefabResource`: prefab fallback path.
-- `ReservePendingVoice`, `TryAdmitPlaybackVoice`, `StealPlaybackVoice`, `RegisterActiveVoice`, `UnregisterActiveVoice`: limiter/voice pool.
-- `TryEnterStartGate`, `DeferOrDropAtStartGate`: burst/start limiter.
-- `CleanupEmitter`, `ReleaseAndCleanupEmitter`: cleanup.
-- `ComputeDistanceGain`, `ComputeSlapbackDistanceGain`, `ResolveUserSlapbackVolumeForSourceType`: gain/user volume helpers.
-
-**Depends on:** Nearly every BS5 script file, `Resource.Load`, `SpawnEntityPrefab`, `SCR_SoundManagerModule`, `AudioSystem`, `SoundComponent`, `BaseWorld` query/trace APIs, engine callqueue/timers.
-
-**Used by:** Weapon hook, explosion bridge, driver component.
-
-**API/BIKI context checked:** MCP confirmed:
-
-- `SCR_SoundManagerModule.GetInstance(World)` and `CreateAudioSource(...)` overloads.
-- `AudioSystem.PlayEvent`, `PlayEventInitialize`, `IsSoundPlayed`, `TerminateSoundFadeOut`.
-- `BaseProjectileEffect.OnEffect` for the explosion effect bridge.
-- `QueryEntitiesBySphere` and `TraceMoveWithoutCharacters`.
-
-**Risks / audit targets:** This is the main hot path. Audit duplicate dispatch suppression, explosion-driver reuse, cache lifetime/generation, active voice ownership, steal policy, managed audio fallback, invalid resource caches, and heavy debug string construction.
-
-### `Scripts/Game/BS5_EchoDriverComponent.c`
-
-**Does:** Main component attached to BS5-enabled weapon/explosion driver prefabs. Owns most authoring attributes, resource resolution, cache state, limiter config, and shot/explosion entry handling.
-
-**Classes:**
-
-- `BS5_EchoDriverComponentClass : ScriptComponentClass`
-- `BS5_EchoDriverComponent : ScriptComponent`
-- `BS5_WeaponEchoSettingsComponentClass : ScriptComponentClass`
-- `BS5_WeaponEchoSettingsComponent : ScriptComponent`
-- `BS5_WeaponEchoRplCharacterComponentClass : ScriptComponentClass`
-- `BS5_WeaponEchoRplCharacterComponent : ScriptComponent`
-- `modded class SCR_MuzzleEffectComponent`
-
-**Key functions:**
-
-- `EOnInit(owner)`: init and optional config validation.
-- `OnDelete(owner)`: cleanup, cancel contexts.
-- `HandleWeaponFire(effectEntity, muzzle, projectileEntity)`: normal shot path.
-- `HandleExplosionFire(effectEntity, muzzle, projectileEntity)`: weapon blast path.
-- `HandleExplosionAt(owner, origin, forward, requireExplosionEnabled)`: explosion dispatch path.
-- `ResolveMasterAcp`, `ResolveSlapbackAcp`, `ResolveExplosionAcp`, `ResolveExplosionSlapbackAcp`: ACP path resolution.
-- `Resolve*EmitterPrefab`: emitter prefab path resolution.
-- Dozens of `Get*` methods: clamp and merge prefab values, technical presets, and user settings.
-- `TryGetTailSectorCache`, `StoreTailSectorCache`, `TryGetForwardFacadeNegativeCache`, `StoreForwardFacadeNegativeCache`: analysis caching.
-- `ShouldSuppressDuplicateDispatch`, `ShouldEmitShotForPlaybackLimiter`, `ResetPlaybackLimiterBurst`, `ActivateDispatchGuard`, `ClearDispatchGuard`: duplicate and limiter guard logic.
-- `GetSettingsComponent`, `GetCloseReflectionSettingsComponent`, `GetDebugSettingsComponent`, `GetCharacterComponent`: sibling component lookup.
-- `DebugValidateConfiguration`: debug-only sanity output.
-- `SCR_MuzzleEffectComponent.OnFired`: weapon hook.
-
-**Depends on:** `ScriptComponent`, runtime core, debug/settings/close components, preset registry, player settings, prefabs and ACPs under `Prefabs/Props/BS5_*` and `Sounds/Weapons/Rifles/BS5/*`.
-
-**Used by:** Weapon base prefabs, explosion driver prefab, runtime emission.
-
-**API/BIKI context checked:** `ScriptComponent` and audio/resource APIs checked through MCP. The subagent reported the hook surface as valid; future implementation should still re-check exact override signatures before changing modded hooks.
-
-**Risks / audit targets:** This is a very large mixed-responsibility component. Keep changes narrow. Main audit areas are config clamps, preset overrides, duplicate guards, cache key semantics, callqueue timers, resource fallback paths, and machine-gun/suppressed/explosion special cases.
-
-### `Scripts/Game/BS5_ExplosionBridge.c`
-
-**Does:** Routes vanilla explosion-related events into BS5 explosion echo runtime.
-
-**Classes:**
-
-- `modded class SCR_WeaponBlastComponent`
-- `modded class SCR_ExplosiveTriggerComponent`
-- `modded class SCR_PressureTriggerComponent`
-- `BS5_ExplosionEchoEffect : BaseProjectileEffect`
-
-**Functions:**
-
-- `SCR_WeaponBlastComponent.OnWeaponFired`: calls driver `HandleExplosionFire`, then `super`.
-- `SCR_ExplosiveTriggerComponent.TriggeredInSafetyDistance`: dispatches explosion effect, then `super`.
-- `SCR_PressureTriggerComponent.TriggeredInSafetyDistance`: dispatches explosion effect, then `super`.
-- `BS5_ExplosionEchoEffect.OnEffect`: dispatches projectile effect, no additional local behavior.
-
-**Depends on:** `BS5_EchoRuntime.DispatchExplosionEffect`, `BS5_EchoRuntime.FindExplosionDriver`, `BaseProjectileEffect`.
-
-**Used by:** Explosion-capable prefabs through script hooks and `BS5_ExplosionEchoEffect` in projectile effect arrays.
-
-**API/BIKI context checked:** MCP confirmed `BaseProjectileEffect.OnEffect(...)` signature. Other modded override signatures should be re-checked immediately before editing this file.
-
-**Risks / audit targets:** There are multiple possible fan-in paths for one explosion. Runtime suppression by origin is critical.
-
-### `Scripts/Game/UI/Menu/SettingsMenu/BS5_AudioSettingsSubMenu.c`
-
-**Does:** Modifies the vanilla audio settings tab to add BS5 controls.
-
-**Classes:**
-
-- `modded class SCR_AudioSettingsSubMenu`
-
-**Functions:**
-
-- Lifecycle: `OnTabShow`, `OnTabHide`, `OnMenuHide`, `OnTabRemove`.
-- Input: `OnChange`, `OnClick`, `OnMouseButtonDown`, `OnMouseButtonUp`.
-- Row creation: `EnsureBs5EchoVolumeRow`, `EnsureBs5SlapbackVolumeRow`, `EnsureBs5SlapbackCloseVolumeRow`, `EnsureBs5SlapbackEnabledRow`, `EnsureBs5TechnicalPresetRow`, `EnsureBs5SoundPresetRow`, `EnsureBs5ExplosionVolumeRow`.
-- Shared UI builders: `CreateBs5PresetRow`, `CreateBs5Button`, `CreateBs5BaseRow`, `CreateBs5SizedShell`, `GetBs5SettingsContent`.
-- Cleanup/ref finding: `RemoveExistingBs5ProceduralRows`, `IsBs5ProceduralRowName`, `ClearBs5RowWidgetRefs`, `FindBs5ReferenceAudioRow`, `FindBs5FirstSliderWidget`, `CollectBs5TextWidgets`, `FindBs5LabelTextWidget`, `FindBs5ValueTextWidget`.
-- Refresh/flush: per-volume refresh/changed/flush methods plus `FlushBs5PendingSettings`, `RefreshBs5PresetRows`, `StepBs5TechnicalPreset`, `StepBs5SoundPreset`.
-
-**Depends on:** Vanilla `SCR_AudioSettingsSubMenu` widget structure, `BS5_PlayerAudioSettings`, `BS5_PresetRegistry`.
-
-**Used by:** In-game audio settings menu.
-
-**API/BIKI context checked:** Not deeply verified in this pass. Future UI edits should inspect current vanilla settings menu/widget patterns.
-
-**Risks / audit targets:** Procedural UI injection is fragile if vanilla widget hierarchy, row naming, or event behavior changes.
+- `BS5_AudioDebugSettingsComponent` is the intended channel gate.
+- `BS5_DebugLog` centralizes print calls.
+- Old raw `Print()` searches can be noisy; map/debug work should prefer the explicit debug component, `EXPLOSION_DIAGNOSTIC_LOG` if present in code, and `BS5_DebugChannel`.
 
 ## Prefabs/configs/layouts/resources
 
-### Key prefabs
-
-MCP inspected representative prefabs:
+Key weapon/base prefabs:
 
 - `Prefabs/Weapons/Core/Weapon_Base.et`
-  - Core BS5 weapon entry point.
-  - Components: `BS5_AudioDebugSettingsComponent`, `BS5_CloseReflectionSettingsComponent`, `BS5_EchoDriverComponent`, `BS5_WeaponEchoRplCharacterComponent`, `BS5_WeaponEchoSettingsComponent`.
-  - References rifle/suppressed/slapback/trench/explosion ACPs and BS5 emitter prefabs.
-
+  - Adds `BS5_AudioDebugSettingsComponent`, `BS5_CloseReflectionSettingsComponent`, `BS5_EchoDriverComponent`, `BS5_WeaponEchoRplCharacterComponent`, and `BS5_WeaponEchoSettingsComponent`.
+  - Routes rifle, suppressed, slapback, trench, close, and explosion ACP/emitter resources.
+  - MCP merged view confirms limiter gate values `m_iLimiterMaxTailStartsPer100Ms 12`, `m_iLimiterMaxSlapbackStartsPer100Ms 12`, and `m_iLimiterGlobalMaxSlapbackVoices 12`.
 - `Prefabs/Weapons/Core/MachineGun_Base.et`
-  - Inherits from `Weapon_Base.et`.
-  - Overrides `BS5_EchoDriverComponent` and `BS5_WeaponEcho*` resources for `Weapons_MG_EchoMaster.acp.acp` and `BS5_TailEmitter_MG.et`.
-  - Tightens limiter/lifetime values for machine-gun fire.
-
-- `Prefabs/Props/BS5_ExplosionDriver.et`
-  - Standalone runtime driver for explosion dispatch.
-  - Components: `BS5_AudioDebugSettingsComponent`, `BS5_CloseReflectionSettingsComponent`, `BS5_EchoDriverComponent`.
-  - References explosion echo/slapback ACPs and explosion emitter prefabs.
-
-- `Prefabs/Props/BS5_TailEmitter.et`
-  - Components: `BS5_SpatialSoundEmitterComponent`, `SoundComponent`, `SignalsManagerComponent`.
-  - SoundComponent references `Weapons_Rifles_EchoMaster.acp`.
-
-- `Prefabs/Props/BS5_*Emitter*.et`
-  - Same general pattern: `SoundComponent` owns ACP reference, `SignalsManagerComponent` carries signal state, `BS5_SpatialSoundEmitterComponent` bridges runtime context to playback.
-
-- `Prefabs/Weapons/Core/Grenade_Base.et`
-  - MCP inspect confirmed `GrenadeMoveComponent.ProjectileEffects` includes `BS5_ExplosionEchoEffect`.
-
-Other notable prefab surfaces:
-
+  - Overrides driver to MG ACP and MG tail emitter; tighter per-owner/start cadence.
+- `Prefabs/Weapons/Core/Launcher_Base.et`
+  - Overrides to MG-style tail ACP/emitter and includes `SCR_WeaponBlastComponent`.
 - `Prefabs/Weapons/Core/Ammo_GrenadeLauncher_Base.et`
+  - Has `ProjectileEffects` and a `BS5_ExplosionEchoEffect`.
+- `Prefabs/Weapons/Core/Grenade_Base.et`
+  - Has `ProjectileEffects` and a `BS5_ExplosionEchoEffect`.
 - `Prefabs/Weapons/Core/Explosives_base.et`
+  - Small base surface; needs merged prefab inspection before assuming child mine/charge coverage.
+- `Prefabs/Weapons/Core/Launcher_Base.et` and `Prefabs/Weapons/Core/MachineGun_Base.et` inherit `Weapon_Base.et` and swap master/tail resources to the MG ACP/emitter variant. They also tighten cadence/per-owner/start-gate knobs.
+
+Projectile/grenade leaf prefabs with explicit BS5 explosion effects:
+
+- `Prefabs/Weapons/Ammo/Ammo_Grenade_HEDP_M433.et`
 - `Prefabs/Weapons/Ammo/Ammo_Rocket_M72A3.et`
+- `Prefabs/Weapons/Ammo/Ammo_Rocket_PG22.et`
+- `Prefabs/Weapons/Ammo/Ammo_Rocket_PG7VL.et`
+- `Prefabs/Weapons/Ammo/Ammo_Rocket_PG7VM.et`
+- `Prefabs/Weapons/Ammo/Ammo_Rocket_PG7VR.et`
+- `Prefabs/Weapons/Ammo/Ammo_Rocket_RPG75.et`
 - `Prefabs/Weapons/Grenades/Grenade_M67.et`
 - `Prefabs/Weapons/Grenades/Grenade_RGD5.et`
-- `Prefabs/Weapons/Core/Handgun_Base.et`
-- `Prefabs/Weapons/Core/LongRangeRifle_Base.et`
-- `Prefabs/Weapons/MachineGuns/M60/MG_M60_base.et`
-- `Prefabs/Characters/Core/Character_Base.et`
 
-### Configs
+Prefab scout confirmed this pattern matters: these leaf prefabs own local `CollisionTriggerComponent.PROJECTILE_EFFECTS` or `TimerTriggerComponent.PROJECTILE_EFFECTS`, so base-only hook claims are not enough. `Grenade_Base.et` and `Ammo_GrenadeLauncher_Base.et` contain base effect entries, but `Grenade_RGD5.et`, `Grenade_M67.et`, and several rocket leaf prefabs override or add local containers.
 
-- `Configs/BS5/Presets/BS5_SoundPresets.conf`
-  - Root class: `BS5_SoundPresetRegistryConfig`
-  - Entries:
-    - `vanilla`
-    - `bettersounds_v4`
-    - `bettersounds_v5`
-    - `lunacy_audio`
-  - Values: echo/slapback/close/explosion volume multipliers.
+Emitter/driver prefabs:
 
-- `Configs/BS5/Presets/BS5_TechnicalPresets.conf`
-  - Root class: `BS5_TechnicalPresetRegistryConfig`
-  - Entries:
-    - `default`
-    - `light`
-    - `dynamic`
-  - Values: scan radius, trace counts, candidate caps, emitter caps, limiter thresholds, SoundMap planner settings, terrain/path validation, and urban micro-scan.
+- `Prefabs/Props/BS5_TailEmitter.et` -> rifle echo ACP.
+- `Prefabs/Props/BS5_TailEmitter_MG.et` -> MG echo ACP.
+- `Prefabs/Props/BS5_TailEmitter_Silenced.et` -> suppressed echo ACP.
+- `Prefabs/Props/BS5_SlapbackEmitter.et` -> standard slapback ACP.
+- `Prefabs/Props/BS5_SlapbackEmitter_Close.et` -> close slapback ACP.
+- `Prefabs/Props/BS5_SlapbackEmitter_Silenced.et` -> suppressed slapback ACP.
+- `Prefabs/Props/BS5_SlapbackEmitter_Trench.et` -> trench slapback ACP.
+- `Prefabs/Props/BS5_ExplosionEmitter.et` -> explosion echo ACP.
+- `Prefabs/Props/BS5_ExplosionSlapbackEmitter.et` -> explosion slapback ACP.
+- `Prefabs/Props/BS5_ExplosionDriver.et` -> standalone explosion driver used by runtime fallback/spawn path.
 
-### Sounds and audio assets
-
-Main ACPs under `Sounds/Weapons/Rifles/BS5/`:
+Prefab scout classified the BS5 emitter prefabs as bare emitter shells with `SoundComponent` plus `SignalsManagerComponent` and `BS5_SpatialSoundEmitterComponent`. The authored ACPs wired through these shells are:
 
 - `Weapons_Rifles_EchoMaster.acp`
 - `Weapons_MG_EchoMaster.acp.acp`
 - `Weapons_Silinced_EchoMaster.acp.acp`
 - `Weapons_Slapbacks_Master.acp`
 - `Weapons_Slapbacks_Close_Master.acp`
-- `Weapons_Slapbacks_Silinced_Master.acp`
 - `Weapons_Slapbacks_Trench_Master.acp`
+- `Weapons_Slapbacks_Silinced_Master.acp`
 - `Weapons_Explosions_EchoMaster.acp`
 - `Weapons_Explosions_Slapbacks_Master.acp`
 
-BS5 signal resources include:
+Configs:
 
-- `Sounds/_SharedData/Signals/BS5/BS5_Intensity.sig`
-- `Sounds/_SharedData/Signals/BS5/BS5_UserExplosionVolume.sig`
-- `Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig`
-- `Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig`
-- `Sounds/Weapons/Rifles/BS5/multiply.sig`
+- `Configs/BS5/Presets/BS5_SoundPresets.conf`
+  - Presets: `vanilla`, `bettersounds_v4`, `bettersounds_v5`, `lunacy_audio`.
+  - Controls user-facing echo/slapback/close/explosion volume defaults.
+- `Configs/BS5/Presets/BS5_TechnicalPresets.conf`
+  - Presets: `default`, `light`, `dynamic`.
+  - Controls runtime budgets and trace/SoundMap parameters.
+  - Default and dynamic are high-coverage; light reduces trace counts, active voices, starts-per-window, and SoundMap samples.
 
-Asset directories are mostly audio samples:
+Audio/signals:
 
-- `Assets/BulletSounds/`
-- `Assets/explosions/`
-- `Assets/Gunpowder/SlapBacks/`
-- `Assets/Gunpowder/Tails/City/`
-- `Assets/Gunpowder/Tails/Field/`
-- `Assets/Gunpowder/Tails/Forest/`
-- `Assets/Gunpowder/Tails/SC_Reflectors/`
+- `Sounds/Weapons/Rifles/BS5/*.acp` are the authored master/slapback/explosion audio projects.
+- `Sounds/_SharedData/Signals/BS5/*.sig` define exposed user/intensity signals.
+- Important signal resources observed by prefab scout: `BS5_Intensity.sig`, `BS5_UserExplosionVolume.sig`, `BS5_UserSlapbackCloseVolume.sig`, `BS5_UserSlapbackVolume.sig`.
+- `Assets/Gunpowder/**`, `Assets/BulletSounds/**`, and `Assets/explosions/**` hold source wav assets.
 
-Naming smells to preserve as audit notes, not immediate conclusions:
+Layouts/localization/worlds:
 
-- `Silinced`
-- `Explsion`
-- `SemiMId`
-- `.acp.acp`
-- `.mp3.wav`
-- `.wav.wav`
-
-These names may already be baked into resource GUIDs and references. Do not bulk-rename without Workbench/resource database handling.
-
-### Layouts/localization/worlds
-
-No `Layouts/`, `UI/` layout files, `Language/`, `Worlds/`, or `Missions/` directories were found in the current live tree. UI is injected procedurally in script.
+- No `.layout`, localization string table, or world/mission resources were found in the local file inventory.
+- `UserMaps.desc` exists but is not a primary runtime surface for this map.
 
 ## Dependency graph
 
-```mermaid
-flowchart TD
-  WeaponPrefab["Weapon_Base.et / MachineGun_Base.et"] --> Driver["BS5_EchoDriverComponent"]
-  MuzzleHook["modded SCR_MuzzleEffectComponent.OnFired"] --> Driver
-  Driver --> Runtime["BS5_EchoRuntime"]
-  ExplosionBridge["BS5_ExplosionBridge hooks"] --> Runtime
-  Runtime --> Analyzer["BS5_EchoEnvironmentAnalyzer"]
-  Runtime --> EnvClassifier["BS5_EnvironmentAudioClassifier"]
-  Runtime --> ClosePlanner["BS5_CloseReflectionPlanner"]
-  Runtime --> Emission["BS5_EchoEmissionService"]
-  Driver --> Presets["BS5_PresetRegistry"]
-  UI["BS5_AudioSettingsSubMenu"] --> PlayerSettings["BS5_PlayerAudioSettings"]
-  PlayerSettings --> Presets
-  Presets --> PresetConfigs["Configs/BS5/Presets/*.conf"]
-  Emission --> SpatialEmitter["BS5_SpatialSoundEmitterComponent"]
-  SpatialEmitter --> EmitterPrefabs["Prefabs/Props/BS5_*Emitter*.et"]
-  EmitterPrefabs --> ACPs["Sounds/Weapons/Rifles/BS5/*.acp"]
-  SpatialEmitter --> AudioAPI["AudioSystem / SoundComponent / SCR_SoundManagerModule"]
-```
+High-level code dependencies:
 
-## Enfusion API / BIKI / vanilla context checked
+- `SCR_MuzzleEffectComponent.OnFired`
+  -> `BS5_EchoDriverComponent.HandleWeaponFire`
+  -> `BS5_EchoRuntime.AnalyzeShot`
+  -> `BS5_EchoEnvironmentAnalyzer.Analyze`
+  -> `BS5_EnvironmentAudioClassifier.BuildSnapshot`
+  -> `BS5_SoundMapAnchorPlanner` or `BS5_HybridTailPlanner`
+  -> `BS5_EchoEmissionService.Emit`
+  -> `BS5_SpatialSoundEmitterComponent.Play`
 
-MCP tools available and used in this session included consolidated `project`, `prefab`, `mod`, `workshop_info`, `api_search`, and related Enfusion/Arma tools. Older README-style aliases such as `project_browse` or `prefab_inspect` were not assumed; active tool names were used.
+- `BS5_ExplosionEchoEffect.OnEffect` / trigger hooks
+  -> `BS5_EchoRuntime.DispatchExplosionEffect`
+  -> `BS5_EchoDriverComponent.HandleExplosionAt`
+  -> `BS5_EchoRuntime.AnalyzeExplosion`
+  -> `BS5_EchoEmissionService.Emit`
 
-Checked API surfaces:
+- `SCR_AudioSettingsSubMenu`
+  -> `BS5_AudioSettingsSubMenu`
+  -> `BS5_PlayerAudioSettings`
+  -> `BS5_PresetRegistry`
+  -> `Configs/BS5/Presets/*.conf`
+  -> driver getter overrides at runtime.
 
-- `ScriptComponent`
-  - Parent for script-created components.
-  - Relevant methods include `GetOwner`, `SetEventMask`, `ClearEventMask`, `FindComponent`, `Activate`, `Deactivate`.
+Prefab/resource dependencies:
 
-- `AudioSystem`
-  - `PlayEventInitialize(string resourceName)`
-  - `PlayEvent(string resourceName, string eventName, vector transf[], array<string> names = null, array<float> values = null)`
-  - `IsSoundPlayed(AudioHandle handle)`
-  - `TerminateSoundFadeOut(AudioHandle handle, bool fade, float fadeTime)`
+- Weapon base / launcher / MG prefabs own the driver config.
+- Ammo/grenade leaf prefabs own active `PROJECTILE_EFFECTS`/`ProjectileEffects` containers.
+- Emitter prefabs own `SoundComponent` ACP fallback routing.
+- ACPs consume BS5 signals set by `BS5_SpatialSoundEmitterComponent`.
 
-- `BaseSoundComponent` / sound component surface
-  - `GetEventIndex`
-  - `SetSignalValue`
-  - `SetSignalValueStr`
-  - `PlayStr`
-  - `UpdateTrigger`
+## API / BIKI / base-game context checked
 
-- `SCR_SoundManagerModule`
-  - `GetInstance(World world)`
-  - `CreateAudioSource(...)` overloads, including custom config and world-position variants.
-  - `PlayAudioSource(...)`
+Checked through Enfusion MCP/API and prefab tools:
 
-- `BaseWorld.QueryEntitiesBySphere`
-  - Signature verified as `QueryEntitiesBySphere(vector center, float radius, QueryEntitiesCallback addEntity, QueryEntitiesCallback filterEntity = null, EQueryEntitiesFlags queryFlags = EQueryEntitiesFlags.ALL)`.
-
-- `ChimeraCharacter.TraceMoveWithoutCharacters`
-  - Signature verified as `static float TraceMoveWithoutCharacters(BaseWorld world, inout TraceParam param)`.
-  - MCP notes it is an optimized TraceMove variant filtering out character entities.
-
-- `ModuleGameSettings`
-  - MCP docs confirm it defines a settings module and show `GetGame().GetGameUserSettings().GetModule(...)` workflow.
-
+- `SCR_MuzzleEffectComponent`
+  - API confirms `OnFired(IEntity effectEntity, BaseMuzzleComponent muzzle, IEntity projectileEntity)` and `GetOnWeaponFired()`.
+  - This matches the modded shot hook in `BS5_EchoDriverComponent.c`.
 - `BaseProjectileEffect`
-  - `OnEffect(IEntity pHitEntity, inout vector outMat[3], IEntity damageSource, notnull Instigator instigator, string colliderName, float speed)` verified.
-
-Validation:
-
-- MCP `mod validate` with structure/gproj/scripts/prefabs/configs/references/naming checks passed:
-  - `structure`
-  - `gproj`
-  - `scripts`
-  - `prefabs`
-
-Validator warnings:
-
-- Custom config root/classes (`BS5_SoundPresetRegistryConfig`, `BS5_SoundPresetConfigEntry`, `BS5_TechnicalPresetRegistryConfig`, `BS5_TechnicalPresetConfigEntry`) are not in the API index.
-- `BS5_HybridTailPlanner` is not in the API index.
-- Naming info noted `SCR_` prefix classes versus common `EMCP_` due to Workbench handler scripts.
-
-Interpretation: those warnings are expected for local script-defined classes and present handler scripts. They are not confirmed gameplay errors by themselves.
+  - API confirms `OnEffect(IEntity pHitEntity, inout vector outMat[3], IEntity damageSource, Instigator instigator, string colliderName, float speed)`.
+  - This matches `BS5_ExplosionEchoEffect.OnEffect`.
+- `SCR_WeaponBlastComponent`
+  - API surface exists and provides weapon blast component lifecycle; `OnWeaponFired` is used by the modded class.
+- `SCR_ExplosiveTriggerComponent`
+  - API confirms explosive trigger behavior and public trigger methods; modded trigger hook is plausible but should be runtime-log verified per explosive type.
+- `SCR_PressureTriggerComponent`
+  - API confirms pressure trigger component and contact/activation lifecycle; mine/static coverage still needs leaf prefab verification.
+- `SCR_AudioSettingsSubMenu`
+  - API confirms settings menu lifecycle methods including `OnTabShow`, `OnTabHide`, and menu callbacks.
+- `ChimeraCharacter.TraceMoveWithoutCharacters`
+  - API confirms it is an optimized trace variant that filters out ChimeraCharacter entities. This is heavily used in analysis/planning.
+- `SCR_SoundManagerModule.CreateAudioSource`
+  - API confirms overloads for custom `SCR_AudioSourceConfiguration` and world position, matching the fallback/managed playback path.
+- MCP `prefab(action=inspect)` was used for `Prefabs/Weapons/Core/Weapon_Base.et` and `Prefabs/Props/BS5_ExplosionDriver.et`.
+- MCP `workshop_info` was used for addon identity/dependency.
 
 ## Performance-sensitive surfaces
 
-Primary hot path candidates:
+Highest-risk runtime surfaces:
 
 - `BS5_EchoRuntime.c`
-  - Candidate analysis and emission queue.
-  - Duplicate explosion suppression.
-  - Voice limiter and stealing.
-  - Start gate / burst limiting.
-  - Resource load/cache and emitter spawn fallback.
-
-- `BS5_EchoDriverComponent.c`
-  - Per-shot entry, duplicate guards, cache access, callqueue timers, and all runtime tuning accessors.
-
+  - Near/slapback traces: `ChimeraCharacter.TraceMoveWithoutCharacters` in near probe and slapback collection.
+  - Tail candidate traces: sector x band x distance sample x height sample loops.
+  - `BS5_EchoEmissionService` delayed queues, voice stealing, start gates, and cleanup scheduling.
+  - Code scout highlighted heavy scans in pending/reserved/active voice lists, queue admit/steal paths, candidate emission loops, and cleanup sweeps.
 - `BS5_EnvironmentAudioClassifier.c`
-  - SoundWorld signal sampling.
-  - Terrain sampling.
-  - Entity queries.
-  - `TraceMoveWithoutCharacters`.
-  - SoundMap path plausibility and urban micro-scan.
-
+  - SoundMap forward/omni scans.
+  - Urban micro-scan entity queries and facade confirmation traces.
+  - Path plausibility sampling and optional geometry raycasts.
+  - Terrain height/normal sampling loops.
+  - Code scout highlighted nested candidate sorting, repeated path-profile samples, SoundMap path raycast gates, and urban candidate pressure passes as the biggest heuristic-cost surface.
 - `BS5_CloseReflectionPlanner.c`
-  - Extra close wall/roof rescue traces and pair scoring.
+  - Extra roof/wall rescue traces on close-reflection candidates.
+- `BS5_AudioSettingsSubMenu.c`
+  - Large UI modded class; lower runtime audio risk, but high maintenance/conflict risk against upstream settings menu changes.
+- Prefab/config tuning
+  - Technical presets can radically alter trace count, sample count, candidate count, and limiter gates without script changes.
 
-- `BS5_SpatialSoundEmitterComponent.c`
-  - Audio project init/cache.
-  - Signal setting.
-  - Direct `AudioSystem.PlayEvent` plus fallback to `SoundComponent`.
+## AI-slop risk targets
 
-Prefab/config surfaces influencing runtime cost:
+Audit/deslop should focus here first:
 
-- `BS5_TechnicalPresets.conf`
-  - `m_fScanRadius`
-  - `m_iMaxCandidateCount`
-  - `m_iMaxTraceCount`
-  - `m_iForwardAnchorTraceCount`
-  - `m_iLateralAnchorTraceCount`
-  - `m_iSoundMapForwardRayCount`
-  - `m_iSoundMapForwardSampleCount`
-  - `m_iSoundMapPathSampleCount`
-  - `m_iSoundMapUrbanMicroMaxEntities`
-  - `m_iLimiterMaxTailStartsPer100Ms`
-  - `m_iLimiterMaxSlapbackStartsPer100Ms`
-
-Debug surfaces:
-
-- `BS5_AudioDebugSettingsComponent`
-- `BS5_DebugLog`
-- Long debug summaries in `BS5_EchoRuntime.c`
-- `DebugValidateConfiguration` in `BS5_EchoDriverComponent.c`
-
-Keep debug disabled during performance testing unless specifically gathering logs.
-
-## AI-slop risk targets for audit
-
-Prioritize these in a future `v2-bhe-audit`:
-
-1. `BS5_EchoRuntime.c`
-   - Very large file with multiple subsystems.
-   - Duplicate suppression, analysis, emission, resource cache, limiter, and cleanup are intertwined.
-   - Audit for duplicate work, cache key correctness, stale invalid caches, and missed cleanup.
-
-2. `BS5_EchoDriverComponent.c`
-   - Huge attribute surface and many clamps/fallbacks.
-   - Audit for duplicate calculations, inconsistent defaults between prefab/config/hardcoded values, and special-case drift.
-
-3. `BS5_EnvironmentAudioClassifier.c`
-   - Trace/entity-query/terrain/signal-heavy.
-   - Audit for repeated expensive queries, duplicated classification math, incorrect thresholds, and overly broad fallback generation.
-
-4. `BS5_CloseReflectionPlanner.c`
-   - Multiple acceptance paths with score blending.
-   - Audit for impossible thresholds, overlapping acceptance, and rescue paths fighting trench logic.
-
-5. `BS5_PresetRegistry.c`
-   - Silent hardcoded fallback can mask broken config references.
-   - Audit with Workbench reload or runtime logs if presets appear wrong.
-
-6. `BS5_AudioSettingsSubMenu.c`
-   - Procedural UI injected into vanilla menu.
-   - Audit only when UI behavior is in scope; avoid refactoring during audio runtime fixes.
-
-7. Resources and naming
-   - Double extensions and misspellings are likely historical resource names.
-   - Do not rename without a Workbench/resource database plan.
-
-8. `Scripts/WorkbenchGame/EnfusionMCP/`
-   - Handler scripts are tooling files.
-   - Keep out of gameplay reasoning and remove before publish/release if required.
+- Lifecycle separation: ordinary shot echo, fire-time blast callback, and actual detonation impact must remain separate. Do not prove one lifecycle and claim all three.
+- Prefab coverage: base-prefab additions do not guarantee children with their own `PROJECTILE_EFFECTS`, `ProjectileEffects`, `CollisionTriggerComponent`, `TimerTriggerComponent`, or warhead/effect containers are covered.
+- Resolver consistency: ACP/emitter fallback order is layered. Do not claim MG-style, suppressed, slapback, close, or explosion routing is changed unless the exact branch/resource is verified.
+- Debug publish hygiene: live merged prefabs currently show debug enabled at `Weapon_Base.et` and `BS5_ExplosionDriver.et`; do not publish until this is intentionally reviewed.
+- Limiter tuning drift: code defaults, prefab defaults, and technical preset config can diverge.
+- SoundMap/entity-query cost: broad city/urban settings can look good in isolated tests but spike in dense scenes.
+- UI monolith: `BS5_AudioSettingsSubMenu.c` is large and modded; future changes should be surgical and tested in menu lifecycle.
+- Workbench helper files: `Scripts/WorkbenchGame/EnfusionMCP/*` should not be left in a publish build.
+- Resource names with typos such as `Silinced` and doubled `.acp.acp` appear to be existing resource names; do not rename casually without resource GUID/workbench verification.
 
 ## Open questions / unverified assumptions
 
-- The dependency GUID `58D0FB3206B6F859` was resolved by MCP as Arma Reforger; no other mod dependency is declared in `addon.gproj`.
-- The map did not launch Workbench and did not run script reload/compile. MCP `mod validate` was used as cheap validation only.
-- Exact override signatures for `SCR_WeaponBlastComponent`, `SCR_ExplosiveTriggerComponent`, `SCR_PressureTriggerComponent`, and `SCR_AudioSettingsSubMenu` were not deeply re-verified beyond current script presence and one subagent note. Re-check with MCP/API or base-game scripts before editing those hooks.
-- Resource existence was not exhaustively verified for every ACP sample and base-game GUID. ACPs reference many base-game/shared audio resources; simple local missing-path scans are not reliable proof of broken references.
-- Existing older docs mentioned in git history were not present in the live working tree and were not treated as current truth.
-- The current map is read-only research plus this artifact write. It does not assert runtime behavior was smoke-tested in-game.
-
-## Subagent evidence
-
-- `api_researcher / native equivalent`: not used; main agent performed targeted MCP API checks.
-- `code_researcher / native equivalent`: used; purpose was read-only `Scripts/Game` class/function/dependency/performance mapping; returned per-file responsibilities and audit-risk focus; files changed by subagent: none.
-- `repo_sentinel / native equivalent`: not used.
-- `heavy_advisor / native equivalent`: not used.
-- `resource_mapper / native explorer equivalent`: used; purpose was read-only addon/prefab/config/audio resource mapping; returned addon identity, prefab entry points, ACP/signal resources, stale-looking naming, handler-script hygiene note; files changed by subagent: none.
-- Files changed by subagents: none.
+- Runtime logs were not generated during this mapping pass, so active in-game behavior is inferred from scripts/prefabs/MCP, not freshly replayed.
+- Leaf prefab coverage was scanned locally, but not every grenade/rocket/mine/explosive descendant was MCP-merged inspected.
+- Workbench was not launched; script compile/reload was not run as part of this read-only map.
+- `resourceDatabase.rdb` exists; publish/build state was not verified in this pass.
+- Subagent scout results were folded into this map after the initial draft. Both scouts were read-only and made no file changes.
 
 ## Recommended next skill
 
-Use `v2-bhe-audit` next if the goal is cleanup/deslop planning. The first audit slice should focus on:
-
-- Runtime duplicate work and hot path math: `BS5_EchoRuntime.c`, `BS5_EchoDriverComponent.c`, `BS5_EnvironmentAudioClassifier.c`.
-- Explosion duplicate fan-in: `BS5_ExplosionBridge.c` plus `BS5_EchoRuntime.DispatchExplosionEffect`.
-- Preset/config fallback correctness: `BS5_PresetRegistry.c` and `Configs/BS5/Presets/*.conf`.
-
-Use `bhe-goal` instead if the next request is a concrete bugfix or feature change.
+- Use `bhe-audit` next if the goal is anti-slop/deslop preparation.
+- Use `bhe-repo` next if the goal is Workshop publish hygiene, especially debug-off and `Scripts/WorkbenchGame/EnfusionMCP` cleanup.
+- Use `bhe-goal` next for one concrete gameplay/audio bug or feature slice.
