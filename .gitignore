@@ -1,0 +1,8 @@
+.agent-work/
+Scripts/WorkbenchGame/EnfusionMCP/
+tools/
+.build/
+console.log
+error.log
+UserMaps.desc
+resourceDatabase.rdb
