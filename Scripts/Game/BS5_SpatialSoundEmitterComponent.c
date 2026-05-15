@@ -219,6 +219,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserEchoVolume", context.m_fUserEchoVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackVolume", context.m_fUserSlapbackVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_UserSlapbackCloseVolume", context.m_fUserSlapbackCloseVolume);
+		AppendAudioSignal(signalNames, signalValues, "BS5_UserExplosionVolume", context.m_fUserExplosionVolume);
 		AppendAudioSignal(signalNames, signalValues, "BS5_PanBias", context.m_fPanBias);
 		AppendAudioSignal(signalNames, signalValues, "BS5_DirectionSupport", context.m_fDirectionSupport);
 		AppendAudioSignal(signalNames, signalValues, "BS5_ReverbSend", context.m_fReverbSend);

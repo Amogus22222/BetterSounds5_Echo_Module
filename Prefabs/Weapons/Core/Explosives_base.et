@@ -1,0 +1,12 @@
+GenericEntity {
+ ID "5968D2B6A82C6019"
+ components {
+  MeshObject "{5968D9C73C08706E}" {
+   Object "{A4048C2AA75EF832}Common/Models/Default.xob"
+  }
+  RigidBody "{5968D9C731425A95}" {
+  }
+  Hierarchy "{6202AB2D8AFBBC5D}" {
+  }
+ }
+}

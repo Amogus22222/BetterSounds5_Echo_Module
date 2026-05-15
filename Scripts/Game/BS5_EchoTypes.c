@@ -311,6 +311,7 @@ class BS5_PendingEmissionContext
 	float m_fUserEchoVolume;
 	float m_fUserSlapbackVolume;
 	float m_fUserSlapbackCloseVolume;
+	float m_fUserExplosionVolume;
 	float m_fDelaySeconds;
 	bool m_bSlapback;
 	bool m_bExplosion;
@@ -354,6 +355,7 @@ class BS5_PendingEmissionContext
 		m_fUserEchoVolume = 1.0;
 		m_fUserSlapbackVolume = 1.0;
 		m_fUserSlapbackCloseVolume = 1.0;
+		m_fUserExplosionVolume = 1.0;
 		m_fDelaySeconds = 0.0;
 		m_bSlapback = false;
 		m_bExplosion = false;

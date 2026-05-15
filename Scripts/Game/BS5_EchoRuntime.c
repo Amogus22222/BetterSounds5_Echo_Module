@@ -1,5 +1,10 @@
 class BS5_EchoRuntime
 {
+	protected static const ResourceName DEFAULT_EXPLOSION_DRIVER_PREFAB = "{0FEFE02500672DD0}Prefabs/Props/BS5_ExplosionDriver.et";
+	protected static IEntity s_pExplosionDriverEntity;
+	protected static int s_iLastExplosionDispatchFrame;
+	protected static vector s_vLastExplosionDispatchOrigin;
+
 	static BS5_EchoDriverComponent FindDriver(IEntity effectEntity, BaseMuzzleComponent muzzle)
 	{
 		BS5_EchoDriverComponent driver = TryFindDriverOnEntity(effectEntity);
@@ -19,6 +24,48 @@ class BS5_EchoRuntime
 			return driver;
 
 		return TryFindDriverOnEntity(projectileEntity);
+	}
+
+	static void DispatchExplosionEffect(IEntity owner, IEntity pHitEntity, inout vector outMat[3], IEntity damageSource, notnull Instigator instigator, string sourceTag)
+	{
+		vector origin = outMat[0];
+		if (origin.LengthSq() < 0.0001)
+		{
+			if (owner)
+				origin = owner.GetOrigin();
+			else if (damageSource)
+				origin = damageSource.GetOrigin();
+			else if (pHitEntity)
+				origin = pHitEntity.GetOrigin();
+		}
+
+		if (ShouldSuppressExplosionDispatch(origin))
+			return;
+
+		vector forward = outMat[1];
+		forward[1] = 0.0;
+		if (forward.LengthSq() < 0.0001 && damageSource)
+			forward = origin - damageSource.GetOrigin();
+		forward[1] = 0.0;
+		if (forward.LengthSq() < 0.0001)
+			forward = "0 0 1";
+		forward.Normalize();
+
+		BS5_EchoDriverComponent driver = FindExplosionDriver(owner, null, damageSource);
+		if (!driver && instigator)
+			driver = TryFindDriverOnEntity(instigator.GetInstigatorEntity());
+
+		if (driver && driver.IsExplosionReuseEnabled())
+		{
+			driver.HandleExplosionAt(driver.GetOwner(), origin, forward, true);
+			return;
+		}
+
+		BS5_EchoDriverComponent globalDriver = ResolveGlobalExplosionDriver(origin);
+		if (!globalDriver)
+			return;
+
+		globalDriver.HandleExplosionAt(globalDriver.GetOwner(), origin, forward, false);
 	}
 
 	static BS5_EchoAnalysisResult AnalyzeShot(BS5_EchoDriverComponent settings, IEntity owner, vector origin, vector forward, bool suppressed)
@@ -55,6 +102,63 @@ class BS5_EchoRuntime
 			return null;
 
 		return BS5_EchoDriverComponent.Cast(rootEntity.FindComponent(BS5_EchoDriverComponent));
+	}
+
+	protected static bool ShouldSuppressExplosionDispatch(vector origin)
+	{
+		Game game = GetGame();
+		if (!game)
+			return false;
+
+		BaseWorld world = game.GetWorld();
+		if (!world)
+			return false;
+
+		int frame = world.GetFrameNumber();
+		if (s_iLastExplosionDispatchFrame > 0 && frame - s_iLastExplosionDispatchFrame <= 2)
+		{
+			if (vector.DistanceSq(origin, s_vLastExplosionDispatchOrigin) < 4.0)
+				return true;
+		}
+
+		s_iLastExplosionDispatchFrame = frame;
+		s_vLastExplosionDispatchOrigin = origin;
+		return false;
+	}
+
+	protected static BS5_EchoDriverComponent ResolveGlobalExplosionDriver(vector origin)
+	{
+		if (s_pExplosionDriverEntity)
+		{
+			BS5_EchoDriverComponent cachedDriver = BS5_EchoDriverComponent.Cast(s_pExplosionDriverEntity.FindComponent(BS5_EchoDriverComponent));
+			if (cachedDriver)
+			{
+				s_pExplosionDriverEntity.SetOrigin(origin);
+				return cachedDriver;
+			}
+		}
+
+		Game game = GetGame();
+		if (!game)
+			return null;
+
+		Resource driverPrefab = Resource.Load(DEFAULT_EXPLOSION_DRIVER_PREFAB);
+		if (!driverPrefab || !driverPrefab.IsValid())
+			return null;
+
+		IEntity driverEntity = game.SpawnEntityPrefab(driverPrefab, game.GetWorld(), null);
+		if (!driverEntity)
+		{
+			ChimeraGame chimeraGame = ChimeraGame.Cast(game);
+			if (chimeraGame)
+				driverEntity = chimeraGame.SpawnEntityPrefabLocal(driverPrefab, game.GetWorld(), null);
+		}
+		if (!driverEntity)
+			return null;
+
+		driverEntity.SetOrigin(origin);
+		s_pExplosionDriverEntity = driverEntity;
+		return BS5_EchoDriverComponent.Cast(driverEntity.FindComponent(BS5_EchoDriverComponent));
 	}
 }
 
@@ -416,15 +520,12 @@ class BS5_EchoEnvironmentAnalyzer
 		result.m_fMasterDelaySeconds = firstDelay;
 		result.m_fSlapbackDelaySeconds = 0.0;
 
-		if (!explosionLike)
-		{
-			if (settings.IsSlapbackEnabled())
-				CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray);
-			else if (!settings.IsPlayerSlapbackEnabled())
-				result.m_sSlapbackMode = "disabled_global";
-			else
-				result.m_sSlapbackMode = "disabled_driver";
-		}
+		if (settings.IsSlapbackEnabled())
+			CollectSlapbackCandidates(result.m_aSlapbackCandidates, settings, result, owner, origin, probeOrigin, flatForward, flatRight, traceExcludeArray);
+		else if (!settings.IsPlayerSlapbackEnabled())
+			result.m_sSlapbackMode = "disabled_global";
+		else
+			result.m_sSlapbackMode = "disabled_driver";
 		if (!result.m_aSlapbackCandidates.IsEmpty())
 			result.m_fSlapbackDelaySeconds = result.m_aSlapbackCandidates[0].m_fDelaySeconds;
 
@@ -2096,12 +2197,15 @@ class BS5_EchoEmissionService
 		float userEchoVolume = BS5_PlayerAudioSettings.GetEchoVolume();
 		float userSlapbackVolume = BS5_PlayerAudioSettings.GetSlapbackVolume();
 		float userSlapbackCloseVolume = BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+		float userExplosionVolume = BS5_PlayerAudioSettings.GetExplosionVolume();
 		bool canOutputTail = userEchoVolume > 0.001;
+		if (explosionLike)
+			canOutputTail = userExplosionVolume > 0.001;
 		bool canOutputSlapback = userSlapbackVolume > 0.001 || userSlapbackCloseVolume > 0.001;
 		if (!canOutputTail && !canOutputSlapback)
 		{
 			if (debugEnabled)
-				BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume + " closeVol=" + userSlapbackCloseVolume);
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "emit skip muted echoVol=" + userEchoVolume + " slapVol=" + userSlapbackVolume + " closeVol=" + userSlapbackCloseVolume + " expVol=" + userExplosionVolume);
 			return;
 		}
 
@@ -2122,7 +2226,7 @@ class BS5_EchoEmissionService
 		if (slapbackEmitCount > result.m_aSlapbackCandidates.Count())
 			slapbackEmitCount = result.m_aSlapbackCandidates.Count();
 		bool emitMaster = emitTails && settings.IsTailsEnabled();
-		bool emitSlapback = settings.IsSlapbackEnabled() && !explosionLike;
+		bool emitSlapback = settings.IsSlapbackEnabled();
 		string masterEvent = settings.ResolveMasterEventName();
 		ResourceName masterProject = settings.ResolveMasterAcp(result.m_bSuppressedShot);
 		ResourceName masterEmitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
@@ -2130,7 +2234,7 @@ class BS5_EchoEmissionService
 		{
 			masterEvent = settings.ResolveExplosionEventName();
 			masterProject = settings.ResolveExplosionAcp();
-			masterEmitterPrefab = settings.ResolveMasterEmitterPrefab(false);
+			masterEmitterPrefab = settings.ResolveExplosionEmitterPrefab();
 		}
 		string slapbackEvent = settings.ResolveSlapbackEventName();
 		ResourceName slapbackEmitterPrefab = settings.ResolveSlapbackEmitterPrefab(BS5_EchoCandidateSourceType.UNKNOWN, result.m_bSuppressedShot);
@@ -2208,6 +2312,8 @@ class BS5_EchoEmissionService
 			{
 				string candidateSlapbackEvent = settings.ResolveSlapbackEventName(slapCandidate.m_eSourceType);
 				ResourceName candidateSlapbackProject = settings.ResolveSlapbackAcp(slapCandidate.m_eSourceType, result.m_bSuppressedShot);
+				if (explosionLike)
+					candidateSlapbackProject = settings.ResolveExplosionSlapbackAcp();
 				if (debugEnabled)
 				{
 					string slapQueueLog = "slapback queue";
@@ -2220,7 +2326,7 @@ class BS5_EchoEmissionService
 					slapQueueLog += " userVol=" + candidateUserVolume;
 					BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, slapQueueLog);
 				}
-				QueueEmission(owner, result, candidateSlapbackProject, candidateSlapbackEvent, slapCandidate, true, false, settings);
+				QueueEmission(owner, result, candidateSlapbackProject, candidateSlapbackEvent, slapCandidate, true, explosionLike, settings);
 			}
 		}
 	}
@@ -2228,8 +2334,12 @@ class BS5_EchoEmissionService
 	static void QueueEmission(IEntity owner, BS5_EchoAnalysisResult result, ResourceName project, string eventName, BS5_EchoReflectorCandidate candidate, bool slapback, bool explosionLike, BS5_EchoDriverComponent settings)
 	{
 		ResourceName emitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
-		if (slapback)
+		if (slapback && explosionLike)
+			emitterPrefab = settings.ResolveExplosionSlapbackEmitterPrefab();
+		else if (slapback)
 			emitterPrefab = settings.ResolveSlapbackEmitterPrefab(candidate.m_eSourceType, result.m_bSuppressedShot);
+		else if (explosionLike)
+			emitterPrefab = settings.ResolveExplosionEmitterPrefab();
 
 		if (eventName == string.Empty || emitterPrefab == string.Empty)
 		{
@@ -2256,6 +2366,7 @@ class BS5_EchoEmissionService
 		context.m_fUserEchoVolume = BS5_PlayerAudioSettings.GetEchoVolume();
 		context.m_fUserSlapbackVolume = BS5_PlayerAudioSettings.GetSlapbackVolume();
 		context.m_fUserSlapbackCloseVolume = BS5_PlayerAudioSettings.GetSlapbackCloseVolume();
+		context.m_fUserExplosionVolume = BS5_PlayerAudioSettings.GetExplosionVolume();
 		context.m_fIntensity = BS5_EchoMath.Clamp01(result.m_fIntensity * candidate.m_fScore * context.m_fDistanceGain);
 		context.m_fDelaySeconds = candidate.m_fDelaySeconds;
 		context.m_bSlapback = slapback;
@@ -2309,6 +2420,8 @@ class BS5_EchoEmissionService
 		float userOutputVolume = context.m_fUserEchoVolume;
 		if (slapback)
 			userOutputVolume = ResolveUserSlapbackVolumeForSourceType(context.m_eSourceType);
+		else if (explosionLike)
+			userOutputVolume = context.m_fUserExplosionVolume;
 
 		context.m_fIntensity = BS5_EchoMath.Clamp01(context.m_fIntensity * userOutputVolume);
 		context.m_fEmitterLifetimeSeconds = ComputeManagedEmitterLifetime(settings, context);

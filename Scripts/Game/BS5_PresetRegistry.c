@@ -22,6 +22,9 @@ class BS5_SoundPresetConfigEntry
 
 	[Attribute(defvalue: "0.80")]
 	float m_fSlapbackCloseVolume;
+
+	[Attribute(defvalue: "0.75")]
+	float m_fExplosionVolume;
 }
 
 [BaseContainerProps(configRoot: true)]
@@ -231,6 +234,7 @@ class BS5_SoundPreset
 	float m_fEchoVolume;
 	float m_fSlapbackVolume;
 	float m_fSlapbackCloseVolume;
+	float m_fExplosionVolume;
 }
 
 class BS5_TechnicalPreset
@@ -450,7 +454,8 @@ class BS5_PresetRegistry
 		BS5_PlayerAudioSettings.SetSoundPresetId(preset.m_sId, false);
 		BS5_PlayerAudioSettings.SetEchoVolume(preset.m_fEchoVolume, false, false);
 		BS5_PlayerAudioSettings.SetSlapbackVolume(preset.m_fSlapbackVolume, false, false);
-		BS5_PlayerAudioSettings.SetSlapbackCloseVolume(preset.m_fSlapbackCloseVolume, saveImmediately, false);
+		BS5_PlayerAudioSettings.SetSlapbackCloseVolume(preset.m_fSlapbackCloseVolume, false, false);
+		BS5_PlayerAudioSettings.SetExplosionVolume(preset.m_fExplosionVolume, saveImmediately, false);
 	}
 
 	static void ApplyTechnicalPreset(string id, bool saveImmediately = true)
@@ -496,7 +501,7 @@ class BS5_PresetRegistry
 			if (!entry || entry.m_sId == string.Empty)
 				continue;
 
-			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume, entry.m_fSlapbackCloseVolume);
+			AddSoundPreset(entry.m_sId, entry.m_sDisplayName, entry.m_fEchoVolume, entry.m_fSlapbackVolume, entry.m_fSlapbackCloseVolume, entry.m_fExplosionVolume);
 		}
 	}
 
@@ -521,10 +526,10 @@ class BS5_PresetRegistry
 
 	protected static void AddFallbackSoundPresets()
 	{
-		AddSoundPreset("vanilla", "Vanilla", 0.75, 0.60, 0.80);
-		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 1.00, 1.00, 1.00);
-		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.60, 0.60);
-		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.85, 0.95);
+		AddSoundPreset("vanilla", "Vanilla", 0.75, 0.60, 0.80, 0.75);
+		AddSoundPreset("bettersounds_v4", "BetterSoundsV4", 1.00, 1.00, 1.00, 1.00);
+		AddSoundPreset("bettersounds_v5", "BetterSoundsV5", 0.80, 0.60, 0.60, 0.80);
+		AddSoundPreset("lunacy_audio", "LunacyAudio", 0.80, 0.85, 0.95, 0.90);
 	}
 
 	protected static void AddFallbackTechnicalPresets()
@@ -542,7 +547,7 @@ class BS5_PresetRegistry
 		AddTechnicalPresetFromEntry(entry);
 	}
 
-	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume, float slapbackCloseVolume)
+	protected static void AddSoundPreset(string id, string displayName, float echoVolume, float slapbackVolume, float slapbackCloseVolume, float explosionVolume)
 	{
 		if (FindSoundPreset(id))
 			return;
@@ -553,6 +558,7 @@ class BS5_PresetRegistry
 		preset.m_fEchoVolume = BS5_EchoMath.Clamp01(echoVolume);
 		preset.m_fSlapbackVolume = BS5_EchoMath.Clamp01(slapbackVolume);
 		preset.m_fSlapbackCloseVolume = BS5_EchoMath.Clamp01(slapbackCloseVolume);
+		preset.m_fExplosionVolume = BS5_EchoMath.Clamp01(explosionVolume);
 		s_aSoundPresets.Insert(preset);
 	}
 

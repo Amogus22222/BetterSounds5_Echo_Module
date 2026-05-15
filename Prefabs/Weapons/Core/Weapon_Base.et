@@ -31,17 +31,22 @@ GenericEntity {
    m_fSurfaceHardnessFloor 0.5
   }
   BS5_EchoDriverComponent "{692681A021648F3D}" {
-   m_sMasterAcp "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
+   m_sMasterAcp "{C46B1A7324F05E91}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
    m_sSlapbackAcp "{A5088F4119AED643}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Master.acp"
    m_sTrenchSlapbackAcp "{F6788D70EAFBDFE1}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Trench_Master.acp"
    m_sSuppressedMasterAcp "{064282CFD84AFC4E}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp.acp"
    m_sSuppressedSlapbackAcp "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"
+   m_sExplosionAcp "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp"
+   m_sExplosionSlapbackAcp "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp"
+   m_sExplosionEventName "SOUND_SHOT"
+   m_sExplosionEmitterPrefab "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et"
+   m_sExplosionSlapbackEmitterPrefab "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et"
    m_sTrenchSlapbackEventName "SOUND_SHOT"
    m_sTrenchSlapbackEmitterPrefab "{C21E4F890A7B63D5}Prefabs/Props/BS5_SlapbackEmitter_Trench.et"
    m_sSuppressedMasterEmitterPrefab "{A59D3E1092B44A6C}Prefabs/Props/BS5_TailEmitter_Silenced.et"
    m_sSuppressedSlapbackEmitterPrefab "{D07C4B82E65C4F31}Prefabs/Props/BS5_SlapbackEmitter_Silenced.et"
    m_bEnableSlapback 1
-   m_bEnableExplosionReuse 0
+   m_bEnableExplosionReuse 1
    m_bUseSoundMapAnchorPlanner 1
    m_bAllowLegacyAnchorFallback 0
    m_fScanRadius 700
@@ -150,10 +155,10 @@ GenericEntity {
    m_fDistanceGainFarMeters 255
   }
   BS5_WeaponEchoRplCharacterComponent "{692681A026ACA6B2}" {
-   m_DefaultEchoAcp "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
+   m_DefaultEchoAcp "{C46B1A7324F05E91}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
   }
   BS5_WeaponEchoSettingsComponent "{692681A029041226}" {
-   m_EchoProject "{6717325A0F4513E2}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
+   m_EchoProject "{C46B1A7324F05E91}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"
    m_SuppressedEchoProject "{064282CFD84AFC4E}Sounds/Weapons/Rifles/BS5/Weapons_Silinced_EchoMaster.acp.acp"
    m_SlapbackProject "{A5088F4119AED643}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Master.acp"
    m_SuppressedSlapbackProject "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"

@@ -6,6 +6,10 @@ class BS5_EchoDriverComponentClass : ScriptComponentClass
 class BS5_EchoDriverComponent : ScriptComponent
 {
 	protected static const ResourceName DEFAULT_MASTER_EMITTER_PREFAB = "{995F66906C1D9EDC}Prefabs/Props/BS5_TailEmitter.et";
+	protected static const ResourceName DEFAULT_EXPLOSION_ACP = "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp";
+	protected static const ResourceName DEFAULT_EXPLOSION_EMITTER_PREFAB = "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et";
+	protected static const ResourceName DEFAULT_EXPLOSION_SLAPBACK_ACP = "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp";
+	protected static const ResourceName DEFAULT_EXPLOSION_SLAPBACK_EMITTER_PREFAB = "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et";
 	protected static const ResourceName DEFAULT_MACHINEGUN_MASTER_EMITTER_PREFAB = "{4CB3F211A7DF906E}Prefabs/Props/BS5_TailEmitter_MG.et";
 	protected static const ResourceName DEFAULT_SUPPRESSED_MASTER_EMITTER_PREFAB = "{A59D3E1092B44A6C}Prefabs/Props/BS5_TailEmitter_Silenced.et";
 	protected static const ResourceName DEFAULT_SLAPBACK_EMITTER_PREFAB = "{29D823F0744A8637}Prefabs/Props/BS5_SlapbackEmitter.et";
@@ -27,6 +31,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "", desc: "Optional ACP override for suppressed slapback playback. Direct ACP playback is tried first; if the engine rejects it, playback falls back to the suppressed slapback emitter prefab.")]
 	protected ResourceName m_sSuppressedSlapbackAcp;
 
+	[Attribute(defvalue: "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp", desc: "Dedicated ACP used for explosion-like echo tails.")]
+	protected ResourceName m_sExplosionAcp;
+
+	[Attribute(defvalue: "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp", desc: "Dedicated ACP used for explosion-like slapbacks. Uses normal slapback volume and event routing.")]
+	protected ResourceName m_sExplosionSlapbackAcp;
+
 	[Attribute(defvalue: "SOUND_SHOT", desc: "Audio event triggered on the master tail emitter prefab.")]
 	protected string m_sMasterEventName;
 
@@ -36,14 +46,17 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "BS5_TRENCH_SLAPBACK", desc: "Audio event triggered on the trench slapback emitter prefab.")]
 	protected string m_sTrenchSlapbackEventName;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated audio event used for explosion-like long tails. Leave empty to reuse the main tail event.")]
+	[Attribute(defvalue: "SOUND_SHOT", desc: "Dedicated audio event used for explosion-like long tails.")]
 	protected string m_sExplosionEventName;
-
-	[Attribute(defvalue: "BS5_EXPLOSION_SLAPBACK", desc: "Audio event used for explosion-like near slapback reflections.")]
-	protected string m_sExplosionSlapbackEventName;
 
 	[Attribute(defvalue: "{995F66906C1D9EDC}Prefabs/Props/BS5_TailEmitter.et", desc: "Emitter prefab spawned for long tail playback. Its SoundComponent defines the actual master ACP.")]
 	protected ResourceName m_sMasterEmitterPrefab;
+
+	[Attribute(defvalue: "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et", desc: "Emitter prefab spawned for explosion-like echo playback. Its SoundComponent defines the explosion ACP.")]
+	protected ResourceName m_sExplosionEmitterPrefab;
+
+	[Attribute(defvalue: "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et", desc: "Emitter prefab spawned for explosion-like slapback playback. Uses normal slapback settings and signals.")]
+	protected ResourceName m_sExplosionSlapbackEmitterPrefab;
 
 	[Attribute(defvalue: "{29D823F0744A8637}Prefabs/Props/BS5_SlapbackEmitter.et", desc: "Emitter prefab spawned for slapback playback. Its SoundComponent defines the actual slapback ACP.")]
 	protected ResourceName m_sSlapbackEmitterPrefab;
@@ -650,6 +663,20 @@ class BS5_EchoDriverComponent : ScriptComponent
 		vector origin = transform[3];
 		vector forward = transform[2];
 		vector planarForward = FlattenHeading(forward);
+		HandleExplosionAt(owner, origin, planarForward, true);
+	}
+
+	void HandleExplosionAt(IEntity owner, vector origin, vector forward, bool requireExplosionEnabled = true)
+	{
+		if (!owner)
+			owner = GetOwner();
+		if (!owner)
+			return;
+
+		if (requireExplosionEnabled && !m_bEnableExplosionReuse)
+			return;
+
+		vector planarForward = FlattenHeading(forward);
 		BS5_EchoAnalysisResult result = ResolveCachedResult(owner, origin, planarForward, true, false);
 		if (!result)
 			result = BS5_EchoRuntime.AnalyzeExplosion(this, owner, origin, planarForward);
@@ -662,8 +689,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (IsDebugChannelEnabled(BS5_DebugChannel.ANALYSIS))
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.ANALYSIS, "explosion analysis " + result.m_sDebugSummary);
 
-		if (m_bEnableExplosionReuse)
-			BS5_EchoRuntime.EmitExplosion(this, owner, result);
+		BS5_EchoRuntime.EmitExplosion(this, owner, result);
 
 		m_vLastOrigin = origin;
 		m_vLastForward = planarForward;
@@ -742,7 +768,34 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	ResourceName ResolveExplosionAcp()
 	{
-		return ResolveMasterAcp(false);
+		if (m_sExplosionAcp != string.Empty)
+			return m_sExplosionAcp;
+
+		return DEFAULT_EXPLOSION_ACP;
+	}
+
+	ResourceName ResolveExplosionSlapbackAcp()
+	{
+		if (m_sExplosionSlapbackAcp != string.Empty)
+			return m_sExplosionSlapbackAcp;
+
+		return DEFAULT_EXPLOSION_SLAPBACK_ACP;
+	}
+
+	ResourceName ResolveExplosionEmitterPrefab()
+	{
+		if (IsEmitterPrefabPath(m_sExplosionEmitterPrefab))
+			return m_sExplosionEmitterPrefab;
+
+		return DEFAULT_EXPLOSION_EMITTER_PREFAB;
+	}
+
+	ResourceName ResolveExplosionSlapbackEmitterPrefab()
+	{
+		if (IsEmitterPrefabPath(m_sExplosionSlapbackEmitterPrefab))
+			return m_sExplosionSlapbackEmitterPrefab;
+
+		return DEFAULT_EXPLOSION_SLAPBACK_EMITTER_PREFAB;
 	}
 
 	ResourceName ResolveMasterEmitterPrefab(bool suppressed = false)
@@ -844,14 +897,6 @@ class BS5_EchoDriverComponent : ScriptComponent
 			return m_sExplosionEventName;
 
 		return ResolveMasterEventName();
-	}
-
-	string ResolveExplosionSlapbackEventName()
-	{
-		if (m_sExplosionSlapbackEventName != string.Empty)
-			return m_sExplosionSlapbackEventName;
-
-		return "BS5_EXPLOSION_SLAPBACK";
 	}
 
 	protected BS5_TechnicalPreset GetActiveTechnicalPreset()
@@ -1122,6 +1167,11 @@ class BS5_EchoDriverComponent : ScriptComponent
 	bool IsSlapbackEnabled()
 	{
 		return m_bEnableSlapback && BS5_PlayerAudioSettings.IsSlapbackEnabled();
+	}
+
+	bool IsExplosionReuseEnabled()
+	{
+		return m_bEnableExplosionReuse;
 	}
 
 	bool IsPlayerSlapbackEnabled()

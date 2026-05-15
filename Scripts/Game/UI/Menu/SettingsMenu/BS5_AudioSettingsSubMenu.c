@@ -3,6 +3,7 @@ modded class SCR_AudioSettingsSubMenu
 	protected static const string BS5_ECHO_VOLUME_LABEL = "Echo Volume";
 	protected static const string BS5_SLAPBACK_VOLUME_LABEL = "Slapback Volume";
 	protected static const string BS5_SLAPBACK_CLOSE_VOLUME_LABEL = "Slapback Close Volume";
+	protected static const string BS5_EXPLOSION_VOLUME_LABEL = "Explosion Echo Volume";
 	protected static const string BS5_SLAPBACK_ENABLED_LABEL = "Slapback";
 	protected static const string BS5_TECHNICAL_PRESET_LABEL = "Technical Preset";
 	protected static const string BS5_SOUND_PRESET_LABEL = "Sound Preset";
@@ -38,6 +39,15 @@ modded class SCR_AudioSettingsSubMenu
 	protected float m_fBs5SlapbackCloseSliderPercent = -1.0;
 	protected float m_fBs5PendingSlapbackCloseVolume = 0.5;
 	protected bool m_bBs5SlapbackCloseVolumeDirty;
+
+	protected Widget m_wBs5ExplosionVolumeRow;
+	protected HorizontalLayoutWidget m_wBs5ExplosionVolumeRowLayout;
+	protected SliderWidget m_wBs5ExplosionVolumeSlider;
+	protected TextWidget m_wBs5ExplosionVolumeLabel;
+	protected TextWidget m_wBs5ExplosionVolumeValue;
+	protected float m_fBs5ExplosionSliderPercent = -1.0;
+	protected float m_fBs5PendingExplosionVolume = 0.5;
+	protected bool m_bBs5ExplosionVolumeDirty;
 
 	protected Widget m_wBs5SlapbackEnabledRow;
 	protected CheckBoxWidget m_wBs5SlapbackEnabledCheckbox;
@@ -93,12 +103,14 @@ modded class SCR_AudioSettingsSubMenu
 		EnsureBs5EchoVolumeRow();
 		EnsureBs5SlapbackVolumeRow();
 		EnsureBs5SlapbackCloseVolumeRow();
+		EnsureBs5ExplosionVolumeRow();
 		ApplyBs5EchoVolumeStyles();
 		RefreshBs5SlapbackEnabledRow();
 		RefreshBs5PresetRows();
 		RefreshBs5EchoVolumeRow(true);
 		RefreshBs5SlapbackVolumeRow(true);
 		RefreshBs5SlapbackCloseVolumeRow(true);
+		RefreshBs5ExplosionVolumeRow(true);
 		m_bBs5RowsBuilding = false;
 	}
 
@@ -137,6 +149,12 @@ modded class SCR_AudioSettingsSubMenu
 		if (w == m_wBs5SlapbackCloseVolumeSlider)
 		{
 			HandleBs5SlapbackCloseVolumeChanged(finished);
+			return false;
+		}
+
+		if (w == m_wBs5ExplosionVolumeSlider)
+		{
+			HandleBs5ExplosionVolumeChanged(finished);
 			return false;
 		}
 
@@ -713,6 +731,61 @@ modded class SCR_AudioSettingsSubMenu
 		m_wBs5SoundPresetRow = CreateBs5PresetRow(content, workspace, "Bs5SoundPresetRow", BS5_SOUND_PRESET_LABEL, m_wBs5SoundPresetLabel, m_wBs5SoundPresetValue, m_wBs5SoundPresetPrevButton, m_wBs5SoundPresetNextButton, m_wBs5SoundPresetPrevText, m_wBs5SoundPresetNextText);
 	}
 
+	protected void EnsureBs5ExplosionVolumeRow()
+	{
+		if (m_wBs5ExplosionVolumeRow || !m_wScroll)
+			return;
+
+		VerticalLayoutWidget content = GetBs5SettingsContent();
+		WorkspaceWidget workspace = m_wScroll.GetWorkspace();
+		if (!content || !workspace)
+			return;
+
+		HorizontalLayoutWidget rowLayout;
+		m_wBs5ExplosionVolumeRow = CreateBs5BaseRow(content, workspace, "Bs5ExplosionVolumeRow", rowLayout);
+		if (!m_wBs5ExplosionVolumeRow || !rowLayout)
+			return;
+		m_wBs5ExplosionVolumeRowLayout = rowLayout;
+
+		SizeLayoutWidget labelShell = CreateBs5SizedShell(rowLayout, "Bs5ExplosionVolumeLabelShell", 220.0, true, 20.0, 8.0, 0.0, 8.0);
+		SizeLayoutWidget sliderShell = CreateBs5SizedShell(rowLayout, "Bs5ExplosionVolumeSliderShell", 0.0, false, 24.0, 8.0, 24.0, 8.0);
+		SizeLayoutWidget valueShell = CreateBs5SizedShell(rowLayout, "Bs5ExplosionVolumeValueShell", 76.0, true, 0.0, 8.0, 20.0, 8.0);
+
+		m_wBs5ExplosionVolumeLabel = TextWidget.Cast(workspace.CreateWidgetInWorkspace(WidgetType.TextWidgetTypeID, 0, 0, 0, 0, WidgetFlags.VISIBLE, null, 0));
+		m_wBs5ExplosionVolumeSlider = SliderWidget.Cast(workspace.CreateWidgetInWorkspace(WidgetType.SliderWidgetTypeID, 0, 0, 0, 0, WidgetFlags.VISIBLE, null, 0));
+		m_wBs5ExplosionVolumeValue = TextWidget.Cast(workspace.CreateWidgetInWorkspace(WidgetType.TextWidgetTypeID, 0, 0, 0, 0, WidgetFlags.VISIBLE, null, 0));
+
+		if (m_wBs5ExplosionVolumeLabel && labelShell)
+		{
+			labelShell.AddChild(m_wBs5ExplosionVolumeLabel);
+			m_wBs5ExplosionVolumeLabel.SetName("Bs5ExplosionVolumeLabel");
+			m_wBs5ExplosionVolumeLabel.SetText(BS5_EXPLOSION_VOLUME_LABEL);
+			m_wBs5ExplosionVolumeLabel.SetExactFontSize(BS5_SETTING_TEXT_SIZE);
+			SizeLayoutSlot.SetHorizontalAlign(m_wBs5ExplosionVolumeLabel, LayoutHorizontalAlign.Left);
+			SizeLayoutSlot.SetVerticalAlign(m_wBs5ExplosionVolumeLabel, LayoutVerticalAlign.Center);
+		}
+
+		if (m_wBs5ExplosionVolumeSlider && sliderShell)
+		{
+			sliderShell.AddChild(m_wBs5ExplosionVolumeSlider);
+			m_wBs5ExplosionVolumeSlider.SetName("Bs5ExplosionVolumeSlider");
+			m_wBs5ExplosionVolumeSlider.SetRange(BS5_ECHO_VOLUME_MIN, BS5_ECHO_VOLUME_MAX);
+			m_wBs5ExplosionVolumeSlider.SetStep(BS5_ECHO_VOLUME_STEP);
+			m_wBs5ExplosionVolumeSlider.AddHandler(this);
+			SizeLayoutSlot.SetHorizontalAlign(m_wBs5ExplosionVolumeSlider, LayoutHorizontalAlign.Stretch);
+			SizeLayoutSlot.SetVerticalAlign(m_wBs5ExplosionVolumeSlider, LayoutVerticalAlign.Center);
+		}
+
+		if (m_wBs5ExplosionVolumeValue && valueShell)
+		{
+			valueShell.AddChild(m_wBs5ExplosionVolumeValue);
+			m_wBs5ExplosionVolumeValue.SetName("Bs5ExplosionVolumeValue");
+			m_wBs5ExplosionVolumeValue.SetExactFontSize(BS5_SETTING_TEXT_SIZE);
+			SizeLayoutSlot.SetHorizontalAlign(m_wBs5ExplosionVolumeValue, LayoutHorizontalAlign.Right);
+			SizeLayoutSlot.SetVerticalAlign(m_wBs5ExplosionVolumeValue, LayoutVerticalAlign.Center);
+		}
+	}
+
 	protected Widget CreateBs5PresetRow(VerticalLayoutWidget content, WorkspaceWidget workspace, string rowName, string labelText, out TextWidget labelWidget, out TextWidget valueWidget, out ButtonWidget prevButton, out ButtonWidget nextButton, out TextWidget prevText, out TextWidget nextText)
 	{
 		HorizontalLayoutWidget rowLayout;
@@ -897,6 +970,8 @@ modded class SCR_AudioSettingsSubMenu
 			return true;
 		if (name == "Bs5SlapbackCloseVolumeRow")
 			return true;
+		if (name == "Bs5ExplosionVolumeRow")
+			return true;
 
 		return false;
 	}
@@ -920,6 +995,12 @@ modded class SCR_AudioSettingsSubMenu
 		m_wBs5SlapbackCloseVolumeSlider = null;
 		m_wBs5SlapbackCloseVolumeLabel = null;
 		m_wBs5SlapbackCloseVolumeValue = null;
+
+		m_wBs5ExplosionVolumeRow = null;
+		m_wBs5ExplosionVolumeRowLayout = null;
+		m_wBs5ExplosionVolumeSlider = null;
+		m_wBs5ExplosionVolumeLabel = null;
+		m_wBs5ExplosionVolumeValue = null;
 
 		m_wBs5SlapbackEnabledRow = null;
 		m_wBs5SlapbackEnabledCheckbox = null;
@@ -1082,6 +1163,51 @@ modded class SCR_AudioSettingsSubMenu
 		m_bBs5PresetSettingsDirty = true;
 	}
 
+	protected void RefreshBs5ExplosionVolumeRow(bool force)
+	{
+		if (!m_wBs5ExplosionVolumeSlider)
+			return;
+
+		float percentValue = QuantizeBs5SliderPercent(BS5_PlayerAudioSettings.GetExplosionVolume() * 100.0);
+		if (force || Math.AbsFloat(percentValue - m_fBs5ExplosionSliderPercent) > 0.1)
+			m_wBs5ExplosionVolumeSlider.SetCurrent(percentValue);
+
+		m_fBs5ExplosionSliderPercent = percentValue;
+		m_fBs5PendingExplosionVolume = percentValue * 0.01;
+		m_bBs5ExplosionVolumeDirty = false;
+		UpdateBs5ExplosionVolumeValueText(percentValue);
+	}
+
+	protected void HandleBs5ExplosionVolumeChanged(bool finished)
+	{
+		if (!m_wBs5ExplosionVolumeSlider)
+			return;
+
+		float currentPercent = QuantizeBs5SliderPercent(m_wBs5ExplosionVolumeSlider.GetCurrent());
+		UpdateBs5ExplosionVolumeValueText(currentPercent);
+
+		if (Math.AbsFloat(currentPercent - m_fBs5ExplosionSliderPercent) <= 0.1)
+			return;
+
+		m_fBs5ExplosionSliderPercent = currentPercent;
+		m_fBs5PendingExplosionVolume = currentPercent * 0.01;
+		m_bBs5ExplosionVolumeDirty = true;
+		BS5_PlayerAudioSettings.SetExplosionVolume(m_fBs5PendingExplosionVolume, false);
+		RefreshBs5PresetRows();
+		if (finished)
+			m_bBs5PresetSettingsDirty = true;
+	}
+
+	protected void FlushBs5ExplosionVolumeSetting()
+	{
+		if (!m_bBs5ExplosionVolumeDirty)
+			return;
+
+		BS5_PlayerAudioSettings.SetExplosionVolume(m_fBs5PendingExplosionVolume, false);
+		m_bBs5ExplosionVolumeDirty = false;
+		m_bBs5PresetSettingsDirty = true;
+	}
+
 	protected void FlushBs5PresetSettings()
 	{
 		if (!m_bBs5PresetSettingsDirty)
@@ -1096,6 +1222,7 @@ modded class SCR_AudioSettingsSubMenu
 		FlushBs5EchoVolumeSetting();
 		FlushBs5SlapbackVolumeSetting();
 		FlushBs5SlapbackCloseVolumeSetting();
+		FlushBs5ExplosionVolumeSetting();
 		FlushBs5PresetSettings();
 	}
 
@@ -1169,11 +1296,13 @@ modded class SCR_AudioSettingsSubMenu
 		FlushBs5EchoVolumeSetting();
 		FlushBs5SlapbackVolumeSetting();
 		FlushBs5SlapbackCloseVolumeSetting();
+		FlushBs5ExplosionVolumeSetting();
 		BS5_PresetRegistry.ApplySoundPreset(preset.m_sId, false);
 		m_bBs5PresetSettingsDirty = true;
 		RefreshBs5EchoVolumeRow(true);
 		RefreshBs5SlapbackVolumeRow(true);
 		RefreshBs5SlapbackCloseVolumeRow(true);
+		RefreshBs5ExplosionVolumeRow(true);
 		RefreshBs5PresetRows();
 	}
 
@@ -1202,6 +1331,15 @@ modded class SCR_AudioSettingsSubMenu
 
 		int displayValue = (int)percentValue;
 		m_wBs5SlapbackCloseVolumeValue.SetText(string.Format("%1%%", displayValue));
+	}
+
+	protected void UpdateBs5ExplosionVolumeValueText(float percentValue)
+	{
+		if (!m_wBs5ExplosionVolumeValue)
+			return;
+
+		int displayValue = (int)percentValue;
+		m_wBs5ExplosionVolumeValue.SetText(string.Format("%1%%", displayValue));
 	}
 
 	protected float QuantizeBs5SliderPercent(float percentValue)
@@ -1243,6 +1381,15 @@ modded class SCR_AudioSettingsSubMenu
 			m_wBs5SlapbackCloseVolumeSlider.SetOpacity(sourceSlider.GetOpacity());
 		}
 
+		if (sourceSlider && m_wBs5ExplosionVolumeSlider)
+		{
+			string explosionSliderStyle = sourceSlider.GetStyleName();
+			if (explosionSliderStyle != string.Empty)
+				m_wBs5ExplosionVolumeSlider.SetStyle(explosionSliderStyle);
+			m_wBs5ExplosionVolumeSlider.SetColorInt(sourceSlider.GetColorInt());
+			m_wBs5ExplosionVolumeSlider.SetOpacity(sourceSlider.GetOpacity());
+		}
+
 		array<ref TextWidget> sourceTexts = {};
 		CollectBs5TextWidgets(sourceRow, sourceTexts);
 		TextWidget sourceLabel = FindBs5LabelTextWidget(sourceTexts);
@@ -1256,6 +1403,7 @@ modded class SCR_AudioSettingsSubMenu
 		ApplyBs5TextStyle(m_wBs5EchoVolumeLabel, sourceLabel);
 		ApplyBs5TextStyle(m_wBs5SlapbackVolumeLabel, sourceLabel);
 		ApplyBs5TextStyle(m_wBs5SlapbackCloseVolumeLabel, sourceLabel);
+		ApplyBs5TextStyle(m_wBs5ExplosionVolumeLabel, sourceLabel);
 
 		ApplyBs5TextStyle(m_wBs5SlapbackEnabledValue, sourceValue);
 		ApplyBs5TextStyle(m_wBs5TechnicalPresetValue, sourceValue);
@@ -1263,6 +1411,7 @@ modded class SCR_AudioSettingsSubMenu
 		ApplyBs5TextStyle(m_wBs5EchoVolumeValue, sourceValue);
 		ApplyBs5TextStyle(m_wBs5SlapbackVolumeValue, sourceValue);
 		ApplyBs5TextStyle(m_wBs5SlapbackCloseVolumeValue, sourceValue);
+		ApplyBs5TextStyle(m_wBs5ExplosionVolumeValue, sourceValue);
 		ApplyBs5TextStyle(m_wBs5TechnicalPresetPrevText, sourceValue);
 		ApplyBs5TextStyle(m_wBs5TechnicalPresetNextText, sourceValue);
 		ApplyBs5TextStyle(m_wBs5SoundPresetPrevText, sourceValue);
