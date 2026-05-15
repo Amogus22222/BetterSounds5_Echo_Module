@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{718F298BBA8673B3}Assets/explosions/BF01_Weapons_Handheld_Shared_Reflections_All_Parametric_01 1.wav"
+ Name "{718F298BBA8673B3}Assets/explosions/bhe_explosion_hill2.wav"
  Configurations {
   WAVResourceClass PC : "{F72B05D02F3F135E}Configs/System/ResourceTypes/PC/Sound.conf" {
   }
