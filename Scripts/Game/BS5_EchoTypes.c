@@ -138,6 +138,8 @@ class BS5_EchoAnalysisResult
 	float m_fBackConfinement;
 	float m_fLeftConfinement;
 	float m_fRightConfinement;
+	int m_iNearTraceCount;
+	int m_iNearTraceHits;
 	int m_iTailSectorCount;
 	int m_iTailHeightSamples;
 	int m_iTailForwardSeeds;
@@ -159,10 +161,12 @@ class BS5_EchoAnalysisResult
 	int m_iSoundMapUrbanMicroFacades;
 	int m_iSoundMapDistanceSeed;
 	int m_iSoundMapPathRejects;
+	int m_iSoundMapPathSamples;
 	int m_iSoundMapPathRaycasts;
 	int m_iSoundMapPathRayRejects;
 	int m_iSoundMapFarRejects;
 	int m_iSoundMapNearUrbanBoosts;
+	int m_iSoundMapBudgetSkips;
 	bool m_bTailAnchorFallback;
 	bool m_bTailSectorCacheHit;
 	bool m_bTailForwardNegativeCacheHit;
@@ -170,6 +174,8 @@ class BS5_EchoAnalysisResult
 	bool m_bTailLegacyPlannerFallback;
 	int m_iSlapbackRayCount;
 	int m_iSlapbackHitCount;
+	int m_iSlapbackEntityQueryCount;
+	int m_iSlapbackEntityCandidateCount;
 	bool m_bSlapbackAnchorFallback;
 	float m_fSlapbackWallScore;
 	float m_fSlapbackCloseScore;
@@ -218,6 +224,8 @@ class BS5_EchoAnalysisResult
 		m_fBackConfinement = 0.0;
 		m_fLeftConfinement = 0.0;
 		m_fRightConfinement = 0.0;
+		m_iNearTraceCount = 0;
+		m_iNearTraceHits = 0;
 		m_iTailSectorCount = 0;
 		m_iTailHeightSamples = 0;
 		m_iTailForwardSeeds = 0;
@@ -239,10 +247,12 @@ class BS5_EchoAnalysisResult
 		m_iSoundMapUrbanMicroFacades = 0;
 		m_iSoundMapDistanceSeed = 0;
 		m_iSoundMapPathRejects = 0;
+		m_iSoundMapPathSamples = 0;
 		m_iSoundMapPathRaycasts = 0;
 		m_iSoundMapPathRayRejects = 0;
 		m_iSoundMapFarRejects = 0;
 		m_iSoundMapNearUrbanBoosts = 0;
+		m_iSoundMapBudgetSkips = 0;
 		m_bTailAnchorFallback = false;
 		m_bTailSectorCacheHit = false;
 		m_bTailForwardNegativeCacheHit = false;
@@ -250,6 +260,8 @@ class BS5_EchoAnalysisResult
 		m_bTailLegacyPlannerFallback = false;
 		m_iSlapbackRayCount = 0;
 		m_iSlapbackHitCount = 0;
+		m_iSlapbackEntityQueryCount = 0;
+		m_iSlapbackEntityCandidateCount = 0;
 		m_bSlapbackAnchorFallback = false;
 		m_fSlapbackWallScore = 0.0;
 		m_fSlapbackCloseScore = 0.0;

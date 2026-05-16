@@ -169,6 +169,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "7", desc: "High-pressure automatic-fire echo cadence. Used when the global tail voice pool is close to full.")]
 	protected int m_iLimiterBurstCadenceHighPressure;
 
+	[Attribute(defvalue: "3", desc: "Number of early automatic-fire shots in one burst window that keep tail emitters before normal cadence decimation starts.")]
+	protected int m_iLimiterBurstFreeTailShotsNormal;
+
+	[Attribute(defvalue: "2", desc: "Number of early automatic-fire shots in one burst window that keep tail emitters before high-pressure cadence decimation starts.")]
+	protected int m_iLimiterBurstFreeTailShotsHighPressure;
+
 	[Attribute(defvalue: "1", desc: "Maximum tail emitters emitted by an accepted automatic-fire burst shot.")]
 	protected int m_iLimiterBurstTailEmittersPerShot;
 
@@ -623,9 +629,10 @@ class BS5_EchoDriverComponent : ScriptComponent
 			volumeLog += " tech=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
 			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, volumeLog);
 		}
-		if (!allowTailEmit && !IsSlapbackEnabled())
+		bool allowSlapbackEmit = IsSlapbackEnabled();
+		if (!allowTailEmit && !allowSlapbackEmit)
 		{
-			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip no tail by cadence and slapback disabled");
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, "dispatch skip burst limiter tails");
 			m_vLastOrigin = origin;
 			m_vLastForward = planarForward;
 			m_bLastSuppressed = suppressed;
@@ -995,6 +1002,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	float GetExplosionScanRadius()
 	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		if (preset && preset.m_fExplosionScanRadiusMeters > 0.0)
+			return preset.m_fExplosionScanRadiusMeters;
 		return GetScanRadius() * 1.2;
 	}
 
@@ -1018,6 +1028,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 	{
 		float baseLifetime = GetEmitterLifetimeSeconds(false);
 		float scale = BS5_EchoMath.Clamp(m_fExplosionEmitterLifetimeScale, 1.0, 4.0);
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		if (preset && preset.m_fExplosionEmitterLifetimeScale > 0.0)
+			scale = BS5_EchoMath.Clamp(preset.m_fExplosionEmitterLifetimeScale, 1.0, 4.0);
 		return baseLifetime * scale;
 	}
 
@@ -1034,6 +1047,9 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	int GetMaxExplosionEmittersPerShot()
 	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		if (preset && preset.m_iMaxExplosionEmittersPerShot > 0)
+			return preset.m_iMaxExplosionEmittersPerShot;
 		if (m_iMaxExplosionEmittersPerShot > 0)
 			return m_iMaxExplosionEmittersPerShot;
 		return 1;
@@ -1140,6 +1156,24 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (preset)
 			value = preset.m_iLimiterBurstCadenceHighPressure;
 		return Math.Clamp(value, GetBurstTailCadenceNormal(), 12);
+	}
+
+	int GetBurstFreeTailShotsNormal()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iLimiterBurstFreeTailShotsNormal;
+		if (preset)
+			value = preset.m_iLimiterBurstFreeTailShotsNormal;
+		return Math.Clamp(value, 1, 6);
+	}
+
+	int GetBurstFreeTailShotsHighPressure()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iLimiterBurstFreeTailShotsHighPressure;
+		if (preset)
+			value = preset.m_iLimiterBurstFreeTailShotsHighPressure;
+		return Math.Clamp(value, 1, GetBurstFreeTailShotsNormal());
 	}
 
 	int GetBurstTailEmittersPerShot()
@@ -1524,6 +1558,17 @@ class BS5_EchoDriverComponent : ScriptComponent
 		return BS5_EchoMath.MaxFloat(tailFloor, tailValue);
 	}
 
+	float GetExplosionSlapbackEmitterLifetimeSeconds()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = 0.0;
+		if (preset)
+			value = preset.m_fExplosionSlapbackEmitterLifetimeSeconds;
+		if (value <= 0.0)
+			value = GetEmitterLifetimeSeconds(true) * 1.65;
+		return BS5_EchoMath.MaxFloat(1.0, value);
+	}
+
 	float GetTailEmitterHighPressureLifetimeSeconds()
 	{
 		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
@@ -1558,7 +1603,11 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	float GetSlapbackMinDistanceMeters()
 	{
-		return BS5_EchoMath.MaxFloat(0.25, m_fSlapbackMinDistanceMeters);
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fSlapbackMinDistanceMeters;
+		if (preset && preset.m_fSlapbackMinDistanceMeters > 0.0)
+			value = preset.m_fSlapbackMinDistanceMeters;
+		return BS5_EchoMath.MaxFloat(0.25, value);
 	}
 
 	float GetSlapbackForwardProbeAngleDegrees()
@@ -2390,12 +2439,28 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 		float tailPressure = BS5_EchoEmissionService.GetTailVoicePressure(this);
 		int cadence = GetBurstTailCadenceNormal();
+		int freeTailShots = GetBurstFreeTailShotsNormal();
 		if (tailPressure >= GetLimiterHighPressureThreshold())
+		{
 			cadence = GetBurstTailCadenceHighPressure();
+			freeTailShots = GetBurstFreeTailShotsHighPressure();
+		}
 
-		bool acceptShot = ((m_iLimiterBurstShotCount - 1) % cadence) == 0;
+		if (m_iLimiterBurstShotCount <= freeTailShots)
+		{
+			if (IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
+				BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch burstLimiter allow shot=" + m_iLimiterBurstShotCount + " free=" + freeTailShots + " cadence=" + cadence + " pressure=" + tailPressure + " reason=free suppressed=" + suppressed);
+
+			return true;
+		}
+
+		int postFreeShot = m_iLimiterBurstShotCount - freeTailShots;
+		bool acceptShot = (postFreeShot % cadence) == 0;
+		if (acceptShot && IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch burstLimiter allow shot=" + m_iLimiterBurstShotCount + " free=" + freeTailShots + " cadence=" + cadence + " pressure=" + tailPressure + " reason=cadence suppressed=" + suppressed);
+
 		if (!acceptShot && IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
-			BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch skipped burstLimiter shot=" + m_iLimiterBurstShotCount + " cadence=" + cadence + " pressure=" + tailPressure + " suppressed=" + suppressed);
+			BS5_DebugLog.Channel(this, BS5_DebugChannel.LIMITER, "dispatch skipped burstLimiter shot=" + m_iLimiterBurstShotCount + " free=" + freeTailShots + " cadence=" + cadence + " pressure=" + tailPressure + " suppressed=" + suppressed);
 
 		return acceptShot;
 	}

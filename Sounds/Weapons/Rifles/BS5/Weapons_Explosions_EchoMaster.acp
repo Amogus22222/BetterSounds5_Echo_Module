@@ -144,7 +144,7 @@ AudioClass {
     32 33 64 110 111 112 113 114 115 116 120 123 124 127 130 139 140 141 142 143 144 145 146 147 148 149
    }
    inputvalues {
-    0 1 1 0 0 0 0 0 0 0
+    0 1 0 0 1 0 0 0 0 0
    }
    inputvaluesmin {
     0 0 0 0 0 0 0 0 0 0
@@ -166,7 +166,7 @@ AudioClass {
     3 4
    }
    inputvalues {
-    1 248.9 0.5
+    0.1 0 0.5
    }
    inputvaluesmin {
     0 0 0
@@ -1073,7 +1073,7 @@ AudioClass {
    id 343047
    name "Narrow Tails Bus"
    version 7
-   tl 353 2195
+   tl 352 2192
    ctl 0 -21
    ins {
     ConnectionsClass "con:0" {
@@ -1937,34 +1937,32 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -4
-   Pitch -2
    "Pitch variance" 1
    "Termination Fade Out" 100
    Resampler FIR_4
    "Fade in time" 400
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "9mm_forest_1.wav" {
-     Filename "{C3F882A8F584F245}Assets/Gunpowder/Tails/SC_Reflectors/9mm_forest_1.wav"
+    AudioBankSampleClass "Distance_Tail_1.wav" {
+     Filename "{4819AA2CBD173A26}Assets/explosions/Distance_Tail_1.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "9mm_forest_2.wav" {
-     Filename "{5AE63B31E863C3D5}Assets/Gunpowder/Tails/SC_Reflectors/9mm_forest_2.wav"
+    AudioBankSampleClass "Distance_Tail_2.wav" {
+     Filename "{D10713B5A0F00BB6}Assets/explosions/Distance_Tail_2.wav"
      Probability 100
      Index 1
      SampleMetadata ""
     }
-    AudioBankSampleClass "9mm_forest_3.wav" {
-     Filename "{2DEC53B91CC12CA5}Assets/Gunpowder/Tails/SC_Reflectors/9mm_forest_3.wav"
+    AudioBankSampleClass "Distance_Tail_5.wav" {
+     Filename "{D6C0E9E4C676B175}Assets/explosions/Distance_Tail_5.wav"
      Probability 100
      Index 2
      SampleMetadata ""
     }
-    AudioBankSampleClass "9mm_forest_4.wav" {
-     Filename "{2A2BA9E87A479666}Assets/Gunpowder/Tails/SC_Reflectors/9mm_forest_4.wav"
+    AudioBankSampleClass "Distance_Tail_7.wav" {
+     Filename "{38D438F52F336F95}Assets/explosions/Distance_Tail_7.wav"
      Probability 100
      Index 3
      SampleMetadata ""
@@ -2009,7 +2007,8 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -12
+   Volume -15.279
+   Pitch -2
    "Pitch variance" 1.012
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2031,7 +2030,7 @@ AudioClass {
    id 178180
    name "EL Forest Far"
    version 7
-   tl -240 1200
+   tl -240 1168
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2222,8 +2221,8 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 4
    "Volume variance" 1
+   Pitch 4
    "Pitch variance" 0.84
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -2418,20 +2417,19 @@ AudioClass {
    }
    Volume 5
    "Volume variance" 0.3
-   Pitch 2
    "Pitch variance" 0.7
    "Termination Fade Out" 100
    Resampler FIR_4
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "Distance_Tail_2.wav" {
-     Filename "{D10713B5A0F00BB6}Assets/explosions/Distance_Tail_2.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_31.wav" {
+     Filename "{4758EE8E2F3A7169}Assets/explosions/Tail_Reflections_Far_31.wav"
      Probability 100
      Index 0
      SampleMetadata ""
     }
-    AudioBankSampleClass "Distance_Tail_1.wav" {
-     Filename "{4819AA2CBD173A26}Assets/explosions/Distance_Tail_1.wav"
+    AudioBankSampleClass "Tail_Reflections_Far_32.wav" {
+     Filename "{DE46571732DD40F9}Assets/explosions/Tail_Reflections_Far_32.wav"
      Probability 100
      Index 1
      SampleMetadata ""
@@ -2548,7 +2546,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -10
+   Volume -14.721
    Pitch -4
    "Pitch variance" 1
    "Termination Fade Out" 100
@@ -2598,9 +2596,9 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 3
+   Volume -3
    "Volume variance" 2
-   Pitch 1
+   Pitch 4
    "Pitch variance" 1
    Resampler FIR_4
    "Disable streaming" 1
@@ -2642,7 +2640,7 @@ AudioClass {
    id 309252
    name "EL Meadows Close"
    version 7
-   tl -240 592
+   tl -240 589.355
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -2675,37 +2673,56 @@ AudioClass {
    pi {
     35 0
    }
-   Pitch 5
+   Volume -6
+   Pitch -2
    "Pitch variance" 1.012
    "Termination Fade Out" 100
    Resampler FIR_4
    "Fade in function" SCurve
    "Fade in time" 200
-   "Fade out time" 1500
+   "Fade out time" 3000
    "Disable streaming" 1
    Samples {
-    AudioBankSampleClass "Shell_Explosion_1.wav" {
-     Filename "{2F9DC2D219660748}Assets/explosions/Shell_Explosion_1.wav"
-     Probability 100
-     Index 0
-     SampleMetadata ""
-    }
-    AudioBankSampleClass "RPG_Explosion_Whizz.wav" {
-     Filename "{9DE74E9DFE3A74DA}Assets/explosions/RPG_Explosion_Whizz.wav"
-     Probability 100
-     Index 1
-     SampleMetadata ""
-    }
     AudioBankSampleClass "Tail_2.wav" {
      Filename "{0023057A24536FA7}Assets/explosions/Tail_2.wav"
      Probability 100
-     Index 2
+     Index 0
      SampleMetadata ""
     }
     AudioBankSampleClass "Tail_1.wav" {
      Filename "{993DBCE339B45E37}Assets/explosions/Tail_1.wav"
      Probability 100
+     Index 1
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Echo_Farm_1.wav" {
+     Filename "{FDCB967CEBE466B8}Assets/explosions/Echo_Farm_1.wav"
+     Probability 100
+     Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Echo_Field_1.wav" {
+     Filename "{E791C830C96679C6}Assets/explosions/Echo_Field_1.wav"
+     Probability 100
      Index 3
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Echo_Field_2.wav" {
+     Filename "{7E8F71A9D4814856}Assets/explosions/Echo_Field_2.wav"
+     Probability 100
+     Index 4
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Echo_Fieldy_1.wav" {
+     Filename "{D0488E2DB062CBE0}Assets/explosions/Echo_Fieldy_1.wav"
+     Probability 100
+     Index 5
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "Echo_Hills_1.wav" {
+     Filename "{E2287DCABE23C664}Assets/explosions/Echo_Hills_1.wav"
+     Probability 100
+     Index 6
      SampleMetadata ""
     }
    }

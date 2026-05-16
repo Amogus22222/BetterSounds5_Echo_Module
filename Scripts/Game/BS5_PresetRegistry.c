@@ -61,6 +61,9 @@ class BS5_TechnicalPresetConfigEntry
 	[Attribute(defvalue: "25")]
 	float m_fExplosionNearSlapbackRadius;
 
+	[Attribute(defvalue: "0")]
+	float m_fExplosionScanRadiusMeters;
+
 	[Attribute(defvalue: "9")]
 	int m_iMaxCandidateCount;
 
@@ -69,6 +72,9 @@ class BS5_TechnicalPresetConfigEntry
 
 	[Attribute(defvalue: "4")]
 	int m_iMaxTailEmittersPerShot;
+
+	[Attribute(defvalue: "0")]
+	int m_iMaxExplosionEmittersPerShot;
 
 	[Attribute(defvalue: "4")]
 	int m_iMaxSuppressedTailEmittersPerShot;
@@ -102,6 +108,12 @@ class BS5_TechnicalPresetConfigEntry
 
 	[Attribute(defvalue: "5")]
 	int m_iLimiterBurstCadenceHighPressure;
+
+	[Attribute(defvalue: "3")]
+	int m_iLimiterBurstFreeTailShotsNormal;
+
+	[Attribute(defvalue: "2")]
+	int m_iLimiterBurstFreeTailShotsHighPressure;
 
 	[Attribute(defvalue: "2")]
 	int m_iLimiterBurstTailEmittersPerShot;
@@ -141,6 +153,15 @@ class BS5_TechnicalPresetConfigEntry
 
 	[Attribute(defvalue: "1.5")]
 	float m_fSlapbackEmitterLifetimeSeconds;
+
+	[Attribute(defvalue: "0")]
+	float m_fExplosionSlapbackEmitterLifetimeSeconds;
+
+	[Attribute(defvalue: "0")]
+	float m_fExplosionEmitterLifetimeScale;
+
+	[Attribute(defvalue: "0")]
+	float m_fSlapbackMinDistanceMeters;
 
 	[Attribute(defvalue: "400")]
 	float m_fEnvQueryRadiusMeters;
@@ -256,9 +277,11 @@ class BS5_TechnicalPreset
 	float m_fNearSlapbackRadius;
 	float m_fSuppressedNearSlapbackRadius;
 	float m_fExplosionNearSlapbackRadius;
+	float m_fExplosionScanRadiusMeters;
 	int m_iMaxCandidateCount;
 	int m_iMaxTraceCount;
 	int m_iMaxTailEmittersPerShot;
+	int m_iMaxExplosionEmittersPerShot;
 	int m_iMaxSuppressedTailEmittersPerShot;
 	int m_iMaxSlapbackEmittersPerShot;
 	int m_iMaxExplosionSlapbackEmittersPerShot;
@@ -270,6 +293,8 @@ class BS5_TechnicalPreset
 	int m_iLimiterMaxTailVoicesPerOwner;
 	int m_iLimiterBurstCadenceNormal;
 	int m_iLimiterBurstCadenceHighPressure;
+	int m_iLimiterBurstFreeTailShotsNormal;
+	int m_iLimiterBurstFreeTailShotsHighPressure;
 	int m_iLimiterBurstTailEmittersPerShot;
 	int m_iLimiterHighPressureTailEmittersPerShot;
 	float m_fLimiterHighPressureThreshold;
@@ -283,6 +308,9 @@ class BS5_TechnicalPreset
 	float m_fTailEmitterHighPressureLifetimeSeconds;
 	float m_fTailEmitterMinManagedLifetimeSeconds;
 	float m_fSlapbackEmitterLifetimeSeconds;
+	float m_fExplosionSlapbackEmitterLifetimeSeconds;
+	float m_fExplosionEmitterLifetimeScale;
+	float m_fSlapbackMinDistanceMeters;
 	float m_fEnvQueryRadiusMeters;
 	int m_iForwardAnchorTraceCount;
 	int m_iLateralAnchorTraceCount;
@@ -592,9 +620,11 @@ class BS5_PresetRegistry
 		preset.m_fNearSlapbackRadius = entry.m_fNearSlapbackRadius;
 		preset.m_fSuppressedNearSlapbackRadius = entry.m_fSuppressedNearSlapbackRadius;
 		preset.m_fExplosionNearSlapbackRadius = entry.m_fExplosionNearSlapbackRadius;
+		preset.m_fExplosionScanRadiusMeters = entry.m_fExplosionScanRadiusMeters;
 		preset.m_iMaxCandidateCount = entry.m_iMaxCandidateCount;
 		preset.m_iMaxTraceCount = entry.m_iMaxTraceCount;
 		preset.m_iMaxTailEmittersPerShot = entry.m_iMaxTailEmittersPerShot;
+		preset.m_iMaxExplosionEmittersPerShot = entry.m_iMaxExplosionEmittersPerShot;
 		preset.m_iMaxSuppressedTailEmittersPerShot = entry.m_iMaxSuppressedTailEmittersPerShot;
 		preset.m_iMaxSlapbackEmittersPerShot = entry.m_iMaxSlapbackEmittersPerShot;
 		preset.m_iMaxExplosionSlapbackEmittersPerShot = entry.m_iMaxExplosionSlapbackEmittersPerShot;
@@ -606,6 +636,8 @@ class BS5_PresetRegistry
 		preset.m_iLimiterMaxTailVoicesPerOwner = entry.m_iLimiterMaxTailVoicesPerOwner;
 		preset.m_iLimiterBurstCadenceNormal = entry.m_iLimiterBurstCadenceNormal;
 		preset.m_iLimiterBurstCadenceHighPressure = entry.m_iLimiterBurstCadenceHighPressure;
+		preset.m_iLimiterBurstFreeTailShotsNormal = entry.m_iLimiterBurstFreeTailShotsNormal;
+		preset.m_iLimiterBurstFreeTailShotsHighPressure = entry.m_iLimiterBurstFreeTailShotsHighPressure;
 		preset.m_iLimiterBurstTailEmittersPerShot = entry.m_iLimiterBurstTailEmittersPerShot;
 		preset.m_iLimiterHighPressureTailEmittersPerShot = entry.m_iLimiterHighPressureTailEmittersPerShot;
 		preset.m_fLimiterHighPressureThreshold = entry.m_fLimiterHighPressureThreshold;
@@ -619,6 +651,9 @@ class BS5_PresetRegistry
 		preset.m_fTailEmitterHighPressureLifetimeSeconds = entry.m_fTailEmitterHighPressureLifetimeSeconds;
 		preset.m_fTailEmitterMinManagedLifetimeSeconds = entry.m_fTailEmitterMinManagedLifetimeSeconds;
 		preset.m_fSlapbackEmitterLifetimeSeconds = entry.m_fSlapbackEmitterLifetimeSeconds;
+		preset.m_fExplosionSlapbackEmitterLifetimeSeconds = entry.m_fExplosionSlapbackEmitterLifetimeSeconds;
+		preset.m_fExplosionEmitterLifetimeScale = entry.m_fExplosionEmitterLifetimeScale;
+		preset.m_fSlapbackMinDistanceMeters = entry.m_fSlapbackMinDistanceMeters;
 		preset.m_fEnvQueryRadiusMeters = entry.m_fEnvQueryRadiusMeters;
 		preset.m_iForwardAnchorTraceCount = entry.m_iForwardAnchorTraceCount;
 		preset.m_iLateralAnchorTraceCount = entry.m_iLateralAnchorTraceCount;
@@ -662,27 +697,31 @@ class BS5_PresetRegistry
 		entry.m_fScanRadius = 875.0;
 		entry.m_fNearSlapbackRadius = 34.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
-		entry.m_fExplosionNearSlapbackRadius = 44.0;
-		entry.m_iMaxCandidateCount = 13;
+		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_fExplosionScanRadiusMeters = 900.0;
+		entry.m_iMaxCandidateCount = 17;
 		entry.m_iMaxTraceCount = 13;
-		entry.m_iMaxTailEmittersPerShot = 2;
+		entry.m_iMaxTailEmittersPerShot = 3;
+		entry.m_iMaxExplosionEmittersPerShot = 3;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
 		entry.m_iMaxSlapbackEmittersPerShot = 5;
-		entry.m_iMaxExplosionSlapbackEmittersPerShot = 8;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 16;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 8;
+		entry.m_iMaxActiveSlapbackEmitters = 16;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 24;
 		entry.m_iLimiterMaxPendingTailVoices = 8;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 6;
 		entry.m_iLimiterBurstCadenceNormal = 4;
 		entry.m_iLimiterBurstCadenceHighPressure = 7;
+		entry.m_iLimiterBurstFreeTailShotsNormal = 3;
+		entry.m_iLimiterBurstFreeTailShotsHighPressure = 2;
 		entry.m_iLimiterBurstTailEmittersPerShot = 1;
 		entry.m_iLimiterHighPressureTailEmittersPerShot = 1;
 		entry.m_fLimiterHighPressureThreshold = 0.80;
 		entry.m_fLimiterCriticalPressureThreshold = 0.94;
 		entry.m_iLimiterMaxTailStartsPer100Ms = 12;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 12;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 24;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -690,6 +729,9 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 2.8;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 1.2;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
+		entry.m_fExplosionSlapbackEmitterLifetimeSeconds = 1.65;
+		entry.m_fExplosionEmitterLifetimeScale = 2.805;
+		entry.m_fSlapbackMinDistanceMeters = 1.0;
 		entry.m_fEnvQueryRadiusMeters = 500.0;
 		entry.m_iForwardAnchorTraceCount = 23;
 		entry.m_iLateralAnchorTraceCount = 10;
@@ -697,8 +739,8 @@ class BS5_PresetRegistry
 		entry.m_iTailHeightSampleCount = 4;
 		entry.m_fSoundMapForwardConeDegrees = 120.0;
 		entry.m_fSoundMapForwardMaxDistanceMeters = 875.0;
-		entry.m_iSoundMapForwardRayCount = 12;
-		entry.m_iSoundMapForwardSampleCount = 9;
+		entry.m_iSoundMapForwardRayCount = 9;
+		entry.m_iSoundMapForwardSampleCount = 5;
 		entry.m_fSoundMapOmniRadiusMeters = 563.0;
 		entry.m_iSoundMapOmniDirectionCount = 10;
 		entry.m_iSoundMapOmniAnchorCount = 3;
@@ -731,27 +773,31 @@ class BS5_PresetRegistry
 		entry.m_fScanRadius = 525.0;
 		entry.m_fNearSlapbackRadius = 13.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
-		entry.m_fExplosionNearSlapbackRadius = 23.0;
-		entry.m_iMaxCandidateCount = 5;
+		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_fExplosionScanRadiusMeters = 900.0;
+		entry.m_iMaxCandidateCount = 6;
 		entry.m_iMaxTraceCount = 5;
 		entry.m_iMaxTailEmittersPerShot = 1;
+		entry.m_iMaxExplosionEmittersPerShot = 3;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
 		entry.m_iMaxSlapbackEmittersPerShot = 2;
-		entry.m_iMaxExplosionSlapbackEmittersPerShot = 3;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 5;
 		entry.m_iMaxActiveTailEmitters = 6;
-		entry.m_iMaxActiveSlapbackEmitters = 3;
+		entry.m_iMaxActiveSlapbackEmitters = 5;
 		entry.m_iLimiterGlobalMaxTailVoices = 6;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 3;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 5;
 		entry.m_iLimiterMaxPendingTailVoices = 3;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 2;
 		entry.m_iLimiterBurstCadenceNormal = 7;
 		entry.m_iLimiterBurstCadenceHighPressure = 10;
+		entry.m_iLimiterBurstFreeTailShotsNormal = 2;
+		entry.m_iLimiterBurstFreeTailShotsHighPressure = 1;
 		entry.m_iLimiterBurstTailEmittersPerShot = 1;
 		entry.m_iLimiterHighPressureTailEmittersPerShot = 1;
 		entry.m_fLimiterHighPressureThreshold = 0.70;
 		entry.m_fLimiterCriticalPressureThreshold = 0.88;
 		entry.m_iLimiterMaxTailStartsPer100Ms = 2;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 3;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 5;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -759,6 +805,9 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 1.5;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 0.8;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
+		entry.m_fExplosionSlapbackEmitterLifetimeSeconds = 1.65;
+		entry.m_fExplosionEmitterLifetimeScale = 2.805;
+		entry.m_fSlapbackMinDistanceMeters = 1.0;
 		entry.m_fEnvQueryRadiusMeters = 200.0;
 		entry.m_iForwardAnchorTraceCount = 5;
 		entry.m_iLateralAnchorTraceCount = 0;
@@ -766,8 +815,8 @@ class BS5_PresetRegistry
 		entry.m_iTailHeightSampleCount = 2;
 		entry.m_fSoundMapForwardConeDegrees = 95.0;
 		entry.m_fSoundMapForwardMaxDistanceMeters = 525.0;
-		entry.m_iSoundMapForwardRayCount = 5;
-		entry.m_iSoundMapForwardSampleCount = 5;
+		entry.m_iSoundMapForwardRayCount = 7;
+		entry.m_iSoundMapForwardSampleCount = 4;
 		entry.m_fSoundMapOmniRadiusMeters = 275.0;
 		entry.m_iSoundMapOmniDirectionCount = 5;
 		entry.m_iSoundMapOmniAnchorCount = 0;
@@ -798,27 +847,31 @@ class BS5_PresetRegistry
 		entry.m_fScanRadius = 875.0;
 		entry.m_fNearSlapbackRadius = 40.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
-		entry.m_fExplosionNearSlapbackRadius = 50.0;
-		entry.m_iMaxCandidateCount = 15;
+		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_fExplosionScanRadiusMeters = 900.0;
+		entry.m_iMaxCandidateCount = 19;
 		entry.m_iMaxTraceCount = 15;
-		entry.m_iMaxTailEmittersPerShot = 2;
+		entry.m_iMaxTailEmittersPerShot = 3;
+		entry.m_iMaxExplosionEmittersPerShot = 3;
 		entry.m_iMaxSuppressedTailEmittersPerShot = 1;
 		entry.m_iMaxSlapbackEmittersPerShot = 6;
-		entry.m_iMaxExplosionSlapbackEmittersPerShot = 9;
+		entry.m_iMaxExplosionSlapbackEmittersPerShot = 18;
 		entry.m_iMaxActiveTailEmitters = 28;
-		entry.m_iMaxActiveSlapbackEmitters = 10;
+		entry.m_iMaxActiveSlapbackEmitters = 20;
 		entry.m_iLimiterGlobalMaxTailVoices = 28;
-		entry.m_iLimiterGlobalMaxSlapbackVoices = 12;
+		entry.m_iLimiterGlobalMaxSlapbackVoices = 24;
 		entry.m_iLimiterMaxPendingTailVoices = 8;
 		entry.m_iLimiterMaxTailVoicesPerOwner = 6;
 		entry.m_iLimiterBurstCadenceNormal = 4;
 		entry.m_iLimiterBurstCadenceHighPressure = 7;
+		entry.m_iLimiterBurstFreeTailShotsNormal = 3;
+		entry.m_iLimiterBurstFreeTailShotsHighPressure = 2;
 		entry.m_iLimiterBurstTailEmittersPerShot = 1;
 		entry.m_iLimiterHighPressureTailEmittersPerShot = 1;
 		entry.m_fLimiterHighPressureThreshold = 0.80;
 		entry.m_fLimiterCriticalPressureThreshold = 0.94;
 		entry.m_iLimiterMaxTailStartsPer100Ms = 12;
-		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 12;
+		entry.m_iLimiterMaxSlapbackStartsPer100Ms = 24;
 		entry.m_fLimiterStealFadeSeconds = 0.08;
 		entry.m_iLimiterEstimatedSourcesPerTail = 2;
 		entry.m_iLimiterEstimatedSourcesPerSlapback = 1;
@@ -826,6 +879,9 @@ class BS5_PresetRegistry
 		entry.m_fTailEmitterHighPressureLifetimeSeconds = 2.8;
 		entry.m_fTailEmitterMinManagedLifetimeSeconds = 1.2;
 		entry.m_fSlapbackEmitterLifetimeSeconds = 1.0;
+		entry.m_fExplosionSlapbackEmitterLifetimeSeconds = 1.65;
+		entry.m_fExplosionEmitterLifetimeScale = 2.805;
+		entry.m_fSlapbackMinDistanceMeters = 1.0;
 		entry.m_fEnvQueryRadiusMeters = 500.0;
 		entry.m_iForwardAnchorTraceCount = 23;
 		entry.m_iLateralAnchorTraceCount = 10;
@@ -833,8 +889,8 @@ class BS5_PresetRegistry
 		entry.m_iTailHeightSampleCount = 5;
 		entry.m_fSoundMapForwardConeDegrees = 95.0;
 		entry.m_fSoundMapForwardMaxDistanceMeters = 775.0;
-		entry.m_iSoundMapForwardRayCount = 14;
-		entry.m_iSoundMapForwardSampleCount = 10;
+		entry.m_iSoundMapForwardRayCount = 11;
+		entry.m_iSoundMapForwardSampleCount = 5;
 		entry.m_fSoundMapOmniRadiusMeters = 400.0;
 		entry.m_iSoundMapOmniDirectionCount = 15;
 		entry.m_iSoundMapOmniAnchorCount = 2;

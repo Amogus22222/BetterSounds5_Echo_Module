@@ -79,6 +79,8 @@ GenericEntity {
    m_iLimiterMaxTailVoicesPerOwner 6
    m_iLimiterBurstCadenceNormal 4
    m_iLimiterBurstCadenceHighPressure 7
+   m_iLimiterBurstFreeTailShotsNormal 3
+   m_iLimiterBurstFreeTailShotsHighPressure 2
    m_iLimiterBurstTailEmittersPerShot 1
    m_iLimiterHighPressureTailEmittersPerShot 1
    m_fLimiterHighPressureThreshold 0.8

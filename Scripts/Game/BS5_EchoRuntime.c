@@ -300,6 +300,7 @@ class BS5_EchoRuntime
 class BS5_EchoEnvironmentAnalyzer
 {
 	protected static const int SLAPBACK_QUERY_ENTITY_LIMIT = 18;
+	protected static const float SLAPBACK_ENTITY_LINE_QUERY_READY_SCORE = 0.55;
 	protected static ref array<IEntity> s_SlapbackQueryEntities;
 	protected static ref array<string> s_SlapbackHardPrefabHints;
 	protected static ref array<string> s_SlapbackRejectPrefabHints;
@@ -489,6 +490,7 @@ class BS5_EchoEnvironmentAnalyzer
 			traceLimit = 1;
 		if (traceLimit > directions.Count())
 			traceLimit = directions.Count();
+		result.m_iNearTraceCount = traceLimit;
 
 		float totalHitRatio = 0.0;
 		float shortestHit = nearTraceLength;
@@ -522,6 +524,7 @@ class BS5_EchoEnvironmentAnalyzer
 				float hitDistance = nearTraceLength * hitFraction;
 				hitRatio = hitDistance / nearTraceLength;
 				float hitStrength = 1.0 - hitRatio;
+				result.m_iNearTraceHits++;
 				totalHitRatio += hitStrength;
 				if (hitDistance < shortestHit)
 					shortestHit = hitDistance;
@@ -667,6 +670,8 @@ class BS5_EchoEnvironmentAnalyzer
 			string debugSummary = "mode=engine_env";
 			debugSummary += " candidates=" + result.m_aCandidates.Count();
 			debugSummary += " firstDelay=" + result.m_fMasterDelaySeconds;
+			debugSummary += " nearTraces=" + result.m_iNearTraceCount;
+			debugSummary += " nearHits=" + result.m_iNearTraceHits;
 			debugSummary += " shortestNear=" + shortestHit;
 			debugSummary += " open=" + result.m_fOpenScore;
 			debugSummary += " forest=" + result.m_fForestScore;
@@ -703,10 +708,12 @@ class BS5_EchoEnvironmentAnalyzer
 			if (result.m_sSoundMapDistanceBands != string.Empty)
 				debugSummary += " distanceBands=" + result.m_sSoundMapDistanceBands;
 			debugSummary += " pathRejects=" + result.m_iSoundMapPathRejects;
+			debugSummary += " pathSamples=" + result.m_iSoundMapPathSamples;
 			debugSummary += " pathRaycasts=" + result.m_iSoundMapPathRaycasts;
 			debugSummary += " pathRayRejects=" + result.m_iSoundMapPathRayRejects;
 			debugSummary += " farRejects=" + result.m_iSoundMapFarRejects;
 			debugSummary += " nearUrbanBoosts=" + result.m_iSoundMapNearUrbanBoosts;
+			debugSummary += " budgetSkips=" + result.m_iSoundMapBudgetSkips;
 			debugSummary += " anchorHits=" + result.m_iTailAnchorHits;
 			debugSummary += " queryEntities=" + result.m_iTailForwardQueryEntities;
 			debugSummary += " queryBuildings=" + result.m_iTailForwardBuildingCandidates;
@@ -720,6 +727,8 @@ class BS5_EchoEnvironmentAnalyzer
 			debugSummary += " slapMode=" + result.m_sSlapbackMode;
 			debugSummary += " slapRays=" + result.m_iSlapbackRayCount;
 			debugSummary += " slapHits=" + result.m_iSlapbackHitCount;
+			debugSummary += " slapEntityQueries=" + result.m_iSlapbackEntityQueryCount;
+			debugSummary += " slapEntityCandidates=" + result.m_iSlapbackEntityCandidateCount;
 			debugSummary += " slapFallback=" + result.m_bSlapbackAnchorFallback;
 			debugSummary += " wallScore=" + result.m_fSlapbackWallScore;
 			debugSummary += " closeScore=" + result.m_fSlapbackCloseScore;
@@ -733,15 +742,23 @@ class BS5_EchoEnvironmentAnalyzer
 				perfCounts += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
 				perfCounts += " techPreset=" + BS5_PlayerAudioSettings.GetTechnicalPresetId();
 				perfCounts += " planner=" + result.m_sAnchorPlannerMode;
+				perfCounts += " nearTraces=" + result.m_iNearTraceCount;
+				perfCounts += " nearHits=" + result.m_iNearTraceHits;
 				perfCounts += " forwardRays=" + result.m_iTailSectorCount;
 				perfCounts += " forwardSamples=" + result.m_iTailHeightSamples;
 				perfCounts += " soundMapSamples=" + result.m_iSoundMapSamples;
 				perfCounts += " omniAnchors=" + result.m_iSoundMapOmniAnchors;
 				perfCounts += " urbanEntities=" + result.m_iSoundMapUrbanMicroQueries;
 				perfCounts += " urbanFacades=" + result.m_iSoundMapUrbanMicroFacades;
-				perfCounts += " pathSamples=" + settings.GetSoundMapPathSampleCount();
+				perfCounts += " pathSamples=" + result.m_iSoundMapPathSamples;
 				perfCounts += " pathRaycasts=" + result.m_iSoundMapPathRaycasts;
+				perfCounts += " budgetSkips=" + result.m_iSoundMapBudgetSkips;
+				perfCounts += " slapRays=" + result.m_iSlapbackRayCount;
+				perfCounts += " slapHits=" + result.m_iSlapbackHitCount;
+				perfCounts += " slapEntityQueries=" + result.m_iSlapbackEntityQueryCount;
+				perfCounts += " slapEntityCandidates=" + result.m_iSlapbackEntityCandidateCount;
 				perfCounts += " closeRescueTraces=" + result.m_iCloseReflectionRescueRayCount;
+				perfCounts += " " + BS5_EchoEmissionService.BuildLimiterPerfSnapshot(settings);
 				BS5_DebugLog.Channel(settings, BS5_DebugChannel.SOUNDMAP, perfCounts);
 
 				string perfEffective = "perf effective";
@@ -1147,8 +1164,9 @@ class BS5_EchoEnvironmentAnalyzer
 		}
 
 		int entityHitCount = 0;
+		int entityQueryCount = 0;
 		float bestEntityWallScore = 0.0;
-		CollectSlapbackEntityCandidates(wallCandidates, settings, world, origin, slapbackProbeOrigin, flatForward, flatRight, traceExcludeRoot, directions, maxDistance, minDistance, maxCandidates, entityHitCount, bestEntityWallScore);
+		CollectSlapbackEntityCandidates(wallCandidates, settings, world, origin, slapbackProbeOrigin, flatForward, flatRight, traceExcludeRoot, directions, maxDistance, minDistance, maxCandidates, entityHitCount, bestEntityWallScore, entityQueryCount);
 		hitCount += entityHitCount;
 		if (bestEntityWallScore > bestWallScore)
 			bestWallScore = bestEntityWallScore;
@@ -1240,6 +1258,8 @@ class BS5_EchoEnvironmentAnalyzer
 		{
 			result.m_iSlapbackRayCount = directions.Count();
 			result.m_iSlapbackHitCount = hitCount;
+			result.m_iSlapbackEntityQueryCount = entityQueryCount;
+			result.m_iSlapbackEntityCandidateCount = entityHitCount;
 			result.m_bSlapbackAnchorFallback = anchorFallback;
 			result.m_fSlapbackWallScore = bestWallScore;
 			result.m_fSlapbackCloseScore = closeScore;
@@ -1262,6 +1282,7 @@ class BS5_EchoEnvironmentAnalyzer
 			slapbackDebugSummary += " candidates=" + candidates.Count();
 			slapbackDebugSummary += " rays=" + directions.Count();
 			slapbackDebugSummary += " hits=" + hitCount;
+			slapbackDebugSummary += " entityQueries=" + entityQueryCount;
 			slapbackDebugSummary += " entityHits=" + entityHitCount;
 			slapbackDebugSummary += " wallScore=" + bestWallScore;
 			slapbackDebugSummary += " trenchScore=" + trenchScore;
@@ -1384,10 +1405,11 @@ class BS5_EchoEnvironmentAnalyzer
 		return true;
 	}
 
-	protected static void CollectSlapbackEntityCandidates(array<ref BS5_EchoReflectorCandidate> wallCandidates, BS5_EchoDriverComponent settings, BaseWorld world, vector origin, vector probeOrigin, vector flatForward, vector flatRight, IEntity traceExcludeRoot, array<vector> directions, float maxDistance, float minDistance, int maxCandidates, out int entityHits, out float bestScore)
+	protected static void CollectSlapbackEntityCandidates(array<ref BS5_EchoReflectorCandidate> wallCandidates, BS5_EchoDriverComponent settings, BaseWorld world, vector origin, vector probeOrigin, vector flatForward, vector flatRight, IEntity traceExcludeRoot, array<vector> directions, float maxDistance, float minDistance, int maxCandidates, out int entityHits, out float bestScore, out int queryCount)
 	{
 		entityHits = 0;
 		bestScore = 0.0;
+		queryCount = 0;
 		if (!world || !settings)
 			return;
 		EnsureSlapbackCaches();
@@ -1404,6 +1426,25 @@ class BS5_EchoEnvironmentAnalyzer
 		vector queryCenter = origin;
 		queryCenter[1] = origin[1] + 1.1;
 		world.QueryEntitiesBySphere(queryCenter, maxDistance + 1.5, CollectSlapbackEntityCallback);
+		queryCount++;
+		if (s_SlapbackQueryEntities.IsEmpty())
+		{
+			s_SlapbackQueryActive = false;
+			return;
+		}
+
+		int newEntityHits;
+		float queryBestScore;
+		int processedEntityCount = s_SlapbackQueryEntities.Count();
+		ProcessSlapbackEntityQueryRange(wallCandidates, settings, origin, flatForward, flatRight, maxDistance, minDistance, 0, newEntityHits, queryBestScore);
+		entityHits += newEntityHits;
+		if (queryBestScore > bestScore)
+			bestScore = queryBestScore;
+		if (IsSlapbackEntityQuerySatisfied(wallCandidates, entityHits, bestScore, maxCandidates))
+		{
+			s_SlapbackQueryActive = false;
+			return;
+		}
 
 		vector bevelMins = "-1.6 -1.1 -1.6";
 		vector bevelMaxs = "1.6 2.2 1.6";
@@ -1418,9 +1459,31 @@ class BS5_EchoEnvironmentAnalyzer
 				continue;
 			direction.Normalize();
 			world.QueryEntitiesByBeveledLine(probeOrigin, probeOrigin + (direction * maxDistance), bevelMins, bevelMaxs, CollectSlapbackEntityCallback);
+			queryCount++;
+
+			ProcessSlapbackEntityQueryRange(wallCandidates, settings, origin, flatForward, flatRight, maxDistance, minDistance, processedEntityCount, newEntityHits, queryBestScore);
+			processedEntityCount = s_SlapbackQueryEntities.Count();
+			entityHits += newEntityHits;
+			if (queryBestScore > bestScore)
+				bestScore = queryBestScore;
+
+			if (IsSlapbackEntityQuerySatisfied(wallCandidates, entityHits, bestScore, maxCandidates))
+				break;
 		}
 
-		for (int entityIndex = 0; entityIndex < s_SlapbackQueryEntities.Count(); entityIndex++)
+		s_SlapbackQueryActive = false;
+	}
+
+	protected static void ProcessSlapbackEntityQueryRange(array<ref BS5_EchoReflectorCandidate> wallCandidates, BS5_EchoDriverComponent settings, vector origin, vector flatForward, vector flatRight, float maxDistance, float minDistance, int startIndex, out int entityHits, out float bestScore)
+	{
+		entityHits = 0;
+		bestScore = 0.0;
+		if (!s_SlapbackQueryEntities)
+			return;
+		if (startIndex < 0)
+			startIndex = 0;
+
+		for (int entityIndex = startIndex; entityIndex < s_SlapbackQueryEntities.Count(); entityIndex++)
 		{
 			IEntity entity = s_SlapbackQueryEntities[entityIndex];
 			BS5_EchoReflectorCandidate candidate = BuildSlapbackEntityCandidate(settings, entity, origin, flatForward, flatRight, maxDistance, minDistance);
@@ -1433,8 +1496,22 @@ class BS5_EchoEnvironmentAnalyzer
 
 			InsertCandidate(wallCandidates, candidate, 4);
 		}
+	}
 
-		s_SlapbackQueryActive = false;
+	protected static bool IsSlapbackEntityQuerySatisfied(array<ref BS5_EchoReflectorCandidate> wallCandidates, int entityHits, float bestScore, int maxCandidates)
+	{
+		if (maxCandidates < 1)
+			maxCandidates = 1;
+		int readyCandidateLimit = maxCandidates;
+		if (readyCandidateLimit > 4)
+			readyCandidateLimit = 4;
+
+		if (entityHits < readyCandidateLimit)
+			return false;
+		if (!wallCandidates || wallCandidates.Count() < readyCandidateLimit)
+			return false;
+
+		return bestScore >= SLAPBACK_ENTITY_LINE_QUERY_READY_SCORE;
 	}
 
 	protected static bool CollectSlapbackEntityCallback(IEntity entity)
@@ -2116,6 +2193,7 @@ class BS5_EchoEmissionService
 	protected static ref array<ResourceName> s_aEmitterResourceNames;
 	protected static ref array<ref Resource> s_aEmitterResources;
 	protected static ref array<ResourceName> s_aInvalidEmitterResourceNames;
+	protected static ref array<string> s_aInvalidSoundManagerPlaybackKeys;
 	protected static ref array<ref BS5_ActiveEchoVoice> s_aActiveVoices;
 	protected static ref array<ref BS5_PendingEmissionContext> s_aPendingEmissionContexts;
 	protected static ref array<ref BS5_PendingEmissionContext> s_aReservedPlaybackVoices;
@@ -2129,6 +2207,58 @@ class BS5_EchoEmissionService
 	protected static const int START_GATE_WINDOW_MS = 100;
 	protected static const int START_GATE_DEFER_MS = 50;
 	protected static const int INVALID_EMITTER_RESOURCE_CACHE_LIMIT = 32;
+	protected static const int INVALID_SOUNDMANAGER_PLAYBACK_CACHE_LIMIT = 32;
+	protected static const int INVALID_SOUNDMANAGER_PLAYBACK_CACHE_TTL_MS = 15000;
+	protected static const int PENDING_TAIL_DUPLICATE_LIMIT = 2;
+	protected static const float PENDING_TAIL_DUPLICATE_POSITION_METERS = 5.0;
+	protected static const float PENDING_TAIL_DUPLICATE_DELAY_SECONDS = 0.08;
+	protected static const float PENDING_TAIL_DUPLICATE_SOFT_FAR_DISTANCE_METERS = 140.0;
+	protected static const float PENDING_TAIL_DUPLICATE_SOFT_LOW_INTENSITY = 0.46;
+
+	static string BuildLimiterPerfSnapshot(BS5_EchoDriverComponent settings)
+	{
+		if (!settings || !settings.IsPlaybackLimiterEnabled())
+			return "limiter=off";
+
+		EnsureActiveVoicePool();
+		int activeTail = 0;
+		int activeSlapback = 0;
+		for (int activeIndex = 0; activeIndex < s_aActiveVoices.Count(); activeIndex++)
+		{
+			BS5_ActiveEchoVoice voice = s_aActiveVoices[activeIndex];
+			if (!voice || !voice.m_Context || voice.m_Context.m_bEmitterCleanupDone)
+				continue;
+
+			if (voice.m_bSlapback)
+				activeSlapback += GetContextVoiceWeight(voice.m_Context);
+			else
+				activeTail += GetContextVoiceWeight(voice.m_Context);
+		}
+
+		int reservedTail = 0;
+		int reservedSlapback = 0;
+		for (int reservedIndex = 0; reservedIndex < s_aReservedPlaybackVoices.Count(); reservedIndex++)
+		{
+			BS5_PendingEmissionContext reserved = s_aReservedPlaybackVoices[reservedIndex];
+			if (!reserved || reserved.m_bEmitterCleanupDone)
+				continue;
+
+			if (reserved.m_bSlapback)
+				reservedSlapback += GetContextVoiceWeight(reserved);
+			else
+				reservedTail += GetContextVoiceWeight(reserved);
+		}
+
+		string snapshot = "activeTail=" + activeTail;
+		snapshot += " activeSlap=" + activeSlapback;
+		snapshot += " reservedTail=" + reservedTail;
+		snapshot += " reservedSlap=" + reservedSlapback;
+		snapshot += " pendingTail=" + s_iPendingTailVoices;
+		snapshot += " pendingSlap=" + s_iPendingSlapbackVoices;
+		snapshot += " gateTail=" + s_iTailStartsInGate;
+		snapshot += " gateSlap=" + s_iSlapbackStartsInGate;
+		return snapshot;
+	}
 
 	protected static void ScrubLimiterContext(BS5_PendingEmissionContext context, bool cancel = false)
 	{
@@ -2445,7 +2575,8 @@ class BS5_EchoEmissionService
 			return;
 		}
 
-		for (int i = 0; i < tailEmitCount && i < result.m_aCandidates.Count(); i++)
+		int queuedTailCount = 0;
+		for (int i = 0; i < result.m_aCandidates.Count() && queuedTailCount < tailEmitCount; i++)
 		{
 			BS5_EchoReflectorCandidate candidate = result.m_aCandidates[i];
 			if (!candidate || !candidate.m_bValid)
@@ -2472,7 +2603,10 @@ class BS5_EchoEmissionService
 			}
 
 			if (canEmitMaster && canOutputTail)
-				QueueEmission(owner, result, masterProject, masterEvent, candidate, false, explosionLike, settings);
+			{
+				if (QueueEmission(owner, result, masterProject, masterEvent, candidate, false, explosionLike, settings))
+					queuedTailCount++;
+			}
 		}
 
 		for (int slapIndex = 0; slapIndex < slapbackEmitCount && slapIndex < result.m_aSlapbackCandidates.Count(); slapIndex++)
@@ -2517,7 +2651,7 @@ class BS5_EchoEmissionService
 		}
 	}
 
-	static void QueueEmission(IEntity owner, BS5_EchoAnalysisResult result, ResourceName project, string eventName, BS5_EchoReflectorCandidate candidate, bool slapback, bool explosionLike, BS5_EchoDriverComponent settings)
+	static bool QueueEmission(IEntity owner, BS5_EchoAnalysisResult result, ResourceName project, string eventName, BS5_EchoReflectorCandidate candidate, bool slapback, bool explosionLike, BS5_EchoDriverComponent settings)
 	{
 		ResourceName emitterPrefab = settings.ResolveMasterEmitterPrefab(result.m_bSuppressedShot);
 		if (!slapback && result.m_bLauncherShot && !explosionLike)
@@ -2532,7 +2666,7 @@ class BS5_EchoEmissionService
 		if (eventName == string.Empty || emitterPrefab == string.Empty)
 		{
 			BS5_DebugLog.OnceEnabled(settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT), BS5_DebugChannel.EMIT, "queue-invalid|" + eventName + "|" + emitterPrefab + "|" + slapback, "queue skip invalid prefab/event event=" + eventName + " prefab=" + emitterPrefab + " slapback=" + BS5_DebugLog.BoolText(slapback));
-			return;
+			return false;
 		}
 
 		BS5_PendingEmissionContext context = new BS5_PendingEmissionContext();
@@ -2614,6 +2748,18 @@ class BS5_EchoEmissionService
 		context.m_fIntensity = BS5_EchoMath.Clamp01(context.m_fIntensity * userOutputVolume);
 		context.m_fEmitterLifetimeSeconds = ComputeManagedEmitterLifetime(settings, context);
 
+		if (context.m_fIntensity <= 0.001)
+		{
+			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "queue skip inaudible event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
+			return false;
+		}
+
+		if (ShouldSkipPendingTailDuplicate(context, settings))
+			return false;
+
+		if (!ReservePendingVoice(context, settings))
+			return false;
+
 		if (settings && settings.IsDebugChannelEnabled(BS5_DebugChannel.EMIT))
 		{
 			string queueLog = "queue";
@@ -2629,17 +2775,9 @@ class BS5_EchoEmissionService
 			queueLog += " pos=" + context.m_vEmitPosition;
 			queueLog += " suppressed=" + BS5_DebugLog.BoolText(context.m_bSuppressed);
 			queueLog += " explosion=" + BS5_DebugLog.BoolText(explosionLike);
+			queueLog += " " + BuildLimiterPerfSnapshot(settings);
 			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, queueLog);
 		}
-
-		if (context.m_fIntensity <= 0.001)
-		{
-			BS5_DebugLog.Channel(settings, BS5_DebugChannel.EMIT, "queue skip inaudible event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(slapback));
-			return;
-		}
-
-		if (!ReservePendingVoice(context, settings))
-			return;
 
 		if (context.m_fDelaySeconds > 0.001)
 		{
@@ -2654,6 +2792,85 @@ class BS5_EchoEmissionService
 		{
 			EmitPending(context);
 		}
+
+		return true;
+	}
+
+	protected static bool ShouldSkipPendingTailDuplicate(BS5_PendingEmissionContext context, BS5_EchoDriverComponent settings)
+	{
+		if (!context || !settings || !settings.IsPlaybackLimiterEnabled())
+			return false;
+		if (context.m_bSlapback || context.m_bExplosion)
+			return false;
+		if (!s_aPendingEmissionContexts)
+			return false;
+
+		float positionDistanceSq = PENDING_TAIL_DUPLICATE_POSITION_METERS * PENDING_TAIL_DUPLICATE_POSITION_METERS;
+		int duplicateLimit = GetPendingTailDuplicateLimit(context);
+		int duplicateCount = 0;
+		for (int pendingIndex = 0; pendingIndex < s_aPendingEmissionContexts.Count(); pendingIndex++)
+		{
+			BS5_PendingEmissionContext pending = s_aPendingEmissionContexts[pendingIndex];
+			if (!pending || pending.m_bEmitterCleanupDone || pending.m_bCancelled)
+				continue;
+			if (pending.m_bSlapback || pending.m_bExplosion)
+				continue;
+			if (!ContextMatchesOwner(pending, context.m_pOwner, context.m_OwnerId))
+				continue;
+			if (pending.m_sProject != context.m_sProject || pending.m_sEventName != context.m_sEventName || pending.m_eSourceType != context.m_eSourceType)
+				continue;
+			if (vector.DistanceSq(pending.m_vEmitPosition, context.m_vEmitPosition) > positionDistanceSq)
+				continue;
+			if (Math.AbsFloat(pending.m_fDelaySeconds - context.m_fDelaySeconds) > PENDING_TAIL_DUPLICATE_DELAY_SECONDS)
+				continue;
+
+			duplicateCount++;
+			if (duplicateCount < duplicateLimit)
+				continue;
+
+			if (settings.IsDebugChannelEnabled(BS5_DebugChannel.LIMITER))
+			{
+				string duplicateLog = "queue skip tail duplicate";
+				duplicateLog += " existing=" + duplicateCount;
+				duplicateLog += " limit=" + duplicateLimit;
+				duplicateLog += " source=" + BS5_EchoMath.CandidateSourceName(context.m_eSourceType);
+				duplicateLog += " delay=" + context.m_fDelaySeconds;
+				duplicateLog += " dist=" + context.m_fCandidateDistance;
+				duplicateLog += " pos=" + context.m_vEmitPosition;
+				duplicateLog += " pendingTail=" + s_iPendingTailVoices;
+				BS5_DebugLog.Channel(settings, BS5_DebugChannel.LIMITER, duplicateLog);
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	protected static int GetPendingTailDuplicateLimit(BS5_PendingEmissionContext context)
+	{
+		if (!context)
+			return PENDING_TAIL_DUPLICATE_LIMIT;
+
+		if (!IsSoftTailDuplicateSource(context.m_eSourceType))
+			return PENDING_TAIL_DUPLICATE_LIMIT;
+
+		if (context.m_fCandidateDistance >= PENDING_TAIL_DUPLICATE_SOFT_FAR_DISTANCE_METERS)
+			return 1;
+		if (context.m_fIntensity <= PENDING_TAIL_DUPLICATE_SOFT_LOW_INTENSITY)
+			return 1;
+
+		return PENDING_TAIL_DUPLICATE_LIMIT;
+	}
+
+	protected static bool IsSoftTailDuplicateSource(BS5_EchoCandidateSourceType sourceType)
+	{
+		return sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_CITY
+			|| sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_FOREST
+			|| sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW
+			|| sourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE
+			|| sourceType == BS5_EchoCandidateSourceType.FORWARD_FALLBACK
+			|| sourceType == BS5_EchoCandidateSourceType.OMNI_CONTEXT;
 	}
 
 	static void EmitPending(BS5_PendingEmissionContext context)
@@ -3307,8 +3524,13 @@ class BS5_EchoEmissionService
 			return 1.0;
 
 		float lifetime = settings.GetEmitterLifetimeSeconds(context.m_bSlapback);
-		if (context.m_bExplosion && !context.m_bSlapback)
-			lifetime = settings.GetExplosionEmitterLifetimeSeconds();
+		if (context.m_bExplosion)
+		{
+			if (context.m_bSlapback)
+				lifetime = settings.GetExplosionSlapbackEmitterLifetimeSeconds();
+			else
+				lifetime = settings.GetExplosionEmitterLifetimeSeconds();
+		}
 		if (context.m_bSlapback || context.m_bExplosion || !settings.IsPlaybackLimiterEnabled())
 			return lifetime;
 
@@ -3498,6 +3720,13 @@ class BS5_EchoEmissionService
 		if (!context || !soundManager || eventName == string.Empty)
 			return false;
 
+		string playbackKey = BuildSoundManagerPlaybackKey(context.m_sProject, eventName, context.m_bSlapback);
+		if (IsSoundManagerPlaybackKnownInvalid(playbackKey))
+		{
+			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-play-skip-cached|" + playbackKey, "SoundManager skip cached failed playback project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
+			return false;
+		}
+
 		SCR_AudioSourceConfiguration audioConfig = new SCR_AudioSourceConfiguration();
 		audioConfig.m_sSoundProject = context.m_sProject;
 		audioConfig.m_sSoundEventName = eventName;
@@ -3524,6 +3753,7 @@ class BS5_EchoEmissionService
 		if (audioSource.m_AudioHandle == -1)
 		{
 			audioSource.Terminate(false);
+			CacheInvalidSoundManagerPlayback(playbackKey);
 			BS5_DebugLog.OnceEnabled(debugEnabled, BS5_DebugChannel.EMIT, "soundmanager-play-failed|" + context.m_sProject + "|" + eventName + "|" + context.m_bSlapback, "SoundManager play failed fallback=prefab project=" + context.m_sProject + " event=" + eventName + " slapback=" + BS5_DebugLog.BoolText(context.m_bSlapback));
 			return false;
 		}
@@ -3542,6 +3772,64 @@ class BS5_EchoEmissionService
 			BS5_DebugLog.ChannelEnabled(debugEnabled, BS5_DebugChannel.EMIT, managedPlayLog);
 		}
 		return true;
+	}
+
+	protected static string BuildSoundManagerPlaybackKey(ResourceName project, string eventName, bool slapback)
+	{
+		return project + "|" + eventName + "|" + BS5_DebugLog.BoolText(slapback);
+	}
+
+	protected static bool IsSoundManagerPlaybackKnownInvalid(string playbackKey)
+	{
+		EnsureSoundManagerPlaybackCache();
+		for (int invalidIndex = 0; invalidIndex < s_aInvalidSoundManagerPlaybackKeys.Count(); invalidIndex++)
+		{
+			if (s_aInvalidSoundManagerPlaybackKeys[invalidIndex] == playbackKey)
+				return true;
+		}
+
+		return false;
+	}
+
+	protected static void CacheInvalidSoundManagerPlayback(string playbackKey)
+	{
+		EnsureSoundManagerPlaybackCache();
+		for (int invalidIndex = 0; invalidIndex < s_aInvalidSoundManagerPlaybackKeys.Count(); invalidIndex++)
+		{
+			if (s_aInvalidSoundManagerPlaybackKeys[invalidIndex] == playbackKey)
+				return;
+		}
+
+		if (s_aInvalidSoundManagerPlaybackKeys.Count() >= INVALID_SOUNDMANAGER_PLAYBACK_CACHE_LIMIT)
+			s_aInvalidSoundManagerPlaybackKeys.Remove(0);
+		s_aInvalidSoundManagerPlaybackKeys.Insert(playbackKey);
+
+		ScriptCallQueue callQueue = null;
+		if (GetGame())
+			callQueue = GetGame().GetCallqueue();
+		if (callQueue)
+			callQueue.CallLater(BS5_EchoEmissionService.ForgetInvalidSoundManagerPlayback, INVALID_SOUNDMANAGER_PLAYBACK_CACHE_TTL_MS, false, playbackKey);
+		else
+			ForgetInvalidSoundManagerPlayback(playbackKey);
+	}
+
+	protected static void ForgetInvalidSoundManagerPlayback(string playbackKey)
+	{
+		EnsureSoundManagerPlaybackCache();
+		for (int invalidIndex = 0; invalidIndex < s_aInvalidSoundManagerPlaybackKeys.Count(); invalidIndex++)
+		{
+			if (s_aInvalidSoundManagerPlaybackKeys[invalidIndex] != playbackKey)
+				continue;
+
+			s_aInvalidSoundManagerPlaybackKeys.Remove(invalidIndex);
+			return;
+		}
+	}
+
+	protected static void EnsureSoundManagerPlaybackCache()
+	{
+		if (!s_aInvalidSoundManagerPlaybackKeys)
+			s_aInvalidSoundManagerPlaybackKeys = new array<string>();
 	}
 
 	protected static bool IsActiveVoiceValid(BS5_ActiveEchoVoice voice)

@@ -16,6 +16,8 @@ GenericEntity : "{AC64C942CA3201E6}Prefabs/Weapons/Cannons/Cannon_M242/Cannon_M2
    m_iMaxSlapbackEmittersPerShot 4
    m_iLimiterBurstCadenceNormal 6
    m_iLimiterBurstCadenceHighPressure 9
+   m_iLimiterBurstFreeTailShotsNormal 2
+   m_iLimiterBurstFreeTailShotsHighPressure 1
    m_iLimiterBurstTailEmittersPerShot 1
    m_iLimiterHighPressureTailEmittersPerShot 1
    m_iLimiterMaxTailVoicesPerOwner 3

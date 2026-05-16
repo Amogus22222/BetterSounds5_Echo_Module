@@ -2459,8 +2459,48 @@ class BS5_SoundMapAnchorSample
 	}
 }
 
+class BS5_SoundMapEvalBudget
+{
+	int m_iTotalSpent;
+	int m_iCitySpent;
+	int m_iRidgeSpent;
+	int m_iForestSpent;
+	int m_iMeadowSpent;
+	int m_iOmniSpent;
+	int m_iFallbackSpent;
+	bool m_bHasUrbanAnchor;
+	bool m_bHasRidgeAnchor;
+	bool m_bHasFacadeAnchor;
+
+	void BS5_SoundMapEvalBudget()
+	{
+		m_iTotalSpent = 0;
+		m_iCitySpent = 0;
+		m_iRidgeSpent = 0;
+		m_iForestSpent = 0;
+		m_iMeadowSpent = 0;
+		m_iOmniSpent = 0;
+		m_iFallbackSpent = 0;
+		m_bHasUrbanAnchor = false;
+		m_bHasRidgeAnchor = false;
+		m_bHasFacadeAnchor = false;
+	}
+
+	bool HasCoreAnchor()
+	{
+		return m_bHasUrbanAnchor || m_bHasRidgeAnchor || m_bHasFacadeAnchor;
+	}
+}
+
 class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 {
+	protected static const int SOUNDMAP_EVAL_TOTAL_BUDGET = 8;
+	protected static const int SOUNDMAP_EVAL_RESCUE_BUDGET = 9;
+	protected static const int SOUNDMAP_EVAL_CITY_BUDGET = 4;
+	protected static const int SOUNDMAP_EVAL_RIDGE_BUDGET = 3;
+	protected static const int SOUNDMAP_EVAL_LOW_SOURCE_BUDGET = 1;
+	protected static const float SOUNDMAP_OMNI_FAST_DISTANCE_LIMIT = 220.0;
+
 	static bool TryBuildCandidates(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_EnvironmentSnapshot snapshot, BS5_EchoAnalysisResult result, IEntity owner, vector origin, vector flatForward, vector flatRight, array<IEntity> traceExcludeArray, IEntity traceExcludeRoot, bool explosionLike)
 	{
 		if (!candidates || !settings || !result)
@@ -2504,6 +2544,7 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		int maxCandidates = settings.GetMaxCandidateCount();
 		float mergeDistanceSq = settings.GetTailClusterDistanceMeters();
 		mergeDistanceSq *= mergeDistanceSq;
+		BS5_SoundMapEvalBudget evalBudget = new BS5_SoundMapEvalBudget();
 
 		bool urbanMicroPass = citySamples.IsEmpty() && settings.IsSoundMapUrbanMicroScanEnabled();
 		if (!citySamples.IsEmpty() || urbanMicroPass)
@@ -2526,17 +2567,18 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 			result.m_sTailForwardConfirmTopPrefabs = confirmTopPrefabs;
 		}
 
-		AppendSamplesAsCandidates(candidates, citySamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_CITY, 4, maxCandidates, mergeDistanceSq, true, soundWorld, world, owner, traceExcludeRoot);
-		AppendSamplesAsCandidates(candidates, hillSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.TERRAIN_RIDGE, 3, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot);
-		AppendSamplesAsCandidates(candidates, forestSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_FOREST, 2, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot);
-		AppendSamplesAsCandidates(candidates, meadowSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW, 1, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot);
+		SyncSoundMapBudgetAnchors(evalBudget, candidates);
+		AppendSamplesAsCandidates(candidates, citySamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_CITY, 4, maxCandidates, mergeDistanceSq, true, soundWorld, world, owner, traceExcludeRoot, evalBudget);
+		AppendSamplesAsCandidates(candidates, hillSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.TERRAIN_RIDGE, 3, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
+		AppendSamplesAsCandidates(candidates, forestSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_FOREST, 2, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
+		AppendSamplesAsCandidates(candidates, meadowSamples, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW, 1, maxCandidates, mergeDistanceSq, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
 
-		AddSoftForwardTerrainWaveAnchor(candidates, soundWorld, world, settings, result, origin, viewFlat, viewRight, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq);
-		AddForwardFallbacks(candidates, settings, origin, viewFlat, viewRight, soundWorld, world, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq, result);
-		AddOmniContextAnchors(candidates, soundWorld, world, settings, result, origin, viewFlat, viewRight, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq);
+		AddSoftForwardTerrainWaveAnchor(candidates, soundWorld, world, settings, result, origin, viewFlat, viewRight, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq, evalBudget);
+		AddForwardFallbacks(candidates, settings, origin, viewFlat, viewRight, soundWorld, world, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq, result, evalBudget);
+		AddOmniContextAnchors(candidates, soundWorld, world, settings, result, origin, viewFlat, viewRight, owner, traceExcludeRoot, maxCandidates, mergeDistanceSq, evalBudget);
 
 		bool shouldRunUrbanRescue = false;
-		if (settings.IsSoundMapUrbanMicroScanEnabled())
+		if (settings.IsSoundMapUrbanMicroScanEnabled() && !urbanMicroPass)
 		{
 			if (result.m_iTailForwardConfirmedFacades <= 0)
 				shouldRunUrbanRescue = true;
@@ -2745,7 +2787,7 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		return hasSoundMapSignal;
 	}
 
-	protected static void AddForwardFallbacks(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, vector origin, vector viewFlat, vector viewRight, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq, BS5_EchoAnalysisResult result)
+	protected static void AddForwardFallbacks(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, vector origin, vector viewFlat, vector viewRight, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq, BS5_EchoAnalysisResult result, BS5_SoundMapEvalBudget evalBudget)
 	{
 		if (candidates.Count() >= 3)
 			return;
@@ -2773,13 +2815,17 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 
 			BS5_SoundMapAnchorSample fallbackSample = CreateSample(position, normal, viewFlat, distance, 0.0, BS5_EchoCandidateSourceType.FORWARD_FALLBACK);
 			fallbackSample.m_fScore = BS5_EchoMath.Clamp01(0.44 - ((float)i * 0.055));
-			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(fallbackSample, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.FORWARD_FALLBACK, false, soundWorld, world, owner, traceExcludeRoot);
+			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(fallbackSample, settings, result, origin, viewRight, BS5_EchoCandidateSourceType.FORWARD_FALLBACK, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
 			MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
-			result.m_iSoundMapFallbackAnchors++;
+			if (ContainsCandidateReference(candidates, candidate))
+			{
+				SyncSoundMapBudgetAnchors(evalBudget, candidates);
+				result.m_iSoundMapFallbackAnchors++;
+			}
 		}
 	}
 
-	protected static void AddSoftForwardTerrainWaveAnchor(array<ref BS5_EchoReflectorCandidate> candidates, SoundWorld soundWorld, BaseWorld world, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewFlat, vector viewRight, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq)
+	protected static void AddSoftForwardTerrainWaveAnchor(array<ref BS5_EchoReflectorCandidate> candidates, SoundWorld soundWorld, BaseWorld world, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewFlat, vector viewRight, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq, BS5_SoundMapEvalBudget evalBudget)
 	{
 		if (!candidates || !soundWorld || !world || !settings || !result)
 			return;
@@ -2857,11 +2903,12 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		if (!bestSample)
 			return;
 
-		BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(bestSample, settings, result, origin, viewRight, bestSource, false, soundWorld, world, owner, traceExcludeRoot);
+		BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(bestSample, settings, result, origin, viewRight, bestSource, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
 		MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
 		if (!ContainsCandidateReference(candidates, candidate))
 			return;
 
+		SyncSoundMapBudgetAnchors(evalBudget, candidates);
 		result.m_iSoundMapFallbackAnchors++;
 		if (bestSource == BS5_EchoCandidateSourceType.TERRAIN_RIDGE)
 			result.m_iSoundMapHillHits++;
@@ -2898,7 +2945,7 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		return false;
 	}
 
-	protected static void AddOmniContextAnchors(array<ref BS5_EchoReflectorCandidate> candidates, SoundWorld soundWorld, BaseWorld world, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewFlat, vector viewRight, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq)
+	protected static void AddOmniContextAnchors(array<ref BS5_EchoReflectorCandidate> candidates, SoundWorld soundWorld, BaseWorld world, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewFlat, vector viewRight, IEntity owner, IEntity traceExcludeRoot, int maxCandidates, float mergeDistanceSq, BS5_SoundMapEvalBudget evalBudget)
 	{
 		int omniLimit = settings.GetSoundMapOmniAnchorCount();
 		if (omniLimit <= 0)
@@ -2965,18 +3012,25 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 			if (added >= omniLimit)
 				return;
 
-			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(omniSamples[i], settings, result, origin, viewRight, BS5_EchoCandidateSourceType.OMNI_CONTEXT, false, soundWorld, world, owner, traceExcludeRoot);
+			if (ShouldPreRejectSoundMapSample(candidates, omniSamples[i], settings, result, evalBudget, origin, viewFlat, BS5_EchoCandidateSourceType.OMNI_CONTEXT, false))
+				continue;
+
+			if (!ShouldEvaluateSoundMapSample(candidates, omniSamples[i], settings, result, evalBudget, origin, BS5_EchoCandidateSourceType.OMNI_CONTEXT, maxCandidates, mergeDistanceSq))
+				continue;
+
+			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(omniSamples[i], settings, result, origin, viewRight, BS5_EchoCandidateSourceType.OMNI_CONTEXT, false, soundWorld, world, owner, traceExcludeRoot, evalBudget);
 			int beforeCount = candidates.Count();
 			MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
 			if (candidates.Count() > beforeCount)
 			{
+				SyncSoundMapBudgetAnchors(evalBudget, candidates);
 				added++;
 				result.m_iSoundMapOmniAnchors++;
 			}
 		}
 	}
 
-	protected static void AppendSamplesAsCandidates(array<ref BS5_EchoReflectorCandidate> candidates, array<ref BS5_SoundMapAnchorSample> samples, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewRight, BS5_EchoCandidateSourceType sourceType, int maxAdd, int maxCandidates, float mergeDistanceSq, bool allowFacadeSnap, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot)
+	protected static void AppendSamplesAsCandidates(array<ref BS5_EchoReflectorCandidate> candidates, array<ref BS5_SoundMapAnchorSample> samples, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewRight, BS5_EchoCandidateSourceType sourceType, int maxAdd, int maxCandidates, float mergeDistanceSq, bool allowFacadeSnap, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot, BS5_SoundMapEvalBudget evalBudget)
 	{
 		int added = 0;
 		for (int i = 0; i < samples.Count(); i++)
@@ -2984,15 +3038,209 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 			if (added >= maxAdd)
 				return;
 
-			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(samples[i], settings, result, origin, viewRight, sourceType, allowFacadeSnap, soundWorld, world, owner, traceExcludeRoot);
+			if (ShouldPreRejectSoundMapSample(candidates, samples[i], settings, result, evalBudget, origin, vector.Zero, sourceType, allowFacadeSnap))
+				continue;
+
+			if (!allowFacadeSnap && !ShouldEvaluateSoundMapSample(candidates, samples[i], settings, result, evalBudget, origin, sourceType, maxCandidates, mergeDistanceSq))
+				continue;
+
+			BS5_EchoReflectorCandidate candidate = CreateCandidateFromSample(samples[i], settings, result, origin, viewRight, sourceType, allowFacadeSnap, soundWorld, world, owner, traceExcludeRoot, evalBudget);
 			int beforeCount = candidates.Count();
 			MergeCandidate(candidates, candidate, maxCandidates, mergeDistanceSq);
+			if (ContainsCandidateReference(candidates, candidate))
+				SyncSoundMapBudgetAnchors(evalBudget, candidates);
 			if (candidates.Count() > beforeCount || beforeCount >= maxCandidates)
 				added++;
 		}
 	}
 
-	protected static BS5_EchoReflectorCandidate CreateCandidateFromSample(BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewRight, BS5_EchoCandidateSourceType sourceType, bool allowFacadeSnap, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot)
+	protected static bool ShouldPreRejectSoundMapSample(array<ref BS5_EchoReflectorCandidate> candidates, BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, BS5_SoundMapEvalBudget evalBudget, vector origin, vector viewFlat, BS5_EchoCandidateSourceType sourceType, bool allowFacadeSnap)
+	{
+		if (!sample || !settings || allowFacadeSnap)
+			return false;
+
+		float distance = vector.Distance(origin, sample.m_vPosition);
+		if (sourceType == BS5_EchoCandidateSourceType.OMNI_CONTEXT)
+		{
+			if (distance > SOUNDMAP_OMNI_FAST_DISTANCE_LIMIT)
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+			if (evalBudget && evalBudget.m_bHasUrbanAnchor)
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+			if (HasNearForwardReflectiveAnchor(candidates, origin, viewFlat, 185.0))
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+		}
+
+		if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW)
+		{
+			if (distance > settings.GetSoundMapFarTailSoftLimitMeters())
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+			if (evalBudget && evalBudget.HasCoreAnchor() && sample.m_fScore < 0.49)
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+		}
+
+		if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_FOREST)
+		{
+			if (evalBudget && evalBudget.HasCoreAnchor() && sample.m_fScore < 0.62)
+				return MarkSoundMapBudgetSkip(result, evalBudget);
+		}
+
+		if (sourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE && distance > settings.GetSoundMapFarTailSoftLimitMeters() && sample.m_fScore < 0.76)
+			return MarkSoundMapBudgetSkip(result, evalBudget);
+
+		return false;
+	}
+
+	protected static bool ShouldEvaluateSoundMapSample(array<ref BS5_EchoReflectorCandidate> candidates, BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, BS5_SoundMapEvalBudget evalBudget, vector origin, BS5_EchoCandidateSourceType sourceType, int maxCandidates, float mergeDistanceSq)
+	{
+		if (!candidates || !sample || !settings)
+			return true;
+		if (maxCandidates < 1 || candidates.Count() < maxCandidates)
+			return true;
+
+		float optimisticScore = EstimateOptimisticSoundMapScore(sample, settings, origin, sourceType);
+		for (int i = 0; i < candidates.Count(); i++)
+		{
+			BS5_EchoReflectorCandidate existing = candidates[i];
+			if (!existing)
+				continue;
+
+			if (vector.DistanceSq(existing.m_vPosition, sample.m_vPosition) > mergeDistanceSq)
+				continue;
+			if (vector.Dot(existing.m_vNormal, sample.m_vNormal) < 0.45)
+				continue;
+
+			if (optimisticScore > existing.m_fScore)
+				return true;
+			return !MarkSoundMapBudgetSkip(result, evalBudget);
+		}
+
+		if (optimisticScore > GetLowestSoundMapCandidateScore(candidates))
+			return true;
+		return !MarkSoundMapBudgetSkip(result, evalBudget);
+	}
+
+	protected static float EstimateOptimisticSoundMapScore(BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, vector origin, BS5_EchoCandidateSourceType sourceType)
+	{
+		if (!sample || !settings)
+			return 1.0;
+
+		float distance = vector.Distance(origin, sample.m_vPosition);
+		float distanceFit = ResolveSoundMapDistanceFitForSource(distance, sourceType, settings);
+		float score = (sample.m_fScore * 0.45) + (ResolveSoundMapSourcePriority(sourceType) * 0.25) + (ResolveInitialPhysicalScore(sourceType) * 0.20) + (distanceFit * 0.10);
+		if (IsUrbanSoundMapSource(sourceType))
+			score += 0.10;
+		return BS5_EchoMath.Clamp01(score);
+	}
+
+	protected static float GetLowestSoundMapCandidateScore(array<ref BS5_EchoReflectorCandidate> candidates)
+	{
+		float lowest = 2.0;
+		bool found = false;
+		for (int i = 0; i < candidates.Count(); i++)
+		{
+			BS5_EchoReflectorCandidate candidate = candidates[i];
+			if (!candidate || !candidate.m_bValid)
+				continue;
+
+			if (candidate.m_fScore < lowest)
+				lowest = candidate.m_fScore;
+			found = true;
+		}
+
+		if (!found)
+			return 0.0;
+		return lowest;
+	}
+
+	protected static bool TrySpendSoundMapEvalBudget(BS5_EchoReflectorCandidate candidate, BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, BS5_SoundMapEvalBudget evalBudget)
+	{
+		if (!candidate || !sample || !settings || !evalBudget)
+			return true;
+
+		BS5_EchoCandidateSourceType sourceType = candidate.m_eSourceType;
+		bool hasCoreAnchor = evalBudget.HasCoreAnchor();
+		int totalBudget = SOUNDMAP_EVAL_TOTAL_BUDGET;
+		if (!hasCoreAnchor)
+			totalBudget = SOUNDMAP_EVAL_RESCUE_BUDGET;
+		if (evalBudget.m_iTotalSpent >= totalBudget)
+			return !MarkSoundMapBudgetSkip(result, evalBudget);
+
+		if (sourceType == BS5_EchoCandidateSourceType.FACADE_HIT || sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_CITY)
+		{
+			if (evalBudget.m_iCitySpent >= SOUNDMAP_EVAL_CITY_BUDGET)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iCitySpent++;
+		}
+		else if (sourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE || sourceType == BS5_EchoCandidateSourceType.TERRAIN_HIT || sourceType == BS5_EchoCandidateSourceType.TERRAIN_PRIMARY)
+		{
+			if (evalBudget.m_iRidgeSpent >= SOUNDMAP_EVAL_RIDGE_BUDGET && sample.m_fScore < 0.82)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iRidgeSpent++;
+		}
+		else if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_FOREST)
+		{
+			if (hasCoreAnchor && evalBudget.m_iForestSpent >= SOUNDMAP_EVAL_LOW_SOURCE_BUDGET)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iForestSpent++;
+		}
+		else if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW)
+		{
+			if (hasCoreAnchor && evalBudget.m_iMeadowSpent >= SOUNDMAP_EVAL_LOW_SOURCE_BUDGET)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iMeadowSpent++;
+		}
+		else if (sourceType == BS5_EchoCandidateSourceType.OMNI_CONTEXT)
+		{
+			if (evalBudget.m_iOmniSpent >= SOUNDMAP_EVAL_LOW_SOURCE_BUDGET)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iOmniSpent++;
+		}
+		else if (sourceType == BS5_EchoCandidateSourceType.FORWARD_FALLBACK)
+		{
+			if (hasCoreAnchor && evalBudget.m_iFallbackSpent >= SOUNDMAP_EVAL_LOW_SOURCE_BUDGET)
+				return !MarkSoundMapBudgetSkip(result, evalBudget);
+			evalBudget.m_iFallbackSpent++;
+		}
+
+		evalBudget.m_iTotalSpent++;
+		return true;
+	}
+
+	protected static bool MarkSoundMapBudgetSkip(BS5_EchoAnalysisResult result, BS5_SoundMapEvalBudget evalBudget)
+	{
+		if (result)
+			result.m_iSoundMapBudgetSkips++;
+		return true;
+	}
+
+	protected static void SyncSoundMapBudgetAnchors(BS5_SoundMapEvalBudget evalBudget, array<ref BS5_EchoReflectorCandidate> candidates)
+	{
+		if (!evalBudget || !candidates)
+			return;
+
+		for (int i = 0; i < candidates.Count(); i++)
+		{
+			BS5_EchoReflectorCandidate candidate = candidates[i];
+			if (!candidate || !candidate.m_bValid)
+				continue;
+
+			if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.FACADE_HIT)
+			{
+				evalBudget.m_bHasFacadeAnchor = true;
+				evalBudget.m_bHasUrbanAnchor = true;
+			}
+			else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SOUNDMAP_CITY)
+			{
+				evalBudget.m_bHasUrbanAnchor = true;
+			}
+			else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE || candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_HIT || candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_PRIMARY)
+			{
+				evalBudget.m_bHasRidgeAnchor = true;
+			}
+		}
+	}
+
+	protected static BS5_EchoReflectorCandidate CreateCandidateFromSample(BS5_SoundMapAnchorSample sample, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, vector origin, vector viewRight, BS5_EchoCandidateSourceType sourceType, bool allowFacadeSnap, SoundWorld soundWorld, BaseWorld world, IEntity owner, IEntity traceExcludeRoot, BS5_SoundMapEvalBudget evalBudget)
 	{
 		if (!sample)
 			return null;
@@ -3029,6 +3277,9 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		candidate.m_fZonePriority = ResolveSoundMapSourcePriority(sourceType);
 		candidate.m_fPhysicalScore = ResolveInitialPhysicalScore(sourceType);
 		candidate.m_sTerrainProfile = ResolveInitialTerrainProfile(sourceType);
+
+		if (!TrySpendSoundMapEvalBudget(candidate, sample, settings, result, evalBudget))
+			return null;
 
 		if (!ValidateTerrainProfileCandidate(candidate, settings, result, world, origin))
 			return null;
@@ -3092,39 +3343,47 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		if (!candidate)
 			return 0.0;
 
+		return ResolveSoundMapDistanceFitForSource(candidate.m_fDistance, candidate.m_eSourceType, settings);
+	}
+
+	protected static float ResolveSoundMapDistanceFitForSource(float distance, BS5_EchoCandidateSourceType sourceType, BS5_EchoDriverComponent settings)
+	{
+		if (!settings)
+			return 0.0;
+
 		float minDistance = 80.0;
 		float idealDistance = 180.0;
 		float maxDistance = settings.GetSoundMapForwardMaxDistanceMeters();
-		if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.FACADE_HIT || candidate.m_eSourceType == BS5_EchoCandidateSourceType.SOUNDMAP_CITY)
+		if (sourceType == BS5_EchoCandidateSourceType.FACADE_HIT || sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_CITY)
 		{
 			minDistance = 45.0;
 			idealDistance = 105.0;
 			maxDistance = settings.GetSoundMapNearUrbanTailMaxDistanceMeters();
 		}
-		else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE || candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_HIT || candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_PRIMARY)
+		else if (sourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE || sourceType == BS5_EchoCandidateSourceType.TERRAIN_HIT || sourceType == BS5_EchoCandidateSourceType.TERRAIN_PRIMARY)
 		{
 			minDistance = 90.0;
 			idealDistance = 210.0;
 			maxDistance = 400.0;
 		}
-		else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW)
+		else if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW)
 		{
 			minDistance = 140.0;
 			idealDistance = 260.0;
 			maxDistance = settings.GetSoundMapFarTailSoftLimitMeters();
 		}
-		else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SOUNDMAP_FOREST)
+		else if (sourceType == BS5_EchoCandidateSourceType.SOUNDMAP_FOREST)
 		{
 			minDistance = 100.0;
 			idealDistance = 220.0;
 			maxDistance = settings.GetSoundMapFarTailSoftLimitMeters();
 		}
 
-		if (candidate.m_fDistance < minDistance)
-			return BS5_EchoMath.Clamp01(candidate.m_fDistance / BS5_EchoMath.MaxFloat(1.0, minDistance));
-		if (candidate.m_fDistance <= idealDistance)
+		if (distance < minDistance)
+			return BS5_EchoMath.Clamp01(distance / BS5_EchoMath.MaxFloat(1.0, minDistance));
+		if (distance <= idealDistance)
 			return 1.0;
-		return BS5_EchoMath.Clamp01(1.0 - ((candidate.m_fDistance - idealDistance) / BS5_EchoMath.MaxFloat(1.0, maxDistance - idealDistance)));
+		return BS5_EchoMath.Clamp01(1.0 - ((distance - idealDistance) / BS5_EchoMath.MaxFloat(1.0, maxDistance - idealDistance)));
 	}
 
 	protected static bool IsUrbanSoundMapSource(BS5_EchoCandidateSourceType sourceType)
@@ -3219,6 +3478,8 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		candidateEar[1] = candidateEar[1] + 1.35;
 		float clearance = settings.GetSoundMapPathTerrainClearanceMeters();
 		int sampleCount = ResolvePathPlausibilitySampleCount(settings, flatDistance);
+		if (result)
+			result.m_iSoundMapPathSamples += sampleCount;
 		float cityAlongPath = 0.0;
 		float forestAlongPath = 0.0;
 		float meadowAlongPath = 0.0;
