@@ -19,6 +19,12 @@ GenericEntity {
    m_sCloseSlapbackAcp "{1A9C4D83B5E24761}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Master.acp"
    m_sCloseSlapbackEmitterPrefab "{64E4F2017A4A2C5B}Prefabs/Props/BS5_SlapbackEmitter_Close.et"
    m_sCloseSlapbackEventName "SOUND_SHOT"
+   m_sCloseCoreSlapbackAcp "{E83C19F72DA57630}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Core_Master.acp"
+   m_sCloseCoreSlapbackEmitterPrefab "{22313E4EB35A6AAB}Prefabs/Props/BS5_SlapbackEmitter_CloseCore.et"
+   m_sCloseCoreSlapbackEventName "SOUND_SHOT"
+   m_sSemiIndoorSlapbackAcp "{6D30DCE852E5DBE0}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_SemiIndoor_Master.acp"
+   m_sSemiIndoorSlapbackEmitterPrefab "{B3063134FDB388F6}Prefabs/Props/BS5_SlapbackEmitter_SemiIndoor.et"
+   m_sSemiIndoorSlapbackEventName "SOUND_SHOT"
    m_fMaxCloseDistanceMeters 6
    m_iMaxCloseSlapbackEmittersPerShot 2
    m_fBaseEvidenceMin 0.1
@@ -41,9 +47,12 @@ GenericEntity {
    m_sSuppressedSlapbackAcp "{7959DBC6F14FE4A9}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Silinced_Master.acp"
    m_sExplosionAcp "{E7C0F9D5571D89AC}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_EchoMaster.acp"
    m_sExplosionSlapbackAcp "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp"
+   m_sExplosionCloseSlapbackAcp "{E1CE18A3DF2DF448}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Close_Slapbacks_Master.acp"
    m_sExplosionEventName "SOUND_SHOT"
+   m_sExplosionCloseSlapbackEventName "SOUND_SHOT"
    m_sExplosionEmitterPrefab "{CB1CEA7B826BBA01}Prefabs/Props/BS5_ExplosionEmitter.et"
    m_sExplosionSlapbackEmitterPrefab "{A32D7C69E784B102}Prefabs/Props/BS5_ExplosionSlapbackEmitter.et"
+   m_sExplosionCloseSlapbackEmitterPrefab "{0A94B1D82F2B2C6E}Prefabs/Props/BS5_ExplosionSlapbackEmitter_Close.et"
    m_sTrenchSlapbackEventName "SOUND_SHOT"
    m_sTrenchSlapbackEmitterPrefab "{C21E4F890A7B63D5}Prefabs/Props/BS5_SlapbackEmitter_Trench.et"
    m_sSuppressedMasterEmitterPrefab "{A59D3E1092B44A6C}Prefabs/Props/BS5_TailEmitter_Silenced.et"

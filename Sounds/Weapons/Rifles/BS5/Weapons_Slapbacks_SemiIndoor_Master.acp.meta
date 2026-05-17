@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{6D30DCE852E5DBE0}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_SemiIndoor_Master.acp"
+ Configurations {
+  AudioProjectResourceClass PC {
+  }
+  AudioProjectResourceClass XBOX_ONE : PC {
+  }
+  AudioProjectResourceClass XBOX_SERIES : PC {
+  }
+  AudioProjectResourceClass PS4 : PC {
+  }
+  AudioProjectResourceClass PS5 : PC {
+  }
+  AudioProjectResourceClass HEADLESS : PC {
+  }
+ }
+}

@@ -3011,7 +3011,14 @@ class BS5_EchoEmissionService
 				string candidateSlapbackEvent = settings.ResolveSlapbackEventName(slapCandidate.m_eSourceType);
 				ResourceName candidateSlapbackProject = settings.ResolveSlapbackAcp(slapCandidate.m_eSourceType, result.m_bSuppressedShot);
 				if (explosionLike)
+				{
 					candidateSlapbackProject = settings.ResolveExplosionSlapbackAcp();
+					if (slapCandidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE)
+					{
+						candidateSlapbackProject = settings.ResolveExplosionCloseSlapbackAcp();
+						candidateSlapbackEvent = settings.ResolveExplosionCloseSlapbackEventName();
+					}
+				}
 				if (debugEnabled)
 				{
 					string slapQueueLog = "slapback queue";
@@ -3035,7 +3042,11 @@ class BS5_EchoEmissionService
 		if (!slapback && result.m_bLauncherShot && !explosionLike)
 			emitterPrefab = settings.ResolveLauncherMasterEmitterPrefab(result.m_bSuppressedShot);
 		if (slapback && explosionLike)
+		{
 			emitterPrefab = settings.ResolveExplosionSlapbackEmitterPrefab();
+			if (candidate && candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE)
+				emitterPrefab = settings.ResolveExplosionCloseSlapbackEmitterPrefab();
+		}
 		else if (slapback)
 			emitterPrefab = settings.ResolveSlapbackEmitterPrefab(candidate.m_eSourceType, result.m_bSuppressedShot);
 		else if (explosionLike)

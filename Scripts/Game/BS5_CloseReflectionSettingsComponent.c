@@ -7,6 +7,10 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 {
 	protected static const ResourceName DEFAULT_CLOSE_SLAPBACK_ACP = "{1A9C4D83B5E24761}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Master.acp";
 	protected static const ResourceName DEFAULT_CLOSE_SLAPBACK_EMITTER_PREFAB = "{64E4F2017A4A2C5B}Prefabs/Props/BS5_SlapbackEmitter_Close.et";
+	protected static const ResourceName DEFAULT_CLOSE_CORE_SLAPBACK_ACP = "{E83C19F72DA57630}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Core_Master.acp";
+	protected static const ResourceName DEFAULT_CLOSE_CORE_SLAPBACK_EMITTER_PREFAB = "{22313E4EB35A6AAB}Prefabs/Props/BS5_SlapbackEmitter_CloseCore.et";
+	protected static const ResourceName DEFAULT_SEMI_INDOOR_SLAPBACK_ACP = "{6D30DCE852E5DBE0}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_SemiIndoor_Master.acp";
+	protected static const ResourceName DEFAULT_SEMI_INDOOR_SLAPBACK_EMITTER_PREFAB = "{B3063134FDB388F6}Prefabs/Props/BS5_SlapbackEmitter_SemiIndoor.et";
 
 	[Attribute(defvalue: "1", desc: "Enables the dedicated close slapback/reflection planner and playback routing.")]
 	protected bool m_bEnableCloseReflection;
@@ -20,19 +24,19 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 	[Attribute(defvalue: "SOUND_SHOT", desc: "Dedicated event name used for close reflection playback.")]
 	protected string m_sCloseSlapbackEventName;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated ACP override for near-reflection close core playback. Empty falls back to close slapback ACP.")]
+	[Attribute(defvalue: "{E83C19F72DA57630}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_Close_Core_Master.acp", desc: "Dedicated ACP override for near-reflection close core playback. Empty uses the bundled close-core template.")]
 	protected ResourceName m_sCloseCoreSlapbackAcp;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated emitter prefab for near-reflection close core playback. Empty falls back to close slapback emitter prefab.")]
+	[Attribute(defvalue: "{22313E4EB35A6AAB}Prefabs/Props/BS5_SlapbackEmitter_CloseCore.et", desc: "Dedicated emitter prefab for near-reflection close core playback. Empty uses the bundled close-core emitter template.")]
 	protected ResourceName m_sCloseCoreSlapbackEmitterPrefab;
 
 	[Attribute(defvalue: "", desc: "Optional event name for near-reflection close core playback. Empty falls back to close slapback event.")]
 	protected string m_sCloseCoreSlapbackEventName;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated ACP override for near-reflection semi-indoor playback. Empty falls back to close core or close slapback ACP.")]
+	[Attribute(defvalue: "{6D30DCE852E5DBE0}Sounds/Weapons/Rifles/BS5/Weapons_Slapbacks_SemiIndoor_Master.acp", desc: "Dedicated ACP override for near-reflection semi-indoor playback. Empty uses the bundled semi-indoor template.")]
 	protected ResourceName m_sSemiIndoorSlapbackAcp;
 
-	[Attribute(defvalue: "", desc: "Optional dedicated emitter prefab for near-reflection semi-indoor playback. Empty falls back to close core or close slapback emitter prefab.")]
+	[Attribute(defvalue: "{B3063134FDB388F6}Prefabs/Props/BS5_SlapbackEmitter_SemiIndoor.et", desc: "Dedicated emitter prefab for near-reflection semi-indoor playback. Empty uses the bundled semi-indoor emitter template.")]
 	protected ResourceName m_sSemiIndoorSlapbackEmitterPrefab;
 
 	[Attribute(defvalue: "", desc: "Optional event name for near-reflection semi-indoor playback. Empty falls back to close core or close slapback event.")]
@@ -117,7 +121,7 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 		if (m_sCloseCoreSlapbackAcp != string.Empty)
 			return m_sCloseCoreSlapbackAcp;
 
-		return ResolveCloseSlapbackAcp();
+		return DEFAULT_CLOSE_CORE_SLAPBACK_ACP;
 	}
 
 	ResourceName ResolveCloseCoreSlapbackEmitterPrefab()
@@ -125,7 +129,7 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 		if (m_sCloseCoreSlapbackEmitterPrefab != string.Empty)
 			return m_sCloseCoreSlapbackEmitterPrefab;
 
-		return ResolveCloseSlapbackEmitterPrefab();
+		return DEFAULT_CLOSE_CORE_SLAPBACK_EMITTER_PREFAB;
 	}
 
 	string ResolveCloseCoreSlapbackEventName()
@@ -141,7 +145,7 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 		if (m_sSemiIndoorSlapbackAcp != string.Empty)
 			return m_sSemiIndoorSlapbackAcp;
 
-		return ResolveCloseCoreSlapbackAcp();
+		return DEFAULT_SEMI_INDOOR_SLAPBACK_ACP;
 	}
 
 	ResourceName ResolveSemiIndoorSlapbackEmitterPrefab()
@@ -149,7 +153,7 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 		if (m_sSemiIndoorSlapbackEmitterPrefab != string.Empty)
 			return m_sSemiIndoorSlapbackEmitterPrefab;
 
-		return ResolveCloseCoreSlapbackEmitterPrefab();
+		return DEFAULT_SEMI_INDOOR_SLAPBACK_EMITTER_PREFAB;
 	}
 
 	string ResolveSemiIndoorSlapbackEventName()
