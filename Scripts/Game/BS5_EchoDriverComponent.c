@@ -97,6 +97,57 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "25", desc: "Maximum wall distance in meters for explosion-like slapback anchors.")]
 	protected float m_fExplosionNearSlapbackRadius;
 
+	[Attribute(defvalue: "2", desc: "Near-reflection close/slapback mode: 0 legacy only, 1 shadow compare, 2 probe primary with legacy fallback, 3 probe primary.")]
+	protected int m_iNearReflectionImplementationMode;
+
+	[Attribute(defvalue: "0", desc: "Default-off Stage 2 option. Applies near-reflection sector occlusion to tail/SoundMap scoring when enabled.")]
+	protected bool m_bNearReflectionTailOcclusionEnabled;
+
+	[Attribute(defvalue: "12", desc: "Target near-reflection probe count for close/slapback profiles. Stage 1 shadow mode derives from the existing slapback sweep.")]
+	protected int m_iNearReflectionProbeCount;
+
+	[Attribute(defvalue: "42", desc: "Maximum close geometry distance considered by the near-reflection profile.")]
+	protected float m_fNearReflectionMaxDistanceMeters;
+
+	[Attribute(defvalue: "12", desc: "Distance where near-reflection evidence is considered tight/strong.")]
+	protected float m_fNearReflectionTightDistanceMeters;
+
+	[Attribute(defvalue: "15", desc: "Maximum wall distance used by semi-indoor near-reflection classification.")]
+	protected float m_fNearReflectionSemiIndoorWallDistanceMeters;
+
+	[Attribute(defvalue: "6", desc: "Maximum overhead distance used by canopy near-reflection classification.")]
+	protected float m_fNearReflectionCanopyMaxDistanceMeters;
+
+	[Attribute(defvalue: "0.50", desc: "Strength used later to suppress duplicate slapback/tail sectors from near-reflection evidence.")]
+	protected float m_fNearReflectionSectorOcclusionStrength;
+
+	[Attribute(defvalue: "2", desc: "Maximum directional close candidates admitted from near-reflection evidence.")]
+	protected int m_iNearReflectionMaxDirectionalCloseCandidates;
+
+	[Attribute(defvalue: "1", desc: "Maximum close core layer candidates admitted per shot from near-reflection evidence.")]
+	protected int m_iNearReflectionMaxCoreCandidatesPerShot;
+
+	[Attribute(defvalue: "1", desc: "Maximum semi-indoor layer candidates admitted per shot from near-reflection evidence.")]
+	protected int m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+
+	[Attribute(defvalue: "12", desc: "Target near-reflection probe count for explosion confinement profiles.")]
+	protected int m_iExplosionNearReflectionProbeCount;
+
+	[Attribute(defvalue: "95", desc: "Maximum close geometry distance considered by explosion near-reflection profiles.")]
+	protected float m_fExplosionNearReflectionMaxDistanceMeters;
+
+	[Attribute(defvalue: "18", desc: "Distance where explosion near-reflection evidence is considered tight/strong.")]
+	protected float m_fExplosionNearReflectionTightDistanceMeters;
+
+	[Attribute(defvalue: "0.65", desc: "Sector occlusion strength used by explosion near-reflection evidence.")]
+	protected float m_fExplosionNearReflectionSectorOcclusionStrength;
+
+	[Attribute(defvalue: "2", desc: "Maximum explosion close slapback candidates admitted per detonation from near-reflection evidence.")]
+	protected int m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+
+	[Attribute(defvalue: "1.0", desc: "Score multiplier applied to explosion close slapback candidates from near-reflection evidence.")]
+	protected float m_fExplosionNearReflectionCloseStrength;
+
 	[Attribute(defvalue: "0.9", desc: "Forward offset in meters applied to the slapback probe origin so the traces start closer to the muzzle and avoid self-hits.")]
 	protected float m_fNearProbeForwardOffsetMeters;
 
@@ -496,6 +547,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	protected bool m_bCacheValid;
 	protected bool m_bLastSuppressed;
 	protected bool m_bLastExplosionLike;
+	protected int m_iLastNearReflectionMode;
 	protected vector m_vTailSectorCacheOrigin;
 	protected vector m_vTailSectorCacheForward;
 	protected BS5_TailProfileType m_eTailSectorCacheProfile;
@@ -527,6 +579,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 		m_bCacheValid = false;
 		m_bLastSuppressed = false;
 		m_bLastExplosionLike = false;
+		m_iLastNearReflectionMode = GetNearReflectionImplementationMode();
 		m_vTailSectorCacheOrigin = vector.Zero;
 		m_vTailSectorCacheForward = "0 0 1";
 		m_eTailSectorCacheProfile = BS5_TailProfileType.OPEN_MEADOW;
@@ -777,6 +830,18 @@ class BS5_EchoDriverComponent : ScriptComponent
 			if (closeSettings && closeSettings.IsEnabled())
 				return closeSettings.ResolveCloseSlapbackAcp();
 		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE)
+		{
+			BS5_CloseReflectionSettingsComponent closeCoreSettings = GetCloseReflectionSettingsComponent();
+			if (closeCoreSettings && closeCoreSettings.IsEnabled())
+				return closeCoreSettings.ResolveCloseCoreSlapbackAcp();
+		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR)
+		{
+			BS5_CloseReflectionSettingsComponent semiIndoorSettings = GetCloseReflectionSettingsComponent();
+			if (semiIndoorSettings && semiIndoorSettings.IsEnabled())
+				return semiIndoorSettings.ResolveSemiIndoorSlapbackAcp();
+		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackAcp != "")
 			return m_sTrenchSlapbackAcp;
@@ -880,6 +945,18 @@ class BS5_EchoDriverComponent : ScriptComponent
 			if (closeSettings && closeSettings.IsEnabled() && IsEmitterPrefabPath(closeSettings.ResolveCloseSlapbackEmitterPrefab()))
 				return closeSettings.ResolveCloseSlapbackEmitterPrefab();
 		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE)
+		{
+			BS5_CloseReflectionSettingsComponent closeCoreSettings = GetCloseReflectionSettingsComponent();
+			if (closeCoreSettings && closeCoreSettings.IsEnabled() && IsEmitterPrefabPath(closeCoreSettings.ResolveCloseCoreSlapbackEmitterPrefab()))
+				return closeCoreSettings.ResolveCloseCoreSlapbackEmitterPrefab();
+		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR)
+		{
+			BS5_CloseReflectionSettingsComponent semiIndoorSettings = GetCloseReflectionSettingsComponent();
+			if (semiIndoorSettings && semiIndoorSettings.IsEnabled() && IsEmitterPrefabPath(semiIndoorSettings.ResolveSemiIndoorSlapbackEmitterPrefab()))
+				return semiIndoorSettings.ResolveSemiIndoorSlapbackEmitterPrefab();
+		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
 		{
@@ -916,6 +993,18 @@ class BS5_EchoDriverComponent : ScriptComponent
 			BS5_CloseReflectionSettingsComponent closeSettings = GetCloseReflectionSettingsComponent();
 			if (closeSettings && closeSettings.IsEnabled())
 				return closeSettings.ResolveCloseSlapbackEventName();
+		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE)
+		{
+			BS5_CloseReflectionSettingsComponent closeCoreSettings = GetCloseReflectionSettingsComponent();
+			if (closeCoreSettings && closeCoreSettings.IsEnabled())
+				return closeCoreSettings.ResolveCloseCoreSlapbackEventName();
+		}
+		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR)
+		{
+			BS5_CloseReflectionSettingsComponent semiIndoorSettings = GetCloseReflectionSettingsComponent();
+			if (semiIndoorSettings && semiIndoorSettings.IsEnabled())
+				return semiIndoorSettings.ResolveSemiIndoorSlapbackEventName();
 		}
 
 		if (sourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH && m_sTrenchSlapbackEventName != string.Empty && IsEmitterPrefabPath(m_sTrenchSlapbackEmitterPrefab))
@@ -1017,6 +1106,152 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (value > 0.0)
 			return value;
 		return GetNearSlapbackRadius();
+	}
+
+	int GetNearReflectionImplementationMode()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iNearReflectionImplementationMode;
+		if (preset)
+			value = preset.m_iNearReflectionImplementationMode;
+		return Math.Clamp(value, 0, 3);
+	}
+
+	bool IsNearReflectionTailOcclusionEnabled()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		if (preset)
+			return preset.m_bNearReflectionTailOcclusionEnabled;
+		return m_bNearReflectionTailOcclusionEnabled;
+	}
+
+	int GetNearReflectionProbeCount(bool explosionLike = false)
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iNearReflectionProbeCount;
+		if (preset)
+			value = preset.m_iNearReflectionProbeCount;
+		if (explosionLike)
+		{
+			value = m_iExplosionNearReflectionProbeCount;
+			if (preset && preset.m_iExplosionNearReflectionProbeCount > 0)
+				value = preset.m_iExplosionNearReflectionProbeCount;
+			return Math.Clamp(value, 8, 16);
+		}
+		return Math.Clamp(value, 8, 17);
+	}
+
+	float GetNearReflectionMaxDistanceMeters(bool explosionLike = false)
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fNearReflectionMaxDistanceMeters;
+		if (preset)
+			value = preset.m_fNearReflectionMaxDistanceMeters;
+		if (explosionLike)
+		{
+			value = m_fExplosionNearReflectionMaxDistanceMeters;
+			if (preset && preset.m_fExplosionNearReflectionMaxDistanceMeters > 0.0)
+				value = preset.m_fExplosionNearReflectionMaxDistanceMeters;
+		}
+		if (value <= 0.0)
+			value = GetSlapbackRadius(false, explosionLike);
+		if (explosionLike)
+			return BS5_EchoMath.Clamp(value, 12.0, GetExplosionNearRadius());
+		return BS5_EchoMath.Clamp(value, 8.0, GetNearSlapbackRadius());
+	}
+
+	float GetNearReflectionTightDistanceMeters(bool explosionLike = false)
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fNearReflectionTightDistanceMeters;
+		if (preset)
+			value = preset.m_fNearReflectionTightDistanceMeters;
+		if (explosionLike)
+		{
+			value = m_fExplosionNearReflectionTightDistanceMeters;
+			if (preset && preset.m_fExplosionNearReflectionTightDistanceMeters > 0.0)
+				value = preset.m_fExplosionNearReflectionTightDistanceMeters;
+		}
+		return BS5_EchoMath.Clamp(value, 2.0, GetNearReflectionMaxDistanceMeters(explosionLike));
+	}
+
+	float GetNearReflectionSemiIndoorWallDistanceMeters()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fNearReflectionSemiIndoorWallDistanceMeters;
+		if (preset)
+			value = preset.m_fNearReflectionSemiIndoorWallDistanceMeters;
+		return BS5_EchoMath.Clamp(value, 3.0, GetNearReflectionMaxDistanceMeters(false));
+	}
+
+	float GetNearReflectionCanopyMaxDistanceMeters()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fNearReflectionCanopyMaxDistanceMeters;
+		if (preset)
+			value = preset.m_fNearReflectionCanopyMaxDistanceMeters;
+		return BS5_EchoMath.Clamp(value, 1.2, 12.0);
+	}
+
+	float GetNearReflectionSectorOcclusionStrength(bool explosionLike = false)
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fNearReflectionSectorOcclusionStrength;
+		if (preset)
+			value = preset.m_fNearReflectionSectorOcclusionStrength;
+		if (explosionLike)
+		{
+			value = m_fExplosionNearReflectionSectorOcclusionStrength;
+			if (preset && preset.m_fExplosionNearReflectionSectorOcclusionStrength > 0.0)
+				value = preset.m_fExplosionNearReflectionSectorOcclusionStrength;
+			value = BS5_EchoMath.MaxFloat(value, 0.45);
+		}
+		return BS5_EchoMath.Clamp(value, 0.0, 1.0);
+	}
+
+	int GetNearReflectionMaxDirectionalCloseCandidates()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iNearReflectionMaxDirectionalCloseCandidates;
+		if (preset)
+			value = preset.m_iNearReflectionMaxDirectionalCloseCandidates;
+		return Math.Clamp(value, 0, GetMaxSlapbackEmittersPerShot());
+	}
+
+	int GetNearReflectionMaxCoreCandidatesPerShot()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iNearReflectionMaxCoreCandidatesPerShot;
+		if (preset)
+			value = preset.m_iNearReflectionMaxCoreCandidatesPerShot;
+		return Math.Clamp(value, 0, 1);
+	}
+
+	int GetNearReflectionMaxSemiIndoorCandidatesPerShot()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+		if (preset)
+			value = preset.m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+		return Math.Clamp(value, 0, 1);
+	}
+
+	int GetExplosionNearReflectionMaxCloseCandidatesPerShot()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		int value = m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+		if (preset)
+			value = preset.m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+		return Math.Clamp(value, 0, GetMaxExplosionSlapbackEmittersPerShot());
+	}
+
+	float GetExplosionNearReflectionCloseStrength()
+	{
+		BS5_TechnicalPreset preset = GetActiveTechnicalPreset();
+		float value = m_fExplosionNearReflectionCloseStrength;
+		if (preset && preset.m_fExplosionNearReflectionCloseStrength > 0.0)
+			value = preset.m_fExplosionNearReflectionCloseStrength;
+		return BS5_EchoMath.Clamp(value, 0.1, 2.0);
 	}
 
 	float GetExplosionIntensityMultiplier()
@@ -2270,6 +2505,12 @@ class BS5_EchoDriverComponent : ScriptComponent
 		if (!explosionLike && suppressed != m_bLastSuppressed)
 			return null;
 
+		if (GetNearReflectionImplementationMode() != m_iLastNearReflectionMode)
+			return null;
+
+		if (m_LastResult.m_NearReflection)
+			m_LastResult.m_NearReflection.m_bCacheHit = true;
+
 		return m_LastResult;
 	}
 
@@ -2286,11 +2527,15 @@ class BS5_EchoDriverComponent : ScriptComponent
 
 	protected void StoreCachedResult(BS5_EchoAnalysisResult result, bool suppressed, bool explosionLike)
 	{
+		bool reusedCachedResult = result && result == m_LastResult && m_bCacheValid;
 		m_iCacheGeneration++;
 		m_LastResult = result;
 		m_bCacheValid = true;
 		m_bLastSuppressed = suppressed;
 		m_bLastExplosionLike = explosionLike;
+		m_iLastNearReflectionMode = GetNearReflectionImplementationMode();
+		if (m_LastResult.m_NearReflection && !reusedCachedResult)
+			m_LastResult.m_NearReflection.m_bCacheHit = false;
 
 		float cacheLifetime = m_fCacheTtlSeconds;
 		if (m_fBurstReuseWindowSeconds > cacheLifetime)
@@ -2578,6 +2823,21 @@ class BS5_EchoDriverComponent : ScriptComponent
 		soundMapConfig += " rays=" + GetSoundMapForwardRayCount();
 		soundMapConfig += " samples=" + GetSoundMapForwardSampleCount();
 		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, soundMapConfig);
+
+		string nearReflectionConfig = "near reflection config";
+		nearReflectionConfig += " mode=" + BS5_EchoMath.NearReflectionModeName(GetNearReflectionImplementationMode());
+		nearReflectionConfig += " tailOcclusion=" + BS5_DebugLog.BoolText(IsNearReflectionTailOcclusionEnabled());
+		nearReflectionConfig += " probes=" + GetNearReflectionProbeCount(false);
+		nearReflectionConfig += " maxDistance=" + GetNearReflectionMaxDistanceMeters(false);
+		nearReflectionConfig += " tight=" + GetNearReflectionTightDistanceMeters();
+		nearReflectionConfig += " semiWall=" + GetNearReflectionSemiIndoorWallDistanceMeters();
+		nearReflectionConfig += " canopy=" + GetNearReflectionCanopyMaxDistanceMeters();
+		nearReflectionConfig += " occlusion=" + GetNearReflectionSectorOcclusionStrength(false);
+		nearReflectionConfig += " expProbes=" + GetNearReflectionProbeCount(true);
+		nearReflectionConfig += " expMaxDistance=" + GetNearReflectionMaxDistanceMeters(true);
+		nearReflectionConfig += " expTight=" + GetNearReflectionTightDistanceMeters(true);
+		nearReflectionConfig += " expCloseCap=" + GetExplosionNearReflectionMaxCloseCandidatesPerShot();
+		BS5_DebugLog.Channel(this, BS5_DebugChannel.DRIVER, nearReflectionConfig);
 
 		string soundMapThresholds = "soundmap anchor thresholds";
 		soundMapThresholds += " omniRadius=" + GetSoundMapOmniRadiusMeters();

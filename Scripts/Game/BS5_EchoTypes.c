@@ -47,7 +47,44 @@ enum BS5_EchoCandidateSourceType
 	OMNI_CONTEXT,
 	SLAPBACK_WALL,
 	SLAPBACK_CLOSE_SPACE,
-	SLAPBACK_TRENCH
+	SLAPBACK_TRENCH,
+	SLAPBACK_CLOSE_CORE,
+	SLAPBACK_SEMI_INDOOR,
+	SLAPBACK_EXPLOSION_CLOSE
+}
+
+enum BS5_NearReflectionImplementationMode
+{
+	LEGACY_ONLY,
+	SHADOW_COMPARE,
+	PROBE_PRIMARY_WITH_LEGACY_FALLBACK,
+	PROBE_PRIMARY
+}
+
+enum BS5_NearReflectionSector
+{
+	FRONT,
+	FRONT_LEFT,
+	LEFT,
+	BACK_LEFT,
+	BACK,
+	BACK_RIGHT,
+	RIGHT,
+	FRONT_RIGHT,
+	UP_ROOF
+}
+
+enum BS5_NearReflectionScenario
+{
+	OPEN_NONE,
+	SINGLE_WALL,
+	SIDE_PAIR,
+	CORRIDOR_ALLEY,
+	CORNER,
+	CANOPY,
+	TRENCH_DUGOUT,
+	SEMI_INDOOR,
+	EXPLOSION_CONFINED
 }
 
 enum BS5_DebugChannel
@@ -110,6 +147,100 @@ class BS5_EchoReflectorCandidate
 		m_sPathProfile = "unchecked";
 		m_bTerrainSnapped = false;
 		m_bValid = false;
+	}
+}
+
+class BS5_NearReflectionSectorData
+{
+	float m_fReflectWeight;
+	float m_fOcclusionWeight;
+	float m_fNearestDistance;
+	float m_fWallEvidence;
+	float m_fRoofEvidence;
+	vector m_vHitPosition;
+	vector m_vHitNormal;
+	bool m_bHasHit;
+
+	void BS5_NearReflectionSectorData()
+	{
+		Reset();
+	}
+
+	void Reset()
+	{
+		m_fReflectWeight = 0.0;
+		m_fOcclusionWeight = 0.0;
+		m_fNearestDistance = 0.0;
+		m_fWallEvidence = 0.0;
+		m_fRoofEvidence = 0.0;
+		m_vHitPosition = vector.Zero;
+		m_vHitNormal = "0 1 0";
+		m_bHasHit = false;
+	}
+}
+
+class BS5_NearReflectionSnapshot
+{
+	bool m_bValid;
+	bool m_bExplosionProfile;
+	bool m_bCacheHit;
+	int m_iImplementationMode;
+	int m_iTraceCount;
+	int m_iTraceHits;
+	int m_iWallHits;
+	int m_iRoofHits;
+	int m_iLegacyTraceCount;
+	int m_iLegacyAcceptedCount;
+	float m_fLegacyBestCloseScore;
+	float m_fProbeBestCloseScore;
+	int m_iDominantSector;
+	BS5_NearReflectionScenario m_eScenario;
+	ref array<ref BS5_NearReflectionSectorData> m_aSectors;
+	float m_fDominantReflectWeight;
+	float m_fConfinementScore;
+	float m_fPairEvidence;
+	float m_fCornerEvidence;
+	float m_fCanopyEvidence;
+	float m_fSemiIndoorEvidence;
+	float m_fCoreCloseWeight;
+	float m_fSemiIndoorWeight;
+	float m_fSectorOcclusionStrength;
+
+	void BS5_NearReflectionSnapshot()
+	{
+		m_aSectors = new array<ref BS5_NearReflectionSectorData>();
+		Reset();
+	}
+
+	void Reset()
+	{
+		m_bValid = false;
+		m_bExplosionProfile = false;
+		m_bCacheHit = false;
+		m_iImplementationMode = 0;
+		m_iTraceCount = 0;
+		m_iTraceHits = 0;
+		m_iWallHits = 0;
+		m_iRoofHits = 0;
+		m_iLegacyTraceCount = 0;
+		m_iLegacyAcceptedCount = 0;
+		m_fLegacyBestCloseScore = 0.0;
+		m_fProbeBestCloseScore = 0.0;
+		m_iDominantSector = 0;
+		m_eScenario = BS5_NearReflectionScenario.OPEN_NONE;
+		m_fDominantReflectWeight = 0.0;
+		m_fConfinementScore = 0.0;
+		m_fPairEvidence = 0.0;
+		m_fCornerEvidence = 0.0;
+		m_fCanopyEvidence = 0.0;
+		m_fSemiIndoorEvidence = 0.0;
+		m_fCoreCloseWeight = 0.0;
+		m_fSemiIndoorWeight = 0.0;
+		m_fSectorOcclusionStrength = 0.0;
+
+		m_aSectors.Clear();
+		for (int i = 0; i < 9; i++)
+			m_aSectors.Insert(new BS5_NearReflectionSectorData());
 	}
 }
 
@@ -181,6 +312,7 @@ class BS5_EchoAnalysisResult
 	float m_fSlapbackCloseScore;
 	float m_fSlapbackTrenchScore;
 	int m_iCloseReflectionRescueRayCount;
+	ref BS5_NearReflectionSnapshot m_NearReflection;
 	string m_sTailForwardTopPrefabs;
 	string m_sTailForwardConfirmTopPrefabs;
 	string m_sSoundMapDistanceBands;
@@ -267,6 +399,7 @@ class BS5_EchoAnalysisResult
 		m_fSlapbackCloseScore = 0.0;
 		m_fSlapbackTrenchScore = 0.0;
 		m_iCloseReflectionRescueRayCount = 0;
+		m_NearReflection = null;
 		m_sTailForwardTopPrefabs = string.Empty;
 		m_sTailForwardConfirmTopPrefabs = string.Empty;
 		m_sSoundMapDistanceBands = string.Empty;
@@ -535,9 +668,52 @@ class BS5_EchoMath
 				return "slapback_close";
 			case BS5_EchoCandidateSourceType.SLAPBACK_TRENCH:
 				return "slapback_trench";
+			case BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE:
+				return "slapback_close_core";
+			case BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR:
+				return "slapback_semi_indoor";
+			case BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE:
+				return "slapback_explosion_close";
 		}
 
 		return "unknown";
+	}
+
+	static string NearReflectionModeName(int mode)
+	{
+		if (mode == BS5_NearReflectionImplementationMode.SHADOW_COMPARE)
+			return "shadow_compare";
+		if (mode == BS5_NearReflectionImplementationMode.PROBE_PRIMARY_WITH_LEGACY_FALLBACK)
+			return "probe_primary_fallback";
+		if (mode == BS5_NearReflectionImplementationMode.PROBE_PRIMARY)
+			return "probe_primary";
+
+		return "legacy_only";
+	}
+
+	static string NearReflectionScenarioName(BS5_NearReflectionScenario scenario)
+	{
+		switch (scenario)
+		{
+			case BS5_NearReflectionScenario.SINGLE_WALL:
+				return "single_wall";
+			case BS5_NearReflectionScenario.SIDE_PAIR:
+				return "side_pair";
+			case BS5_NearReflectionScenario.CORRIDOR_ALLEY:
+				return "corridor_alley";
+			case BS5_NearReflectionScenario.CORNER:
+				return "corner";
+			case BS5_NearReflectionScenario.CANOPY:
+				return "canopy";
+			case BS5_NearReflectionScenario.TRENCH_DUGOUT:
+				return "trench_dugout";
+			case BS5_NearReflectionScenario.SEMI_INDOOR:
+				return "semi_indoor";
+			case BS5_NearReflectionScenario.EXPLOSION_CONFINED:
+				return "explosion_confined";
+		}
+
+		return "open_none";
 	}
 
 	static BS5_EchoReflectorCandidate CloneCandidate(BS5_EchoReflectorCandidate sourceCandidate)

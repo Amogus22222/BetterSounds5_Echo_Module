@@ -162,6 +162,7 @@ GenericEntity {
    m_fSoundMapPathRaycastDistanceMeters 220
    m_fDistanceGainNearMeters 5
    m_fDistanceGainFarMeters 255
+   m_bDebug 0
   }
   BS5_WeaponEchoRplCharacterComponent "{692681A026ACA6B2}" {
    m_DefaultEchoAcp "{C46B1A7324F05E91}Sounds/Weapons/Rifles/BS5/Weapons_Rifles_EchoMaster.acp"

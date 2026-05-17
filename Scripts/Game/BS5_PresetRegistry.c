@@ -61,6 +61,57 @@ class BS5_TechnicalPresetConfigEntry
 	[Attribute(defvalue: "25")]
 	float m_fExplosionNearSlapbackRadius;
 
+	[Attribute(defvalue: "2")]
+	int m_iNearReflectionImplementationMode;
+
+	[Attribute(defvalue: "0")]
+	bool m_bNearReflectionTailOcclusionEnabled;
+
+	[Attribute(defvalue: "12")]
+	int m_iNearReflectionProbeCount;
+
+	[Attribute(defvalue: "42")]
+	float m_fNearReflectionMaxDistanceMeters;
+
+	[Attribute(defvalue: "12")]
+	float m_fNearReflectionTightDistanceMeters;
+
+	[Attribute(defvalue: "15")]
+	float m_fNearReflectionSemiIndoorWallDistanceMeters;
+
+	[Attribute(defvalue: "6")]
+	float m_fNearReflectionCanopyMaxDistanceMeters;
+
+	[Attribute(defvalue: "0.50")]
+	float m_fNearReflectionSectorOcclusionStrength;
+
+	[Attribute(defvalue: "2")]
+	int m_iNearReflectionMaxDirectionalCloseCandidates;
+
+	[Attribute(defvalue: "1")]
+	int m_iNearReflectionMaxCoreCandidatesPerShot;
+
+	[Attribute(defvalue: "1")]
+	int m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+
+	[Attribute(defvalue: "12")]
+	int m_iExplosionNearReflectionProbeCount;
+
+	[Attribute(defvalue: "95")]
+	float m_fExplosionNearReflectionMaxDistanceMeters;
+
+	[Attribute(defvalue: "18")]
+	float m_fExplosionNearReflectionTightDistanceMeters;
+
+	[Attribute(defvalue: "0.65")]
+	float m_fExplosionNearReflectionSectorOcclusionStrength;
+
+	[Attribute(defvalue: "2")]
+	int m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+
+	[Attribute(defvalue: "1.0")]
+	float m_fExplosionNearReflectionCloseStrength;
+
 	[Attribute(defvalue: "0")]
 	float m_fExplosionScanRadiusMeters;
 
@@ -277,6 +328,23 @@ class BS5_TechnicalPreset
 	float m_fNearSlapbackRadius;
 	float m_fSuppressedNearSlapbackRadius;
 	float m_fExplosionNearSlapbackRadius;
+	int m_iNearReflectionImplementationMode;
+	bool m_bNearReflectionTailOcclusionEnabled;
+	int m_iNearReflectionProbeCount;
+	float m_fNearReflectionMaxDistanceMeters;
+	float m_fNearReflectionTightDistanceMeters;
+	float m_fNearReflectionSemiIndoorWallDistanceMeters;
+	float m_fNearReflectionCanopyMaxDistanceMeters;
+	float m_fNearReflectionSectorOcclusionStrength;
+	int m_iNearReflectionMaxDirectionalCloseCandidates;
+	int m_iNearReflectionMaxCoreCandidatesPerShot;
+	int m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+	int m_iExplosionNearReflectionProbeCount;
+	float m_fExplosionNearReflectionMaxDistanceMeters;
+	float m_fExplosionNearReflectionTightDistanceMeters;
+	float m_fExplosionNearReflectionSectorOcclusionStrength;
+	int m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+	float m_fExplosionNearReflectionCloseStrength;
 	float m_fExplosionScanRadiusMeters;
 	int m_iMaxCandidateCount;
 	int m_iMaxTraceCount;
@@ -620,6 +688,23 @@ class BS5_PresetRegistry
 		preset.m_fNearSlapbackRadius = entry.m_fNearSlapbackRadius;
 		preset.m_fSuppressedNearSlapbackRadius = entry.m_fSuppressedNearSlapbackRadius;
 		preset.m_fExplosionNearSlapbackRadius = entry.m_fExplosionNearSlapbackRadius;
+		preset.m_iNearReflectionImplementationMode = entry.m_iNearReflectionImplementationMode;
+		preset.m_bNearReflectionTailOcclusionEnabled = entry.m_bNearReflectionTailOcclusionEnabled;
+		preset.m_iNearReflectionProbeCount = entry.m_iNearReflectionProbeCount;
+		preset.m_fNearReflectionMaxDistanceMeters = entry.m_fNearReflectionMaxDistanceMeters;
+		preset.m_fNearReflectionTightDistanceMeters = entry.m_fNearReflectionTightDistanceMeters;
+		preset.m_fNearReflectionSemiIndoorWallDistanceMeters = entry.m_fNearReflectionSemiIndoorWallDistanceMeters;
+		preset.m_fNearReflectionCanopyMaxDistanceMeters = entry.m_fNearReflectionCanopyMaxDistanceMeters;
+		preset.m_fNearReflectionSectorOcclusionStrength = entry.m_fNearReflectionSectorOcclusionStrength;
+		preset.m_iNearReflectionMaxDirectionalCloseCandidates = entry.m_iNearReflectionMaxDirectionalCloseCandidates;
+		preset.m_iNearReflectionMaxCoreCandidatesPerShot = entry.m_iNearReflectionMaxCoreCandidatesPerShot;
+		preset.m_iNearReflectionMaxSemiIndoorCandidatesPerShot = entry.m_iNearReflectionMaxSemiIndoorCandidatesPerShot;
+		preset.m_iExplosionNearReflectionProbeCount = entry.m_iExplosionNearReflectionProbeCount;
+		preset.m_fExplosionNearReflectionMaxDistanceMeters = entry.m_fExplosionNearReflectionMaxDistanceMeters;
+		preset.m_fExplosionNearReflectionTightDistanceMeters = entry.m_fExplosionNearReflectionTightDistanceMeters;
+		preset.m_fExplosionNearReflectionSectorOcclusionStrength = entry.m_fExplosionNearReflectionSectorOcclusionStrength;
+		preset.m_iExplosionNearReflectionMaxCloseCandidatesPerShot = entry.m_iExplosionNearReflectionMaxCloseCandidatesPerShot;
+		preset.m_fExplosionNearReflectionCloseStrength = entry.m_fExplosionNearReflectionCloseStrength;
 		preset.m_fExplosionScanRadiusMeters = entry.m_fExplosionScanRadiusMeters;
 		preset.m_iMaxCandidateCount = entry.m_iMaxCandidateCount;
 		preset.m_iMaxTraceCount = entry.m_iMaxTraceCount;
@@ -698,6 +783,23 @@ class BS5_PresetRegistry
 		entry.m_fNearSlapbackRadius = 34.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
 		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_iNearReflectionImplementationMode = 2;
+		entry.m_bNearReflectionTailOcclusionEnabled = false;
+		entry.m_iNearReflectionProbeCount = 12;
+		entry.m_fNearReflectionMaxDistanceMeters = 42.0;
+		entry.m_fNearReflectionTightDistanceMeters = 12.0;
+		entry.m_fNearReflectionSemiIndoorWallDistanceMeters = 15.0;
+		entry.m_fNearReflectionCanopyMaxDistanceMeters = 6.0;
+		entry.m_fNearReflectionSectorOcclusionStrength = 0.50;
+		entry.m_iNearReflectionMaxDirectionalCloseCandidates = 2;
+		entry.m_iNearReflectionMaxCoreCandidatesPerShot = 1;
+		entry.m_iNearReflectionMaxSemiIndoorCandidatesPerShot = 1;
+		entry.m_iExplosionNearReflectionProbeCount = 12;
+		entry.m_fExplosionNearReflectionMaxDistanceMeters = 95.0;
+		entry.m_fExplosionNearReflectionTightDistanceMeters = 18.0;
+		entry.m_fExplosionNearReflectionSectorOcclusionStrength = 0.65;
+		entry.m_iExplosionNearReflectionMaxCloseCandidatesPerShot = 2;
+		entry.m_fExplosionNearReflectionCloseStrength = 1.0;
 		entry.m_fExplosionScanRadiusMeters = 900.0;
 		entry.m_iMaxCandidateCount = 17;
 		entry.m_iMaxTraceCount = 13;
@@ -774,6 +876,23 @@ class BS5_PresetRegistry
 		entry.m_fNearSlapbackRadius = 13.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
 		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_iNearReflectionImplementationMode = 2;
+		entry.m_bNearReflectionTailOcclusionEnabled = false;
+		entry.m_iNearReflectionProbeCount = 9;
+		entry.m_fNearReflectionMaxDistanceMeters = 25.0;
+		entry.m_fNearReflectionTightDistanceMeters = 8.0;
+		entry.m_fNearReflectionSemiIndoorWallDistanceMeters = 12.0;
+		entry.m_fNearReflectionCanopyMaxDistanceMeters = 5.0;
+		entry.m_fNearReflectionSectorOcclusionStrength = 0.35;
+		entry.m_iNearReflectionMaxDirectionalCloseCandidates = 1;
+		entry.m_iNearReflectionMaxCoreCandidatesPerShot = 1;
+		entry.m_iNearReflectionMaxSemiIndoorCandidatesPerShot = 1;
+		entry.m_iExplosionNearReflectionProbeCount = 10;
+		entry.m_fExplosionNearReflectionMaxDistanceMeters = 70.0;
+		entry.m_fExplosionNearReflectionTightDistanceMeters = 14.0;
+		entry.m_fExplosionNearReflectionSectorOcclusionStrength = 0.50;
+		entry.m_iExplosionNearReflectionMaxCloseCandidatesPerShot = 1;
+		entry.m_fExplosionNearReflectionCloseStrength = 0.9;
 		entry.m_fExplosionScanRadiusMeters = 900.0;
 		entry.m_iMaxCandidateCount = 6;
 		entry.m_iMaxTraceCount = 5;
@@ -848,6 +967,23 @@ class BS5_PresetRegistry
 		entry.m_fNearSlapbackRadius = 40.0;
 		entry.m_fSuppressedNearSlapbackRadius = 16.0;
 		entry.m_fExplosionNearSlapbackRadius = 125.0;
+		entry.m_iNearReflectionImplementationMode = 2;
+		entry.m_bNearReflectionTailOcclusionEnabled = false;
+		entry.m_iNearReflectionProbeCount = 16;
+		entry.m_fNearReflectionMaxDistanceMeters = 55.0;
+		entry.m_fNearReflectionTightDistanceMeters = 15.0;
+		entry.m_fNearReflectionSemiIndoorWallDistanceMeters = 15.0;
+		entry.m_fNearReflectionCanopyMaxDistanceMeters = 7.0;
+		entry.m_fNearReflectionSectorOcclusionStrength = 0.60;
+		entry.m_iNearReflectionMaxDirectionalCloseCandidates = 2;
+		entry.m_iNearReflectionMaxCoreCandidatesPerShot = 1;
+		entry.m_iNearReflectionMaxSemiIndoorCandidatesPerShot = 1;
+		entry.m_iExplosionNearReflectionProbeCount = 16;
+		entry.m_fExplosionNearReflectionMaxDistanceMeters = 125.0;
+		entry.m_fExplosionNearReflectionTightDistanceMeters = 22.0;
+		entry.m_fExplosionNearReflectionSectorOcclusionStrength = 0.75;
+		entry.m_iExplosionNearReflectionMaxCloseCandidatesPerShot = 2;
+		entry.m_fExplosionNearReflectionCloseStrength = 1.1;
 		entry.m_fExplosionScanRadiusMeters = 900.0;
 		entry.m_iMaxCandidateCount = 19;
 		entry.m_iMaxTraceCount = 15;

@@ -20,10 +20,28 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 	[Attribute(defvalue: "SOUND_SHOT", desc: "Dedicated event name used for close reflection playback.")]
 	protected string m_sCloseSlapbackEventName;
 
+	[Attribute(defvalue: "", desc: "Optional dedicated ACP override for near-reflection close core playback. Empty falls back to close slapback ACP.")]
+	protected ResourceName m_sCloseCoreSlapbackAcp;
+
+	[Attribute(defvalue: "", desc: "Optional dedicated emitter prefab for near-reflection close core playback. Empty falls back to close slapback emitter prefab.")]
+	protected ResourceName m_sCloseCoreSlapbackEmitterPrefab;
+
+	[Attribute(defvalue: "", desc: "Optional event name for near-reflection close core playback. Empty falls back to close slapback event.")]
+	protected string m_sCloseCoreSlapbackEventName;
+
+	[Attribute(defvalue: "", desc: "Optional dedicated ACP override for near-reflection semi-indoor playback. Empty falls back to close core or close slapback ACP.")]
+	protected ResourceName m_sSemiIndoorSlapbackAcp;
+
+	[Attribute(defvalue: "", desc: "Optional dedicated emitter prefab for near-reflection semi-indoor playback. Empty falls back to close core or close slapback emitter prefab.")]
+	protected ResourceName m_sSemiIndoorSlapbackEmitterPrefab;
+
+	[Attribute(defvalue: "", desc: "Optional event name for near-reflection semi-indoor playback. Empty falls back to close core or close slapback event.")]
+	protected string m_sSemiIndoorSlapbackEventName;
+
 	[Attribute(defvalue: "3.8", desc: "Maximum wall distance in meters that still counts as a close reflection pocket.")]
 	protected float m_fMaxCloseDistanceMeters;
 
-	[Attribute(defvalue: "1", desc: "Maximum slapback candidates emitted when close reflection mode is accepted.")]
+	[Attribute(defvalue: "2", desc: "Maximum slapback candidates emitted when close reflection mode is accepted.")]
 	protected int m_iMaxCloseSlapbackEmittersPerShot;
 
 	[Attribute(defvalue: "0.20", desc: "Minimum close-space evidence required before the planner attempts a close result.")]
@@ -92,6 +110,54 @@ class BS5_CloseReflectionSettingsComponent : ScriptComponent
 			return m_sCloseSlapbackEventName;
 
 		return "SOUND_SHOT";
+	}
+
+	ResourceName ResolveCloseCoreSlapbackAcp()
+	{
+		if (m_sCloseCoreSlapbackAcp != string.Empty)
+			return m_sCloseCoreSlapbackAcp;
+
+		return ResolveCloseSlapbackAcp();
+	}
+
+	ResourceName ResolveCloseCoreSlapbackEmitterPrefab()
+	{
+		if (m_sCloseCoreSlapbackEmitterPrefab != string.Empty)
+			return m_sCloseCoreSlapbackEmitterPrefab;
+
+		return ResolveCloseSlapbackEmitterPrefab();
+	}
+
+	string ResolveCloseCoreSlapbackEventName()
+	{
+		if (m_sCloseCoreSlapbackEventName != string.Empty)
+			return m_sCloseCoreSlapbackEventName;
+
+		return ResolveCloseSlapbackEventName();
+	}
+
+	ResourceName ResolveSemiIndoorSlapbackAcp()
+	{
+		if (m_sSemiIndoorSlapbackAcp != string.Empty)
+			return m_sSemiIndoorSlapbackAcp;
+
+		return ResolveCloseCoreSlapbackAcp();
+	}
+
+	ResourceName ResolveSemiIndoorSlapbackEmitterPrefab()
+	{
+		if (m_sSemiIndoorSlapbackEmitterPrefab != string.Empty)
+			return m_sSemiIndoorSlapbackEmitterPrefab;
+
+		return ResolveCloseCoreSlapbackEmitterPrefab();
+	}
+
+	string ResolveSemiIndoorSlapbackEventName()
+	{
+		if (m_sSemiIndoorSlapbackEventName != string.Empty)
+			return m_sSemiIndoorSlapbackEventName;
+
+		return ResolveCloseCoreSlapbackEventName();
 	}
 
 	float GetMaxCloseDistanceMeters(float fallbackDistance)

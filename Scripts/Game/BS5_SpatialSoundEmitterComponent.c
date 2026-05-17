@@ -263,7 +263,10 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		if (!context || !context.m_bSlapback)
 			return 0.0;
 
-		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE
+			|| context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE
+			|| context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR
+			|| context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE)
 			return 3.0;
 
 		if (context.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_TRENCH)
