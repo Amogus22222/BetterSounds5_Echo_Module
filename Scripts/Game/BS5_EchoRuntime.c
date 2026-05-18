@@ -310,6 +310,7 @@ class BS5_EchoEnvironmentAnalyzer
 	protected static const int SLAPBACK_QUERY_ENTITY_LIMIT = 18;
 	protected static const float SLAPBACK_ENTITY_LINE_QUERY_READY_SCORE = 0.55;
 	protected static ref array<IEntity> s_SlapbackQueryEntities;
+	protected static ref array<IEntity> s_SlapbackRoofQueryEntities;
 	protected static ref array<string> s_SlapbackHardPrefabHints;
 	protected static ref array<string> s_SlapbackRejectPrefabHints;
 	protected static ref array<string> s_SlapbackBuildingPrefabHints;
@@ -320,6 +321,8 @@ class BS5_EchoEnvironmentAnalyzer
 	{
 		if (!s_SlapbackQueryEntities)
 			s_SlapbackQueryEntities = new array<IEntity>();
+		if (!s_SlapbackRoofQueryEntities)
+			s_SlapbackRoofQueryEntities = new array<IEntity>();
 		if (!s_SlapbackHardPrefabHints)
 		{
 			s_SlapbackHardPrefabHints = new array<string>();
@@ -459,6 +462,7 @@ class BS5_EchoEnvironmentAnalyzer
 		vector back = flatForward * -1.0;
 		vector left = flatRight * -1.0;
 		vector probeOrigin = origin + (flatForward * settings.GetNearProbeForwardOffsetMeters()) + (worldUp * settings.GetNearProbeVerticalOffsetMeters());
+		vector roofProbeOrigin = ResolveNearReflectionRoofProbeOrigin(owner, origin, probeOrigin);
 
 		float nearRadius = settings.GetSlapbackRadius(suppressed, explosionLike);
 
@@ -518,10 +522,13 @@ class BS5_EchoEnvironmentAnalyzer
 		for (int i = 0; i < traceLimit; i++)
 		{
 			vector direction = directions[i];
+			vector traceStart = probeOrigin;
+			if (Math.AbsFloat(direction[1]) > 0.4)
+				traceStart = roofProbeOrigin;
 
 			TraceParam trace = new TraceParam();
-			trace.Start = probeOrigin;
-			trace.End = probeOrigin + direction * nearTraceLength;
+			trace.Start = traceStart;
+			trace.End = traceStart + direction * nearTraceLength;
 			if (traceExcludeArray)
 				trace.ExcludeArray = traceExcludeArray;
 			else
@@ -1212,7 +1219,7 @@ class BS5_EchoEnvironmentAnalyzer
 		int entityHitCount = 0;
 		int entityQueryCount = 0;
 		float bestEntityWallScore = 0.0;
-		CollectSlapbackEntityCandidates(wallCandidates, settings, world, origin, slapbackProbeOrigin, flatForward, flatRight, traceExcludeRoot, directions, maxDistance, minDistance, maxCandidates, entityHitCount, bestEntityWallScore, entityQueryCount);
+		CollectSlapbackEntityCandidates(wallCandidates, settings, result, world, origin, slapbackProbeOrigin, flatForward, flatRight, owner, directions, maxDistance, minDistance, maxCandidates, entityHitCount, bestEntityWallScore, entityQueryCount);
 		hitCount += entityHitCount;
 		if (bestEntityWallScore > bestWallScore)
 			bestWallScore = bestEntityWallScore;
@@ -1936,7 +1943,7 @@ class BS5_EchoEnvironmentAnalyzer
 		return true;
 	}
 
-	protected static void CollectSlapbackEntityCandidates(array<ref BS5_EchoReflectorCandidate> wallCandidates, BS5_EchoDriverComponent settings, BaseWorld world, vector origin, vector probeOrigin, vector flatForward, vector flatRight, IEntity traceExcludeRoot, array<vector> directions, float maxDistance, float minDistance, int maxCandidates, out int entityHits, out float bestScore, out int queryCount)
+	protected static void CollectSlapbackEntityCandidates(array<ref BS5_EchoReflectorCandidate> wallCandidates, BS5_EchoDriverComponent settings, BS5_EchoAnalysisResult result, BaseWorld world, vector origin, vector probeOrigin, vector flatForward, vector flatRight, IEntity owner, array<vector> directions, float maxDistance, float minDistance, int maxCandidates, out int entityHits, out float bestScore, out int queryCount)
 	{
 		entityHits = 0;
 		bestScore = 0.0;
@@ -1951,6 +1958,9 @@ class BS5_EchoEnvironmentAnalyzer
 		}
 
 		s_SlapbackQueryEntities.Clear();
+		s_SlapbackRoofQueryEntities.Clear();
+		IEntity traceExcludeRoot = ResolveTraceExcludeRoot(owner);
+		vector roofProbeOrigin = ResolveNearReflectionRoofProbeOrigin(owner, origin, probeOrigin);
 		s_SlapbackQueryExcludeRoot = traceExcludeRoot;
 		s_SlapbackQueryActive = true;
 
@@ -1960,6 +1970,7 @@ class BS5_EchoEnvironmentAnalyzer
 		queryCount++;
 		if (s_SlapbackQueryEntities.IsEmpty())
 		{
+			UpdateNearRoofFromSlapbackQueryEntities(result, settings, roofProbeOrigin);
 			s_SlapbackQueryActive = false;
 			return;
 		}
@@ -1973,6 +1984,7 @@ class BS5_EchoEnvironmentAnalyzer
 			bestScore = queryBestScore;
 		if (IsSlapbackEntityQuerySatisfied(wallCandidates, entityHits, bestScore, maxCandidates))
 		{
+			UpdateNearRoofFromSlapbackQueryEntities(result, settings, roofProbeOrigin);
 			s_SlapbackQueryActive = false;
 			return;
 		}
@@ -2002,6 +2014,7 @@ class BS5_EchoEnvironmentAnalyzer
 				break;
 		}
 
+		UpdateNearRoofFromSlapbackQueryEntities(result, settings, roofProbeOrigin);
 		s_SlapbackQueryActive = false;
 	}
 
@@ -2066,6 +2079,8 @@ class BS5_EchoEnvironmentAnalyzer
 		float prefabScore = 0.0;
 		if (!ResolveSlapbackEntityPrefabScore(normalizedEntity, prefabScore))
 			return true;
+		if (!ContainsSlapbackEntityReference(s_SlapbackRoofQueryEntities, normalizedEntity))
+			s_SlapbackRoofQueryEntities.Insert(normalizedEntity);
 		if (!IsSlapbackEntityShapeAccepted(normalizedEntity, prefabScore))
 			return true;
 
@@ -2074,6 +2089,85 @@ class BS5_EchoEnvironmentAnalyzer
 			return false;
 
 		return true;
+	}
+
+	protected static void UpdateNearRoofFromSlapbackQueryEntities(BS5_EchoAnalysisResult result, BS5_EchoDriverComponent settings, vector origin)
+	{
+		if (!result || !settings || !s_SlapbackRoofQueryEntities)
+			return;
+
+		float maxRoofDistance = settings.GetNearReflectionCanopyMaxDistanceMeters();
+		if (maxRoofDistance <= 0.0)
+			return;
+
+		for (int entityIndex = 0; entityIndex < s_SlapbackRoofQueryEntities.Count(); entityIndex++)
+		{
+			IEntity entity = s_SlapbackRoofQueryEntities[entityIndex];
+			vector roofPosition;
+			float roofDistance;
+			float roofEvidence;
+			if (!TryResolveSlapbackEntityRoofEvidence(entity, origin, maxRoofDistance, roofPosition, roofDistance, roofEvidence))
+				continue;
+			if (roofEvidence <= result.m_fNearRoofEvidence)
+				continue;
+
+			result.m_bNearRoofHit = true;
+			result.m_vNearRoofHitPosition = roofPosition;
+			result.m_vNearRoofHitNormal = "0 -1 0";
+			result.m_fNearRoofHitDistance = roofDistance;
+			result.m_fNearRoofEvidence = roofEvidence;
+			result.m_fVerticalConfinement = BS5_EchoMath.MaxFloat(result.m_fVerticalConfinement, roofEvidence);
+			result.m_fIndoorScore = BS5_EchoMath.MaxFloat(result.m_fIndoorScore, roofEvidence * 0.42);
+		}
+	}
+
+	protected static bool TryResolveSlapbackEntityRoofEvidence(IEntity entity, vector origin, float maxRoofDistance, out vector roofPosition, out float roofDistance, out float roofEvidence)
+	{
+		roofPosition = vector.Zero;
+		roofDistance = 0.0;
+		roofEvidence = 0.0;
+		if (!entity || maxRoofDistance <= 0.0)
+			return false;
+
+		vector mins;
+		vector maxs;
+		entity.GetWorldBounds(mins, maxs);
+		vector extents = maxs - mins;
+		float width = Math.AbsFloat(extents[0]);
+		float height = Math.AbsFloat(extents[1]);
+		float depth = Math.AbsFloat(extents[2]);
+		float footprintMin = BS5_EchoMath.MinFloat(width, depth);
+		float footprintArea = width * depth;
+		if (height < 0.18 || height > 65.0)
+			return false;
+		if (footprintMin < 0.95 || footprintArea < 2.0)
+			return false;
+
+		float horizontalMargin = BS5_EchoMath.MinFloat(0.45, footprintMin * 0.18);
+		if (origin[0] < mins[0] - horizontalMargin || origin[0] > maxs[0] + horizontalMargin)
+			return false;
+		if (origin[2] < mins[2] - horizontalMargin || origin[2] > maxs[2] + horizontalMargin)
+			return false;
+
+		float roofY = mins[1];
+		roofDistance = roofY - origin[1];
+		if (roofDistance <= 0.35)
+		{
+			roofY = maxs[1];
+			roofDistance = roofY - origin[1];
+		}
+		if (roofDistance <= 0.35 || roofDistance > maxRoofDistance)
+			return false;
+
+		roofPosition = origin;
+		roofPosition[0] = BS5_EchoMath.Clamp(origin[0], mins[0], maxs[0]);
+		roofPosition[1] = roofY;
+		roofPosition[2] = BS5_EchoMath.Clamp(origin[2], mins[2], maxs[2]);
+
+		float heightFit = 1.0 - BS5_EchoMath.Clamp01(roofDistance / BS5_EchoMath.MaxFloat(0.1, maxRoofDistance));
+		float footprintFit = BS5_EchoMath.Clamp01(footprintMin / 4.0);
+		roofEvidence = BS5_EchoMath.Clamp01(0.48 + (heightFit * 0.32) + (footprintFit * 0.20));
+		return roofEvidence >= 0.45;
 	}
 
 	protected static BS5_EchoReflectorCandidate BuildSlapbackEntityCandidate(BS5_EchoDriverComponent settings, IEntity entity, vector origin, vector flatForward, vector flatRight, float maxDistance, float minDistance)
@@ -2657,6 +2751,41 @@ class BS5_EchoEnvironmentAnalyzer
 	protected static float Lerp(float from, float to, float alpha)
 	{
 		return from + (to - from) * alpha;
+	}
+
+	protected static vector ResolveNearReflectionRoofProbeOrigin(IEntity owner, vector origin, vector fallbackProbeOrigin)
+	{
+		vector roofProbeOrigin = fallbackProbeOrigin;
+		if (!owner)
+			return roofProbeOrigin;
+
+		IEntity controlledEntity = SCR_PlayerController.GetLocalControlledEntity();
+		if (!controlledEntity)
+			return roofProbeOrigin;
+
+		IEntity controlledRoot = controlledEntity.GetRootParent();
+		if (!controlledRoot)
+			controlledRoot = controlledEntity;
+
+		IEntity ownerRoot = owner.GetRootParent();
+		if (!ownerRoot)
+			ownerRoot = owner;
+
+		vector controlledOrigin = controlledEntity.GetOrigin();
+		vector horizontalDelta = controlledOrigin - origin;
+		horizontalDelta[1] = 0.0;
+		float verticalDelta = Math.AbsFloat(controlledOrigin[1] - origin[1]);
+		bool sameRoot = controlledRoot == ownerRoot;
+		if (!sameRoot && (horizontalDelta.LengthSq() > 6.25 || verticalDelta > 2.5))
+			return roofProbeOrigin;
+
+		roofProbeOrigin[0] = controlledOrigin[0];
+		roofProbeOrigin[2] = controlledOrigin[2];
+		float listenerHeight = controlledOrigin[1] + 1.45;
+		if (listenerHeight > roofProbeOrigin[1])
+			roofProbeOrigin[1] = listenerHeight;
+
+		return roofProbeOrigin;
 	}
 
 	protected static IEntity ResolveTraceExcludeRoot(IEntity owner)
