@@ -812,7 +812,7 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 8
+   volume_dB 12
    type "One shot"
   }
  }
