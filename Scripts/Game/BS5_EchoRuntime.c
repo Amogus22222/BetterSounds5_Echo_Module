@@ -1345,6 +1345,30 @@ class BS5_EchoEnvironmentAnalyzer
 		if (!closeAccepted && candidates.IsEmpty() && settings.AllowSlapbackAnchorFallback())
 			anchorFallback = TryBuildSlapbackAnchorFallback(candidates, settings, result, origin, flatRight, candidateLimit, maxDistance);
 
+		float nearLayerScore = 0.0;
+		string nearLayerType = "none";
+		float reportedCloseScore = closeScore;
+		bool reportedCloseAccepted = closeAccepted;
+		if (nearLayerAccepted)
+		{
+			nearLayerScore = ResolveBestCloseLayerCandidateScore(candidates);
+			nearLayerType = ResolveBestCloseLayerCandidateSourceName(candidates);
+			if (nearLayerScore > reportedCloseScore)
+				reportedCloseScore = nearLayerScore;
+			if (nearLayerScore > 0.0)
+				reportedCloseAccepted = true;
+		}
+		string reportedCloseSource = "none";
+		if (reportedCloseAccepted)
+		{
+			if (nearLayerAccepted && nearLayerScore > 0.0 && nearLayerScore >= closeScore)
+				reportedCloseSource = "near_layer";
+			else if (closeAccepted)
+				reportedCloseSource = "planner";
+			else if (nearLayerAccepted && nearLayerScore > 0.0)
+				reportedCloseSource = "near_layer";
+		}
+
 		if (result)
 		{
 			result.m_iSlapbackRayCount = directions.Count();
@@ -1353,7 +1377,7 @@ class BS5_EchoEnvironmentAnalyzer
 			result.m_iSlapbackEntityCandidateCount = entityHitCount;
 			result.m_bSlapbackAnchorFallback = anchorFallback;
 			result.m_fSlapbackWallScore = bestWallScore;
-			result.m_fSlapbackCloseScore = closeScore;
+			result.m_fSlapbackCloseScore = reportedCloseScore;
 			result.m_fSlapbackTrenchScore = trenchScore;
 			result.m_iCloseReflectionRescueRayCount = 0;
 			if (closePlannerResult)
@@ -1416,8 +1440,10 @@ class BS5_EchoEnvironmentAnalyzer
 			result.m_sSlapbackDebugSummary = slapbackDebugSummary;
 
 			string closeDebugSummary = "enabled=" + BS5_DebugLog.BoolText(closeSettings && closeSettings.IsEnabled());
-			closeDebugSummary += " accepted=" + BS5_DebugLog.BoolText(closeAccepted);
-			closeDebugSummary += " score=" + closeScore;
+			closeDebugSummary += " accepted=" + BS5_DebugLog.BoolText(reportedCloseAccepted);
+			closeDebugSummary += " score=" + reportedCloseScore;
+			closeDebugSummary += " closeSource=" + reportedCloseSource;
+			closeDebugSummary += " layerType=" + nearLayerType;
 			closeDebugSummary += " rescueRays=" + result.m_iCloseReflectionRescueRayCount;
 			closeDebugSummary += " trenchDominates=" + BS5_DebugLog.BoolText(trenchDominatesClose);
 			closeDebugSummary += " wallCandidates=" + wallCandidates.Count();
@@ -1435,6 +1461,8 @@ class BS5_EchoEnvironmentAnalyzer
 				closeDebugSummary += " nearConf=" + nearReflection.m_fConfinementScore;
 				closeDebugSummary += " nearSemi=" + nearReflection.m_fSemiIndoorWeight;
 				closeDebugSummary += " nearSemiEv=" + nearReflection.m_fSemiIndoorEvidence;
+				closeDebugSummary += " nearFacadeShell=" + nearReflection.m_fFacadeShellEvidence;
+				closeDebugSummary += " nearSemiSource=" + ResolveNearReflectionSemiSourceName(nearReflection.m_iSemiIndoorSource);
 				closeDebugSummary += " nearTraceDensity=" + BS5_EchoMath.Clamp01((nearReflection.m_iTraceHits * 1.0) / BS5_EchoMath.MaxFloat(1.0, nearReflection.m_iTraceCount));
 				closeDebugSummary += " nearAccepted=" + nearReflection.m_iLegacyAcceptedCount;
 			}
@@ -1477,9 +1505,9 @@ class BS5_EchoEnvironmentAnalyzer
 			BS5_DebugLog.Channel(settings, BS5_DebugChannel.SLAPBACK, slapCollectLog);
 			string slapScoreLog = "slapback score";
 			slapScoreLog += " bestWall=" + bestWallScore;
-			slapScoreLog += " closeScore=" + closeScore;
+			slapScoreLog += " closeScore=" + reportedCloseScore;
 			slapScoreLog += " trenchScore=" + trenchScore;
-			slapScoreLog += " closeAccepted=" + BS5_DebugLog.BoolText(closeAccepted);
+			slapScoreLog += " closeAccepted=" + BS5_DebugLog.BoolText(reportedCloseAccepted);
 			slapScoreLog += " trenchAccepted=" + BS5_DebugLog.BoolText(trenchAccepted);
 			slapScoreLog += " trenchDominatesClose=" + BS5_DebugLog.BoolText(trenchDominatesClose);
 			slapScoreLog += " anchorFallback=" + BS5_DebugLog.BoolText(anchorFallback);
@@ -1490,8 +1518,10 @@ class BS5_EchoEnvironmentAnalyzer
 		{
 			string closeLog = "close reflection";
 			closeLog += " enabled=" + BS5_DebugLog.BoolText(closeSettings && closeSettings.IsEnabled());
-			closeLog += " accepted=" + BS5_DebugLog.BoolText(closeAccepted);
-			closeLog += " score=" + closeScore;
+			closeLog += " accepted=" + BS5_DebugLog.BoolText(reportedCloseAccepted);
+			closeLog += " score=" + reportedCloseScore;
+			closeLog += " closeSource=" + reportedCloseSource;
+			closeLog += " layerType=" + nearLayerType;
 			closeLog += " trenchScore=" + trenchScore;
 			closeLog += " wallCandidates=" + wallCandidates.Count();
 			if (nearReflection)
@@ -1508,6 +1538,8 @@ class BS5_EchoEnvironmentAnalyzer
 				closeLog += " nearConf=" + nearReflection.m_fConfinementScore;
 				closeLog += " nearSemi=" + nearReflection.m_fSemiIndoorWeight;
 				closeLog += " nearSemiEv=" + nearReflection.m_fSemiIndoorEvidence;
+				closeLog += " nearFacadeShell=" + nearReflection.m_fFacadeShellEvidence;
+				closeLog += " nearSemiSource=" + ResolveNearReflectionSemiSourceName(nearReflection.m_iSemiIndoorSource);
 				closeLog += " nearTraceDensity=" + BS5_EchoMath.Clamp01((nearReflection.m_iTraceHits * 1.0) / BS5_EchoMath.MaxFloat(1.0, nearReflection.m_iTraceCount));
 				closeLog += " nearAccepted=" + nearReflection.m_iLegacyAcceptedCount;
 			}
@@ -1527,6 +1559,71 @@ class BS5_EchoEnvironmentAnalyzer
 			}
 			BS5_DebugLog.Channel(settings, BS5_DebugChannel.CLOSE, closeLog);
 		}
+	}
+
+	protected static float ResolveBestCloseLayerCandidateScore(notnull array<ref BS5_EchoReflectorCandidate> candidates)
+	{
+		float bestScore = 0.0;
+		for (int candidateIndex = 0; candidateIndex < candidates.Count(); candidateIndex++)
+		{
+			BS5_EchoReflectorCandidate candidate = candidates[candidateIndex];
+			if (!candidate)
+				continue;
+
+			if (candidate.m_eSourceType != BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE
+				&& candidate.m_eSourceType != BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR
+				&& candidate.m_eSourceType != BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE
+				&& candidate.m_eSourceType != BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE)
+				continue;
+
+			if (candidate.m_fScore > bestScore)
+				bestScore = candidate.m_fScore;
+		}
+
+		return bestScore;
+	}
+
+	protected static string ResolveBestCloseLayerCandidateSourceName(notnull array<ref BS5_EchoReflectorCandidate> candidates)
+	{
+		float bestScore = 0.0;
+		string bestSource = "none";
+		for (int candidateIndex = 0; candidateIndex < candidates.Count(); candidateIndex++)
+		{
+			BS5_EchoReflectorCandidate candidate = candidates[candidateIndex];
+			if (!candidate)
+				continue;
+
+			string candidateSource = "none";
+			if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE)
+				candidateSource = "close_core";
+			else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_SEMI_INDOOR)
+				candidateSource = "semi_indoor";
+			else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_SPACE)
+				candidateSource = "close";
+			else if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.SLAPBACK_EXPLOSION_CLOSE)
+				candidateSource = "explosion_close";
+			else
+				continue;
+
+			if (candidate.m_fScore <= bestScore)
+				continue;
+
+			bestScore = candidate.m_fScore;
+			bestSource = candidateSource;
+		}
+
+		return bestSource;
+	}
+
+	protected static string ResolveNearReflectionSemiSourceName(int source)
+	{
+		if (source == 1)
+			return "canopy_roof";
+		if (source == 2)
+			return "facade_shell";
+		if (source == 3)
+			return "canopy_facade";
+		return "none";
 	}
 
 	protected static bool TryInsertNearReflectionLayerCandidate(notnull array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_CloseReflectionSettingsComponent closeSettings, BS5_EchoAnalysisResult result, vector origin, vector flatForward, BS5_NearReflectionSnapshot nearReflection, int candidateLimit)
@@ -1568,8 +1665,20 @@ class BS5_EchoEnvironmentAnalyzer
 			bool corridorDominantCore = nearReflection.m_fCoreCloseWeight >= 0.67 && nearReflection.m_fPairEvidence >= 0.58 && nearReflection.m_fDominantReflectWeight >= 0.80 && nearReflection.m_fConfinementScore >= 0.86;
 			bool corridorPairCore = nearReflection.m_fCoreCloseWeight >= 0.74 && nearReflection.m_fPairEvidence >= 0.72 && nearReflection.m_fDominantReflectWeight >= 0.70 && nearReflection.m_fConfinementScore >= 0.86;
 			bool corridorCore = nearReflection.m_eScenario == BS5_NearReflectionScenario.CORRIDOR_ALLEY && (corridorDominantCore || corridorPairCore);
+			bool broadCorridorCore = nearReflection.m_eScenario == BS5_NearReflectionScenario.CORRIDOR_ALLEY
+				&& nearReflection.m_iLegacyAcceptedCount >= 3
+				&& nearReflection.m_fConfinementScore >= 0.86
+				&& nearReflection.m_fPairEvidence >= 0.62
+				&& nearReflection.m_fCoreCloseWeight >= 0.70
+				&& nearReflection.m_fDominantReflectWeight >= 0.68;
+			bool broadCornerCore = nearReflection.m_eScenario == BS5_NearReflectionScenario.CORNER
+				&& nearReflection.m_iLegacyAcceptedCount >= 3
+				&& nearReflection.m_fConfinementScore >= 0.84
+				&& nearReflection.m_fPairEvidence >= 0.60
+				&& nearReflection.m_fCoreCloseWeight >= 0.68
+				&& nearReflection.m_fDominantReflectWeight >= 0.70;
 			bool canopyCore = nearReflection.m_fCanopyEvidence >= 0.55 && (nearReflection.m_fConfinementScore >= 0.42 || nearReflection.m_fDominantReflectWeight >= 0.55);
-			if (coreScenario && (strongCore || corridorCore || canopyCore))
+			if (coreScenario && (strongCore || corridorCore || broadCorridorCore || broadCornerCore || canopyCore))
 			{
 				support = BS5_EchoMath.MaxFloat(nearReflection.m_fCoreCloseWeight, nearReflection.m_fCanopyEvidence);
 				score = BS5_EchoMath.Clamp01((support * 0.58) + (nearReflection.m_fConfinementScore * 0.22) + (nearReflection.m_fDominantReflectWeight * 0.20));
@@ -1812,13 +1921,47 @@ class BS5_EchoEnvironmentAnalyzer
 		snapshot.m_fSemiIndoorEvidence = BS5_EchoMath.Clamp01((snapshot.m_fCanopyEvidence * 0.50) + (snapshot.m_fConfinementScore * 0.50));
 
 		float facadeShellEvidence = ResolveNearReflectionFacadeShellEvidence(snapshot, result);
+		snapshot.m_fFacadeShellEvidence = facadeShellEvidence;
 		if (facadeShellEvidence > snapshot.m_fSemiIndoorEvidence)
 			snapshot.m_fSemiIndoorEvidence = facadeShellEvidence;
 
-		if ((snapshot.m_fCanopyEvidence > 0.35 && snapshot.m_fPairEvidence > 0.25) || facadeShellEvidence >= 0.55)
+		float traceDensity = BS5_EchoMath.Clamp01((snapshot.m_iTraceHits * 1.0) / BS5_EchoMath.MaxFloat(1.0, snapshot.m_iTraceCount));
+		bool pairedCanopyBackedSemi = snapshot.m_fCanopyEvidence > 0.35 && snapshot.m_fPairEvidence > 0.25;
+		bool edgeCanopyBackedSemi = snapshot.m_iRoofHits >= 1
+			&& roofEvidence >= 0.72
+			&& snapshot.m_fCanopyEvidence >= 0.72
+			&& snapshot.m_iLegacyAcceptedCount >= 4
+			&& traceDensity >= 0.80
+			&& snapshot.m_fConfinementScore >= 0.58
+			&& snapshot.m_fDominantReflectWeight >= 0.70
+			&& facadeShellEvidence < 0.35;
+		bool canopyBackedSemi = pairedCanopyBackedSemi || edgeCanopyBackedSemi;
+		bool denseFacadeBackedSemi = facadeShellEvidence >= 0.55
+			&& snapshot.m_iLegacyAcceptedCount >= 3
+			&& snapshot.m_fConfinementScore >= 0.72
+			&& (traceDensity >= 0.30 || snapshot.m_fPairEvidence >= 0.48);
+		bool sparseFacadeShellSemi = facadeShellEvidence >= 0.78
+			&& snapshot.m_iLegacyAcceptedCount >= 2
+			&& traceDensity <= 0.35
+			&& snapshot.m_fConfinementScore >= 0.72
+			&& snapshot.m_fDominantReflectWeight >= 0.78
+			&& (snapshot.m_fPairEvidence >= 0.34 || snapshot.m_fCoreCloseWeight >= 0.52);
+		bool facadeBackedSemi = denseFacadeBackedSemi || sparseFacadeShellSemi;
+		if (canopyBackedSemi || facadeBackedSemi)
+		{
 			snapshot.m_fSemiIndoorWeight = snapshot.m_fSemiIndoorEvidence;
+			if (canopyBackedSemi && facadeBackedSemi)
+				snapshot.m_iSemiIndoorSource = 3;
+			else if (facadeBackedSemi)
+				snapshot.m_iSemiIndoorSource = 2;
+			else
+				snapshot.m_iSemiIndoorSource = 1;
+		}
 		else
+		{
 			snapshot.m_fSemiIndoorWeight = 0.0;
+			snapshot.m_iSemiIndoorSource = 0;
+		}
 
 		if (snapshot.m_bExplosionProfile && snapshot.m_fConfinementScore >= 0.42)
 			snapshot.m_eScenario = BS5_NearReflectionScenario.EXPLOSION_CONFINED;

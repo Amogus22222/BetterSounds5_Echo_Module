@@ -649,9 +649,8 @@ AudioClass {
     3 0
    }
    wetDry 0.99
-   DSPObject DistortionDSPTypeClass dsp {
-    distortionType SoftClipper
-    drive 10.7
+   DSPObject BiquadDSPTypeClass dsp {
+    biquadType AllPass
    }
   }
   FilterClass "428054" {
@@ -808,7 +807,7 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 9
+   volume_dB 12
    type "One shot"
   }
  }
@@ -1176,22 +1175,23 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 22.84216
-     Y 0.77442
+     X 35.71395
+     Y 0.83828
     }
     CurvePoint "3" {
-     X 59.11649
-     Y 0.29057
+     X 162.09093
+     Y 0.57336
     }
     CurvePoint "4" {
-     X 119.70665
-     Y 0.08134
+     X 303.8725
+     Y 0.4736
     }
     CurvePoint "5" {
-     X 201.13741
+     X 417.16846
+     Y 0.28253
     }
     CurvePoint "6" {
-     X 201.13751
+     X 499.15155
     }
    }
   }
@@ -1208,20 +1208,23 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 24.77426
-     Y 0.64915
+     X 46.99731
+     Y 0.78302
     }
     CurvePoint "3" {
-     X 51.3362
+     X 133.39053
+     Y 0.55123
     }
     CurvePoint "4" {
-     X 77.38889
+     X 200.47043
+     Y 0.40161
     }
     CurvePoint "5" {
-     X 150.33743
+     X 303.33459
+     Y 0.11812
     }
     CurvePoint "6" {
-     X 201.13751
+     X 392.59766
     }
    }
   }
@@ -1330,18 +1333,17 @@ AudioClass {
    pi {
     35 0
    }
+   Volume 5
    "Volume variance" 0.2
-   Pitch 3
    "Termination Fade Out" 100
    Resampler FIR_4
-   Offset 30
    "Fade in time" 10
-   Sustain 220
-   "Fade out time" 700
+   Sustain 400
+   "Fade out time" 1100
    Preload 1
    Samples {
-    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
-     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
+    AudioBankSampleClass "explosion_add_attack-001.wav.wav" {
+     Filename "{A91443A51C9F49E7}Assets/Gunpowder/SlapBacks/explosion_add_attack-001.wav.wav"
      Probability 100
      Index 0
      SampleMetadata ""
@@ -1352,7 +1354,7 @@ AudioClass {
    id 447492
    name "EL Houses Far"
    version 7
-   tl 80 -17.323
+   tl 64 -16
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -1376,7 +1378,6 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -2
    "Termination Fade Out" 100
    Resampler FIR_4
    Offset 35

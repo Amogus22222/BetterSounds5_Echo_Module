@@ -649,10 +649,6 @@ AudioClass {
     3 0
    }
    wetDry 0.99
-   DSPObject DistortionDSPTypeClass dsp {
-    distortionType SoftClipper
-    drive 10.7
-   }
   }
   FilterClass "428054" {
    id 428054
@@ -808,7 +804,6 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 8
    type "One shot"
   }
  }
@@ -1176,22 +1171,23 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 22.84216
-     Y 0.77442
+     X 36.5878
+     Y 0.88206
     }
     CurvePoint "3" {
-     X 59.11649
-     Y 0.29057
+     X 105.16439
+     Y 0.60084
     }
     CurvePoint "4" {
-     X 119.70665
-     Y 0.08134
+     X 195.30768
+     Y 0.30929
     }
     CurvePoint "5" {
-     X 201.13741
+     X 269.17838
+     Y 0.10764
     }
     CurvePoint "6" {
-     X 201.13751
+     X 401.82391
     }
    }
   }
@@ -1208,20 +1204,22 @@ AudioClass {
      Y 1
     }
     CurvePoint "2" {
-     X 24.77426
-     Y 0.64915
+     X 30.60334
+     Y 0.57446
     }
     CurvePoint "3" {
-     X 51.3362
+     X 67.38477
+     Y 0.25982
     }
     CurvePoint "4" {
-     X 77.38889
+     X 94.16026
+     Y 0.0993
     }
     CurvePoint "5" {
-     X 150.33743
+     X 157.63397
     }
     CurvePoint "6" {
-     X 201.13751
+     X 194.77817
     }
    }
   }
@@ -1330,6 +1328,7 @@ AudioClass {
    pi {
     35 0
    }
+   Volume 4
    "Volume variance" 0.2
    Pitch 3
    "Termination Fade Out" 100
@@ -1340,10 +1339,16 @@ AudioClass {
    "Fade out time" 1000
    Preload 1
    Samples {
-    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
-     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
+    AudioBankSampleClass "dynrev_highpower_city1.wav" {
+     Filename "{08C374261025D980}Assets/Gunpowder/Tails/City/Rough/dynrev_highpower_city1.wav"
      Probability 100
      Index 0
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "dynrev_highpower_city2.wav" {
+     Filename "{91DDCDBF0DC2E810}Assets/Gunpowder/Tails/City/Rough/dynrev_highpower_city2.wav"
+     Probability 100
+     Index 1
      SampleMetadata ""
     }
    }
@@ -1352,7 +1357,7 @@ AudioClass {
    id 447492
    name "EL Houses Far"
    version 7
-   tl 80 -17.323
+   tl 64 -32
    ins {
     ConnectionsClass "con:0" {
      id 0
@@ -1376,7 +1381,6 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 2
    "Termination Fade Out" 100
    Resampler FIR_4
    Offset 60
@@ -1429,7 +1433,7 @@ AudioClass {
    id 444444
    name "Spatiality 430"
    version 5
-   tl 931 15
+   tl 928 16
    SpatialFactorSource Curve
    SFCurve {
     CurvePoint "1" {

@@ -202,8 +202,10 @@ class BS5_NearReflectionSnapshot
 	float m_fCornerEvidence;
 	float m_fCanopyEvidence;
 	float m_fSemiIndoorEvidence;
+	float m_fFacadeShellEvidence;
 	float m_fCoreCloseWeight;
 	float m_fSemiIndoorWeight;
+	int m_iSemiIndoorSource;
 	float m_fSectorOcclusionStrength;
 
 	void BS5_NearReflectionSnapshot()
@@ -234,8 +236,10 @@ class BS5_NearReflectionSnapshot
 		m_fCornerEvidence = 0.0;
 		m_fCanopyEvidence = 0.0;
 		m_fSemiIndoorEvidence = 0.0;
+		m_fFacadeShellEvidence = 0.0;
 		m_fCoreCloseWeight = 0.0;
 		m_fSemiIndoorWeight = 0.0;
+		m_iSemiIndoorSource = 0;
 		m_fSectorOcclusionStrength = 0.0;
 
 		m_aSectors.Clear();
