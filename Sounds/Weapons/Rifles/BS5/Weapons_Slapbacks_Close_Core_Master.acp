@@ -808,7 +808,7 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 8
+   volume_dB 9
    type "One shot"
   }
  }
@@ -1334,10 +1334,10 @@ AudioClass {
    Pitch 3
    "Termination Fade Out" 100
    Resampler FIR_4
-   Offset 60
+   Offset 30
    "Fade in time" 10
-   Sustain 300
-   "Fade out time" 1000
+   Sustain 220
+   "Fade out time" 700
    Preload 1
    Samples {
     AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
@@ -1376,14 +1376,14 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 2
+   Volume -2
    "Termination Fade Out" 100
    Resampler FIR_4
-   Offset 60
+   Offset 35
    "Fade in time" 10
-   Sustain 200
+   Sustain 140
    "Fade out function" Cos
-   "Fade out time" 800
+   "Fade out time" 550
    "Disable streaming" 1
    Preload 1
    Samples {

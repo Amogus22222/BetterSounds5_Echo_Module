@@ -620,7 +620,7 @@ AudioClass {
    id 449549
    name "Signal 439"
    tl -109.177 453.887
-   res "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
+   res "{A8D1E3C947B24A17}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig"
    inputsport {
     1
    }
@@ -636,7 +636,7 @@ AudioClass {
    inputvaluesmax {
     1
    }
-   path "{B45E2A7C9D1036F8}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackVolume.sig"
+   path "{A8D1E3C947B24A17}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig"
   }
  }
  filters {

@@ -204,7 +204,7 @@ class BS5_EchoDriverComponent : ScriptComponent
 	[Attribute(defvalue: "12", desc: "Maximum number of ranked candidate anchors stored after analysis.")]
 	protected int m_iMaxCandidateCount;
 
-	[Attribute(defvalue: "8", desc: "Maximum number of cheap near probes traced per analysis pass.")]
+	[Attribute(defvalue: "9", desc: "Maximum number of cheap near probes traced per analysis pass, including the upward canopy probe.")]
 	protected int m_iMaxTraceCount;
 
 	[Attribute(defvalue: "0.18", desc: "Time window in seconds where repeated shots may reuse the previous analysis result.")]

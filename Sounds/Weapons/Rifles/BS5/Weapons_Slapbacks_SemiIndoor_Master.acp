@@ -1378,7 +1378,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -16
+   Volume -28
    Pitch 3
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -1390,8 +1390,8 @@ AudioClass {
    "Disable streaming" 1
    Preload 1
    Samples {
-    AudioBankSampleClass "Vog_Int.wav" {
-     Filename "{925A1D48DADB295B}Assets/explosions/Vog_Int.wav"
+    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
+     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
      Probability 100
      Index 0
      SampleMetadata ""

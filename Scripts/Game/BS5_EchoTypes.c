@@ -265,6 +265,11 @@ class BS5_EchoAnalysisResult
 	float m_fIntensity;
 	float m_fNearConfinement;
 	float m_fVerticalConfinement;
+	bool m_bNearRoofHit;
+	vector m_vNearRoofHitPosition;
+	vector m_vNearRoofHitNormal;
+	float m_fNearRoofHitDistance;
+	float m_fNearRoofEvidence;
 	float m_fFrontConfinement;
 	float m_fBackConfinement;
 	float m_fLeftConfinement;
@@ -352,6 +357,11 @@ class BS5_EchoAnalysisResult
 		m_fIntensity = 1.0;
 		m_fNearConfinement = 0.0;
 		m_fVerticalConfinement = 0.0;
+		m_bNearRoofHit = false;
+		m_vNearRoofHitPosition = vector.Zero;
+		m_vNearRoofHitNormal = "0 -1 0";
+		m_fNearRoofHitDistance = 0.0;
+		m_fNearRoofEvidence = 0.0;
 		m_fFrontConfinement = 0.0;
 		m_fBackConfinement = 0.0;
 		m_fLeftConfinement = 0.0;
