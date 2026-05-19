@@ -1,4 +1,4 @@
-Projectile : "{50C6F965BA00F9FA}Prefabs/Weapons/Core/Ammo_GrenadeLauncher_Base.et" {
+Projectile : "{D40A105437369C1D}Prefabs/Weapons/Core/Ammo_GrenadeLauncher_Base.et" {
  ID "50C6F965BA00FAAC"
  components {
   CollisionTriggerComponent "{52093EA2424A69CE}" {
@@ -9,8 +9,6 @@ Projectile : "{50C6F965BA00F9FA}Prefabs/Weapons/Core/Ammo_GrenadeLauncher_Base.e
      SoundEvent "SOUND_EXPLOSION"
     }
     AIExplosionEffect "{5E8ADDDC2A955BDC}" {
-    }
-    BS5_ExplosionEchoEffect "{74A05033F62044F2}" {
     }
    }
    SafetyDistance 15
@@ -50,13 +48,14 @@ Projectile : "{50C6F965BA00F9FA}Prefabs/Weapons/Core/Ammo_GrenadeLauncher_Base.e
    InitSpeed 77
    InitSpeedVariation 0.385
    ProjectileEffects {
+    BS5_ExplosionEchoEffect "{27C7B34D5EF04580}" {
+     TriggerOnce 1
+    }
     AIHitEffect "{5E8AE4AB6D19572E}" {
     }
    }
-   BallisticTableConfig "{E21489D6FC1E47B9}Configs/Weapons/AIBallisiticTables/AIBT_Grenade_HEDP_M433.conf"
+   BallisticTableConfig "{E21489D6FC1E47B9}Configs/Weapons/AIBallisticTables/AIBT_Grenade_HEDP_M433.conf"
    AirDrag 0.00031
-  }
-  Hierarchy "{520E72A15EAE1F13}" {
   }
  }
  ProjectileModel "{D79EBB1BB388141E}Assets/Weapons/Ammo/Grenades/M433/M433_projectile.xob"

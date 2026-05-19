@@ -2,6 +2,12 @@ class BS5_EnvironmentAudioClassifier
 {
 	protected static ref array<string> s_RiverSignalNames;
 	protected static ref array<string> s_LakeSignalNames;
+	protected static ref BS5_EchoAnalysisResult s_pActivePerfResult;
+
+	static void SetActivePerfResult(BS5_EchoAnalysisResult result)
+	{
+		s_pActivePerfResult = result;
+	}
 
 	protected static void EnsureSignalNameCaches()
 	{
@@ -189,6 +195,9 @@ class BS5_EnvironmentAudioClassifier
 
 	static float ResolveTerrainHeight(BaseWorld world, vector position, float referenceHeight)
 	{
+		if (s_pActivePerfResult)
+			s_pActivePerfResult.m_iTerrainHeightSampleCount++;
+
 		vector terrainProbe = position;
 		terrainProbe[1] = referenceHeight;
 		float heightAboveTerrain = SCR_TerrainHelper.GetHeightAboveTerrain(terrainProbe, world, false, null);
@@ -197,6 +206,9 @@ class BS5_EnvironmentAudioClassifier
 
 	static vector ResolveTerrainNormal(BaseWorld world, vector position)
 	{
+		if (s_pActivePerfResult)
+			s_pActivePerfResult.m_iTerrainNormalSampleCount++;
+
 		float sampleOffset = 1.5;
 		float centerHeight = ResolveTerrainHeight(world, position, position[1] + 80.0);
 

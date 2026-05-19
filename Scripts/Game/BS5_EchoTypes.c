@@ -288,6 +288,8 @@ class BS5_EchoAnalysisResult
 	int m_iTailForwardQueryEntities;
 	int m_iTailForwardBuildingCandidates;
 	int m_iTailForwardConfirmedFacades;
+	int m_iTerrainHeightSampleCount;
+	int m_iTerrainNormalSampleCount;
 	int m_iSoundMapSamples;
 	int m_iSoundMapCityHits;
 	int m_iSoundMapForestHits;
@@ -380,6 +382,8 @@ class BS5_EchoAnalysisResult
 		m_iTailForwardQueryEntities = 0;
 		m_iTailForwardBuildingCandidates = 0;
 		m_iTailForwardConfirmedFacades = 0;
+		m_iTerrainHeightSampleCount = 0;
+		m_iTerrainNormalSampleCount = 0;
 		m_iSoundMapSamples = 0;
 		m_iSoundMapCityHits = 0;
 		m_iSoundMapForestHits = 0;
@@ -458,6 +462,26 @@ class BS5_EnvironmentSnapshot
 	}
 }
 
+class BS5_EmissionPerfCounters
+{
+	int m_iQueuedTailCount;
+	int m_iQueuedSlapbackCount;
+	int m_iEmissionCallLaterCount;
+	int m_iEmitterSpawnCount;
+	int m_iManagedPlaybackAttemptCount;
+	int m_iManagedPlaybackSuccessCount;
+	int m_iManagedPlaybackFailCount;
+	int m_iPrefabFallbackCount;
+	int m_iAudioSystemPlayEventCount;
+	int m_iAudioSystemPlayEventInitializeCount;
+	int m_iOutstandingContexts;
+	int m_iFinishedContextCount;
+	int m_iStartGateDeferCount;
+	int m_iStartGateDropCount;
+	int m_iBatchId;
+	bool m_bPlaybackSummaryLogged;
+}
+
 class BS5_PendingEmissionContext
 {
 	IEntity m_pOwner;
@@ -505,6 +529,8 @@ class BS5_PendingEmissionContext
 	int m_iLimiterTicket;
 	float m_fLimiterPriority;
 	ref BS5_EchoAnalysisResult m_Result;
+	ref BS5_EmissionPerfCounters m_PerfCounters;
+	bool m_bPerfContextFinished;
 
 	void BS5_PendingEmissionContext()
 	{
@@ -548,6 +574,9 @@ class BS5_PendingEmissionContext
 		m_bCancelled = false;
 		m_iLimiterTicket = 0;
 		m_fLimiterPriority = 0.0;
+		m_Result = null;
+		m_PerfCounters = null;
+		m_bPerfContextFinished = false;
 	}
 }
 

@@ -1,3 +1,9 @@
 GenericEntity : "{911D6C8DC7BA2D63}Prefabs/Weapons/Core/Rifle_Base.et" {
  ID "5260C45AAAA407F4"
+ components {
+  BS5_EchoDriverComponent "{692681A021648F3D}" {
+   m_sMasterAcp "{1C6E4055FD8532F6}Sounds/Weapons/Rifles/BS5/Weapons_MG_EchoMaster.acp.acp"
+   m_sSlapbackAcp "{B17E5F4A9C063D21}Sounds/Weapons/Rifles/BS5/Weapons_Explosions_Slapbacks_Master.acp"
+  }
+ }
 }

@@ -92,9 +92,11 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		if (IsAudioProjectEventKnownInvalid(eventKey))
 			return -1;
 
-		if (!EnsureAudioProjectReady(context.m_sProject))
+		if (!EnsureAudioProjectReady(context.m_sProject, context))
 			return -1;
 
+		if (context.m_PerfCounters)
+			context.m_PerfCounters.m_iAudioSystemPlayEventCount++;
 		AudioHandle handle = AudioSystem.PlayEvent(context.m_sProject, context.m_sEventName, transform, signalNames, signalValues);
 		if (handle == -1)
 			MarkAudioProjectEventInvalid(eventKey);
@@ -102,7 +104,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		return handle;
 	}
 
-	protected static bool EnsureAudioProjectReady(ResourceName project)
+	protected static bool EnsureAudioProjectReady(ResourceName project, BS5_PendingEmissionContext context)
 	{
 		EnsureAudioProjectCaches();
 		for (int validIndex = 0; validIndex < s_aInitializedAudioProjects.Count(); validIndex++)
@@ -117,6 +119,8 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 				return false;
 		}
 
+		if (context && context.m_PerfCounters)
+			context.m_PerfCounters.m_iAudioSystemPlayEventInitializeCount++;
 		if (AudioSystem.PlayEventInitialize(project))
 		{
 			s_aInitializedAudioProjects.Insert(project);
