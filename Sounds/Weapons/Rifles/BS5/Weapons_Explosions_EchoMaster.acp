@@ -962,7 +962,7 @@ AudioClass {
     54 0
    }
    volume_dB 15
-   eventNoRepeatTimeMSec 200
+   type "One shot"
   }
  }
  buses {

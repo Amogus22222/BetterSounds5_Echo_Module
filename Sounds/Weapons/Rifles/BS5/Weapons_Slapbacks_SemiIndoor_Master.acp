@@ -20,7 +20,6 @@ AudioClass {
    inputvaluesmax {
     1 1 10000 1
    }
-   path "{6DFC123D28CCC546}Sounds/_SharedData/Signals/Weapons/Weapon_Occlusion.sig"
   }
   SignalClass "116749" {
    id 116749
@@ -28,7 +27,7 @@ AudioClass {
    tl 1360 768
    res "{8A11B1E11E2A595D}Sounds/_SharedData/Signals/Weapons/Weapon_EarFatigueComp_Wetness.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:8" {
      port 8
      conn {
       ConnectionsClass connections {
@@ -42,7 +41,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:9" {
      port 9
      conn {
       ConnectionsClass connections {
@@ -72,7 +71,6 @@ AudioClass {
    inputvaluesmax {
     1 1 1 1
    }
-   path "{8A11B1E11E2A595D}Sounds/_SharedData/Signals/Weapons/Weapon_EarFatigueComp_Wetness.sig"
   }
   SignalClass "186381" {
    id 186381
@@ -80,7 +78,7 @@ AudioClass {
    tl -500.167 1403.595
    res "{C035FD06551DA8EB}Sounds/_SharedData/Signals/Weapons/Weapon_EnvLayerManager_NewCrossfade.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:6" {
      port 6
      conn {
       ConnectionsClass connections {
@@ -94,7 +92,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:22" {
      port 22
      conn {
       ConnectionsClass connections {
@@ -108,7 +106,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:60" {
      port 60
      conn {
       ConnectionsClass connections {
@@ -122,7 +120,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:220" {
      port 220
      conn {
       ConnectionsClass connections {
@@ -152,7 +150,6 @@ AudioClass {
    inputvaluesmax {
     1 1 1 1 1 1 1 1 1 1
    }
-   path "{C035FD06551DA8EB}Sounds/_SharedData/Signals/Weapons/Weapon_EnvLayerManager_NewCrossfade.sig"
   }
   SignalClass "220173" {
    id 220173
@@ -174,7 +171,6 @@ AudioClass {
    inputvaluesmax {
     1 800 1
    }
-   path "{3A46DB30EA321604}Sounds/_SharedData/Signals/Weapons/Weapon_MeadowsToHillsRatio.sig"
   }
   SignalClass "282637" {
    id 282637
@@ -182,7 +178,7 @@ AudioClass {
    tl -500.167 -1209.389
    res "{0569C96D6F61CF6E}Sounds/_SharedData/Signals/Weapons/Weapons_AutoFireTimeToOffset.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:2" {
      port 2
      conn {
       ConnectionsClass connections {
@@ -196,7 +192,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:3" {
      port 3
      conn {
       ConnectionsClass connections {
@@ -210,7 +206,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:4" {
      port 4
      conn {
       ConnectionsClass connections {
@@ -224,7 +220,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:5" {
      port 5
      conn {
       ConnectionsClass connections {
@@ -238,7 +234,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:13" {
      port 13
      conn {
       ConnectionsClass connections {
@@ -252,7 +248,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:16" {
      port 16
      conn {
       ConnectionsClass connections {
@@ -282,7 +278,6 @@ AudioClass {
    inputvaluesmax {
     1 1 1 1 1 1 1
    }
-   path "{0569C96D6F61CF6E}Sounds/_SharedData/Signals/Weapons/Weapons_AutoFireTimeToOffset.sig"
   }
   SignalClass "305165" {
    id 305165
@@ -290,7 +285,7 @@ AudioClass {
    tl -500.167 -917.416
    res "{B0940E284D98C2C1}Sounds/_SharedData/Signals/Weapons/Weapon_UnderPlayerControl_1p_3p_Cam.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:28" {
      port 28
      conn {
       ConnectionsClass connections {
@@ -304,7 +299,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:31" {
      port 31
      conn {
       ConnectionsClass connections {
@@ -318,7 +313,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:34" {
      port 34
      conn {
       ConnectionsClass connections {
@@ -348,7 +343,6 @@ AudioClass {
    inputvaluesmax {
     1 9999 1 1 1 1
    }
-   path "{B0940E284D98C2C1}Sounds/_SharedData/Signals/Weapons/Weapon_UnderPlayerControl_1p_3p_Cam.sig"
   }
   SignalClass "334861" {
    id 334861
@@ -356,7 +350,7 @@ AudioClass {
    tl -480 -208
    res "{99482B186481AD82}Sounds/_SharedData/Signals/Weapons/Weapon_BodyManager_3_Distances.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:116" {
      port 116
      conn {
       ConnectionsClass connections {
@@ -370,7 +364,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:125" {
      port 125
      conn {
       ConnectionsClass connections {
@@ -400,7 +394,6 @@ AudioClass {
    inputvaluesmax {
     999 1 1 1 1 1 10000 1
    }
-   path "{99482B186481AD82}Sounds/_SharedData/Signals/Weapons/Weapon_BodyManager_3_Distances.sig"
   }
   SignalClass "403469" {
    id 403469
@@ -422,7 +415,6 @@ AudioClass {
    inputvaluesmax {
     500
    }
-   path "{43C50EB8DB8DE747}Sounds/_SharedData/Signals/Weapons/Weapon_Shooting_Directivity.sig"
   }
   SignalClass "405517" {
    id 405517
@@ -444,7 +436,6 @@ AudioClass {
    inputvaluesmax {
     1
    }
-   path "{FBFE5A427917A8B8}Sounds/_SharedData/Signals/Weapons/Weapon_Distance_HighPass_Global.sig"
   }
   SignalClass "407565" {
    id 407565
@@ -452,7 +443,7 @@ AudioClass {
    tl -502.435 1212.039
    res "{FBD98737879FB9A0}Sounds/_SharedData/Signals/SimpleHelpers/PitchStToGain_01.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:2" {
      port 2
      conn {
       ConnectionsClass connections {
@@ -482,7 +473,6 @@ AudioClass {
    inputvaluesmax {
     12
    }
-   path "{FBD98737879FB9A0}Sounds/_SharedData/Signals/SimpleHelpers/PitchStToGain_01.sig"
   }
   SignalClass "416781" {
    id 416781
@@ -504,7 +494,6 @@ AudioClass {
    inputvaluesmax {
     30 16000 1
    }
-   path "{7445F7FFC97C5515}Sounds/_SharedData/Signals/Weapons/Spatiality/Weapon_InteriorTailSpatiality.sig"
   }
   SignalClass "419853" {
    id 419853
@@ -526,7 +515,6 @@ AudioClass {
    inputvaluesmax {
     100 1 16000
    }
-   path "{D7C990E1701A2992}Sounds/_SharedData/Signals/Reverb/Reverb_Weapons.sig"
   }
   SignalClass "421901" {
    id 421901
@@ -548,7 +536,6 @@ AudioClass {
    inputvaluesmax {
     1
    }
-   path "{96AFB8206E4CF0E6}Sounds/_SharedData/Signals/OneSignal/UnderPlayerControl.sig"
   }
   SignalClass "438285" {
    id 438285
@@ -556,7 +543,7 @@ AudioClass {
    tl -544 1040
    res "{4C2550602ED48B3A}Sounds/Weapons/Rifles/BS5/multiply.sig"
    conns {
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:7" {
      port 7
      conn {
       ConnectionsClass connections {
@@ -570,7 +557,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:4" {
      port 4
      conn {
       ConnectionsClass connections {
@@ -584,7 +571,7 @@ AudioClass {
       }
      }
     }
-    IOPConnectionClass iopConnection {
+    IOPConnectionClass "iop:5" {
      port 5
      conn {
       ConnectionsClass connections {
@@ -614,7 +601,6 @@ AudioClass {
    inputvaluesmax {
     1 1 1 1
    }
-   path "{4C2550602ED48B3A}Sounds/Weapons/Rifles/BS5/multiply.sig"
   }
   SignalClass "441357" {
    id 441357
@@ -636,7 +622,6 @@ AudioClass {
    inputvaluesmax {
     1
    }
-   path "{A8D1E3C947B24A17}Sounds/_SharedData/Signals/BS5/BS5_UserSlapbackCloseVolume.sig"
   }
  }
  filters {
@@ -769,7 +754,7 @@ AudioClass {
   SoundClass "5129" : "{13C278F132A459F4}Sounds/_SharedData/Configs/Sound/Weapons/Sound_Weapons_Shot_556.conf" {
    id 5129
    version 5
-   tl 1552 928
+   tl 1556 934
    ctl 0 -21
    parent "{13C278F132A459F4}Sounds/_SharedData/Configs/Sound/Weapons/Sound_Weapons_Shot_556.conf"
    ins {
@@ -808,7 +793,7 @@ AudioClass {
    pi {
     54 0
    }
-   volume_dB 10
+   volume_dB 11
    type "One shot"
   }
  }
@@ -910,7 +895,6 @@ AudioClass {
    pi {
     503316482 0
    }
-   path "{B764D803219C775E}Sounds/FinalMix.afm"
    inputs {
     "WPN_Handling" "WPN_Shots" "WPN_Explosions" "WNP_BulletHits" "CHAR" "ENV_AMB_2D" "VEH_Animations" "Impacts" "Dialog" "ENV_Doors" "VEH_Engine" "VEH_Tires" "VON" "SFX" "SFX_Reverb_OBSOLETE" "VON_Reverb_Small" "Dialog_Reverb" "Impacts_EXT" "ENV_AMB_3D" "WPN_SonicCracks" "CHAR_Gear" "PA" "SFX_Reverb_Exterior" "ENV_AMB_3D_Reverb_Exterior" "SFX_Direct" "SFX_Reverb_Small" "SFX_Reverb_Medium" "SFX_Reverb_Large" "WPN_Shots_Player" "Dialog_Reverb_Small" "Dialog_Reverb_Medium" "Dialog_Reverb_Large" "WPN_TravelingProjectile" "Dialog_Delay_Exterior" "SFX_Reverb_InCabin" "VON_Reverb_Medium" "VON_Reverb_Large"
    }
@@ -1278,10 +1262,12 @@ AudioClass {
    }
    directivityFactor 0.5
   }
-  FrequencyClass "406549" : "{D947C5701B157919}Sounds/_SharedData/Configs/Frequency/Weapons/Frequency_Weapons_Main.conf" {
+  FrequencyClass "406549" {
    id 406549
+   name "Frequency_Weapons_Main"
    version 5
    tl -1088 768
+   parent "{D947C5701B157919}Sounds/_SharedData/Configs/Frequency/Weapons/Frequency_Weapons_Main.conf"
    ins {
     ConnectionsClass "con:4" {
      id 4
@@ -1297,9 +1283,12 @@ AudioClass {
     20 0
    }
    dynamicUpdate 1
+   enableDistanceAtt 1
    type AirAbsorption
    filterStrength 2
+   enableDirectivity 1
    directivityFactor 0.32
+   terrainEffects 1
   }
  }
  banks_local {
@@ -1331,7 +1320,6 @@ AudioClass {
    pi {
     35 0
    }
-   Volume 4
    "Volume variance" 0.2
    Pitch 3
    "Termination Fade Out" 100
@@ -1339,14 +1327,11 @@ AudioClass {
    Offset 30
    "Fade in time" 10
    Sustain 300
-   "Fade out time" 1000
+   "Fade out time" 2000
    Preload 1
    Samples {
-    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
-     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
-     Probability 100
-     Index 0
-     SampleMetadata ""
+    AudioBankSampleClass "tail_urban_city_close_04.wav" {
+     Filename "{85FED01DA1225A6A}Assets/Gunpowder/Tails/SC_Reflectors/tail_urban_city_close_04.wav"
     }
    }
   }
@@ -1378,7 +1363,7 @@ AudioClass {
    pi {
     35 0
    }
-   Volume -28
+   Volume -18
    Pitch 3
    "Termination Fade Out" 100
    Resampler FIR_4
@@ -1390,11 +1375,8 @@ AudioClass {
    "Disable streaming" 1
    Preload 1
    Samples {
-    AudioBankSampleClass "Shot_Generic_City_Far_5.wav" {
-     Filename "{C3414087C7053CB9}Assets/Gunpowder/Shot_Generic_City_Far_5.wav"
-     Probability 100
-     Index 0
-     SampleMetadata ""
+    AudioBankSampleClass "tail_urban_city_close_04.wav" {
+     Filename "{85FED01DA1225A6A}Assets/Gunpowder/Tails/SC_Reflectors/tail_urban_city_close_04.wav"
     }
    }
   }
@@ -1615,7 +1597,7 @@ AudioClass {
   }
  }
  groups {
-  GroupClass {
+  GroupClass "348163" {
    id 348163
    name "EnvLayer"
    children {
@@ -1624,7 +1606,7 @@ AudioClass {
    parent -1
    Color 0 0.333 0 0.251
   }
-  GroupClass {
+  GroupClass "350211" {
    id 350211
    name "BaseSignals"
    children {
@@ -1634,5 +1616,5 @@ AudioClass {
    Color 0.6 0.6 0.6 0.251
   }
  }
- version 1
+ version 2
 }

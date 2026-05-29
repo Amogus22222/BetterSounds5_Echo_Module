@@ -2621,6 +2621,7 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 
 		ApplyUrbanCandidatePressure(candidates, result, settings);
 		SortCandidatesByScore(candidates);
+		PromoteDiverseTailCandidate(candidates, settings);
 		result.m_iTailAnchorHits = candidates.Count();
 		result.m_bTailAnchorFallback = result.m_iSoundMapFallbackAnchors > 0;
 		ResolveSoundMapProfile(result, snapshot);
@@ -3859,6 +3860,10 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 		bool urbanPresent = result.m_iSoundMapCityHits > 0 || result.m_iTailForwardConfirmedFacades > 0 || result.m_iSoundMapUrbanMicroFacades > 0;
 		if (!urbanPresent)
 			return;
+		bool confirmedUrban = result.m_iTailForwardConfirmedFacades > 0 || result.m_iSoundMapUrbanMicroFacades > 0;
+		float urbanBoost = settings.GetSoundMapUrbanScoreBoost();
+		if (!confirmedUrban)
+			urbanBoost *= 0.45;
 
 		float bestUrbanDistance = 99999.0;
 		for (int i = 0; i < candidates.Count(); i++)
@@ -3870,12 +3875,12 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 				continue;
 			if (urbanCandidate.m_fDistance < bestUrbanDistance)
 				bestUrbanDistance = urbanCandidate.m_fDistance;
-			urbanCandidate.m_fScore = BS5_EchoMath.Clamp01(urbanCandidate.m_fScore + settings.GetSoundMapUrbanScoreBoost());
+			urbanCandidate.m_fScore = BS5_EchoMath.Clamp01(urbanCandidate.m_fScore + urbanBoost);
 			urbanCandidate.m_fZonePriority = BS5_EchoMath.MaxFloat(urbanCandidate.m_fZonePriority, 0.95);
 			urbanCandidate.m_fPhysicalScore = BS5_EchoMath.MaxFloat(urbanCandidate.m_fPhysicalScore, 0.90);
 		}
 
-		if (bestUrbanDistance >= 99998.0)
+		if (!confirmedUrban || bestUrbanDistance >= 99998.0)
 			return;
 
 		for (int j = 0; j < candidates.Count(); j++)
@@ -3893,6 +3898,73 @@ class BS5_SoundMapAnchorPlanner : BS5_HybridTailPlanner
 				penalty = 0.25;
 			candidate.m_fScore = BS5_EchoMath.Clamp01(candidate.m_fScore - penalty);
 		}
+	}
+
+	protected static void PromoteDiverseTailCandidate(array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings)
+	{
+		if (!candidates || !settings)
+			return;
+
+		int emitWindow = settings.GetMaxTailEmittersPerShot();
+		if (emitWindow < 2)
+			return;
+		if (emitWindow > candidates.Count())
+			emitWindow = candidates.Count();
+		if (emitWindow < 2)
+			return;
+
+		for (int i = 0; i < emitWindow; i++)
+		{
+			BS5_EchoReflectorCandidate visibleCandidate = candidates[i];
+			if (IsDiverseTailCandidate(visibleCandidate, settings))
+				return;
+		}
+
+		int promoteIndex = -1;
+		float promoteScore = 0.0;
+		float bestScore = 0.0;
+		if (candidates[0])
+			bestScore = candidates[0].m_fScore;
+
+		for (int j = emitWindow; j < candidates.Count(); j++)
+		{
+			BS5_EchoReflectorCandidate candidate = candidates[j];
+			if (!IsDiverseTailCandidate(candidate, settings))
+				continue;
+			if (candidate.m_fScore < bestScore * 0.55)
+				continue;
+			if (candidate.m_fScore <= promoteScore)
+				continue;
+
+			promoteScore = candidate.m_fScore;
+			promoteIndex = j;
+		}
+
+		if (promoteIndex < 0)
+			return;
+
+		BS5_EchoReflectorCandidate promoted = candidates[promoteIndex];
+		for (int k = promoteIndex; k > emitWindow - 1; k--)
+			candidates[k] = candidates[k - 1];
+		candidates[emitWindow - 1] = promoted;
+	}
+
+	protected static bool IsDiverseTailCandidate(BS5_EchoReflectorCandidate candidate, BS5_EchoDriverComponent settings)
+	{
+		if (!candidate || !candidate.m_bValid || !settings)
+			return false;
+
+		if (candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_RIDGE
+			|| candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_HIT
+			|| candidate.m_eSourceType == BS5_EchoCandidateSourceType.TERRAIN_PRIMARY)
+			return true;
+
+		if (candidate.m_eSourceType != BS5_EchoCandidateSourceType.SOUNDMAP_FOREST
+			&& candidate.m_eSourceType != BS5_EchoCandidateSourceType.SOUNDMAP_MEADOW)
+			return false;
+
+		float farFloor = BS5_EchoMath.MaxFloat(120.0, settings.GetSoundMapNearUrbanTailMaxDistanceMeters() * 0.72);
+		return candidate.m_fDistance >= farFloor;
 	}
 
 	protected static void SortCandidatesByScore(array<ref BS5_EchoReflectorCandidate> candidates)

@@ -1314,7 +1314,7 @@ class BS5_EchoEnvironmentAnalyzer
 			int nearLayerLimit = closeSettings.GetMaxCloseSlapbackEmittersPerShot(maxCandidates);
 			if (closeAccepted)
 				candidateLimit = nearLayerLimit;
-			nearLayerAccepted = TryInsertNearReflectionLayerCandidate(candidates, settings, closeSettings, result, origin, flatForward, nearReflection, nearLayerLimit);
+			nearLayerAccepted = TryInsertNearReflectionLayerCandidate(candidates, settings, closeSettings, result, origin, flatForward, nearReflection, nearLayerLimit, wallCandidates.Count());
 			if (nearLayerAccepted)
 				candidateLimit = nearLayerLimit;
 		}
@@ -1660,7 +1660,7 @@ class BS5_EchoEnvironmentAnalyzer
 		return "none";
 	}
 
-	protected static bool TryInsertNearReflectionLayerCandidate(notnull array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_CloseReflectionSettingsComponent closeSettings, BS5_EchoAnalysisResult result, vector origin, vector flatForward, BS5_NearReflectionSnapshot nearReflection, int candidateLimit)
+	protected static bool TryInsertNearReflectionLayerCandidate(notnull array<ref BS5_EchoReflectorCandidate> candidates, BS5_EchoDriverComponent settings, BS5_CloseReflectionSettingsComponent closeSettings, BS5_EchoAnalysisResult result, vector origin, vector flatForward, BS5_NearReflectionSnapshot nearReflection, int candidateLimit, int wallCandidateCount)
 	{
 		if (!settings || !closeSettings || !closeSettings.IsEnabled() || !result || !nearReflection || !nearReflection.m_bValid)
 			return false;
@@ -1711,10 +1711,29 @@ class BS5_EchoEnvironmentAnalyzer
 				&& nearReflection.m_fPairEvidence >= 0.60
 				&& nearReflection.m_fCoreCloseWeight >= 0.68
 				&& nearReflection.m_fDominantReflectWeight >= 0.70;
+			bool hardCornerCore = nearReflection.m_eScenario == BS5_NearReflectionScenario.CORNER
+				&& nearReflection.m_iLegacyAcceptedCount >= 4
+				&& nearReflection.m_iTraceCount > 0
+				&& (nearReflection.m_iTraceHits * 1.0) / nearReflection.m_iTraceCount >= 0.75
+				&& nearReflection.m_fDominantReflectWeight >= 0.62
+				&& nearReflection.m_fCornerEvidence >= 0.58
+				&& nearReflection.m_fConfinementScore >= 0.38;
+			bool denseCornerCore = nearReflection.m_eScenario == BS5_NearReflectionScenario.CORNER
+				&& nearReflection.m_iDominantSector == 0
+				&& wallCandidateCount >= 4
+				&& nearReflection.m_iLegacyAcceptedCount >= 4
+				&& nearReflection.m_iTraceCount > 0
+				&& (nearReflection.m_iTraceHits * 1.0) / nearReflection.m_iTraceCount >= 0.95
+				&& nearReflection.m_fDominantReflectWeight >= 0.70
+				&& nearReflection.m_fConfinementScore >= 0.40;
 			bool canopyCore = nearReflection.m_fCanopyEvidence >= 0.55 && (nearReflection.m_fConfinementScore >= 0.42 || nearReflection.m_fDominantReflectWeight >= 0.55);
-			if (coreScenario && (strongCore || corridorCore || broadCorridorCore || broadCornerCore || canopyCore))
+			if (coreScenario && (strongCore || corridorCore || broadCorridorCore || broadCornerCore || hardCornerCore || denseCornerCore || canopyCore))
 			{
 				support = BS5_EchoMath.MaxFloat(nearReflection.m_fCoreCloseWeight, nearReflection.m_fCanopyEvidence);
+				if (hardCornerCore)
+					support = BS5_EchoMath.MaxFloat(support, nearReflection.m_fCornerEvidence);
+				if (denseCornerCore)
+					support = BS5_EchoMath.MaxFloat(support, nearReflection.m_fDominantReflectWeight);
 				score = BS5_EchoMath.Clamp01((support * 0.58) + (nearReflection.m_fConfinementScore * 0.22) + (nearReflection.m_fDominantReflectWeight * 0.20));
 				if (score >= closeSettings.GetAcceptScoreMin() + thresholdOffset)
 					sourceType = BS5_EchoCandidateSourceType.SLAPBACK_CLOSE_CORE;

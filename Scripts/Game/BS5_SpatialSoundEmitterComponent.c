@@ -69,9 +69,11 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		{
 			m_SoundComponent.SetTransformation(transform);
 			m_SoundComponent.UpdateTrigger();
-			handle = m_SoundComponent.PlayStr(soundComponentEvent);
+			handle = m_SoundComponent.SoundEventTransform(soundComponentEvent, transform);
 			if (handle == -1)
-				handle = m_SoundComponent.SoundEventTransform(soundComponentEvent, transform);
+				handle = m_SoundComponent.SoundEvent(soundComponentEvent);
+			if (handle == -1)
+				handle = m_SoundComponent.PlayStr(soundComponentEvent);
 		}
 
 		if (debugEnabled)
@@ -320,7 +322,7 @@ class BS5_SpatialSoundEmitterComponent : ScriptComponent
 		}
 
 		// Push the same value directly to the sound graph so runtime-controlled
-		// gains are visible immediately on the same frame as PlayStr().
+		// gains are visible immediately on the same frame as playback.
 		if (m_SoundComponent)
 			m_SoundComponent.SetSignalValueStr(signalName, value);
 	}

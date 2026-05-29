@@ -963,7 +963,7 @@ AudioClass {
    }
    volume_dB 8
    priority 40
-   eventNoRepeatTimeMSec 200
+   type "One shot"
   }
  }
  buses {

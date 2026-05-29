@@ -964,6 +964,7 @@ AudioClass {
     54 0
    }
    volume_dB 3
+   type "One shot"
   }
  }
  buses {
